@@ -1,4 +1,4 @@
-# This file is used by clang-format to autoformat paddle source code
+# This file is used by clang-format to autoformat SocialBot source code
 #
 # The clang-format is part of llvm toolchain.
 # It need to install llvm and clang to format source code style.
