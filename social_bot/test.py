@@ -12,4 +12,4 @@ for i in range(100):
     # action = model.compute_action(observation)
     # agent.take_action(action)
     world.step()
-    input("Press Enter to step")
+    raw_input("Press Enter to step")
