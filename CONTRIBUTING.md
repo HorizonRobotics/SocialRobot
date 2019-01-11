@@ -7,6 +7,7 @@
 ```bash
 pip install pre-commit
 pip install cpplint
+pip install pydocstyle
 sudo apt install clang-format
 ```
 
@@ -15,6 +16,14 @@ sudo apt install clang-format
 pre-commit install
 ```
 
-4. Make changes and commit locally
+4. Make local changes
+```bash
+git co -b PR_change_name origin/master
+```
 
-5. git push and request PR at github
+Make change to your code and test
+
+5. Make pull request:
+```bash
+git push origin PR_change_name
+```
