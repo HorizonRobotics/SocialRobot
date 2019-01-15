@@ -45,6 +45,17 @@ class Agent {
       }
     }
   }
+
+  // return ((x,y,z), (roll, pitch, yaw))
+  std::tuple<std::tuple<double, double, double>,
+             std::tuple<double, double, double>>
+  GetPose() const {
+    auto pose = model_->WorldPose();
+    auto euler = pose.Rot().Euler();
+    return std::make_tuple(
+        std::make_tuple(pose.Pos().X(), pose.Pos().Y(), pose.Pos().Z()),
+        std::make_tuple(euler.X(), euler.Y(), euler.Z()));
+  }
 };
 
 class World {
@@ -144,7 +155,10 @@ PYBIND11_MODULE(social_bot, m) {
            "Take action for this agent, forces is a dictionary from joint name "
            "to force."
            " Return false if some joint name cannot be found",
-           py::arg("forces"));
+           py::arg("forces"))
+      .def("get_pose",
+           &Agent::GetPose,
+           "Get ((x,y,z), (roll, pitch, yaw)) of the agent");
 }
 
 }  // namespace social_bot
