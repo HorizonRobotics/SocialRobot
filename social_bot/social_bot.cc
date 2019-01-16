@@ -8,6 +8,10 @@
 #include <gazebo/physics/Model.hh>
 #include <gazebo/physics/World.hh>
 #include <gazebo/physics/physics.hh>
+#include <gazebo/rendering/Camera.hh>
+#include <gazebo/sensors/CameraSensor.hh>
+#include <gazebo/sensors/Sensor.hh>
+#include <gazebo/sensors/SensorManager.hh>
 #include <gazebo/sensors/SensorsIface.hh>
 
 #include <mutex>  // NOLINT
@@ -17,11 +21,31 @@ namespace py = pybind11;
 namespace social_bot {
 
 class Observation;
+
+class CameraObservation {
+ public:
+  CameraObservation(size_t width, size_t height, size_t depth, uint8_t* data)
+      : width_(width), height_(height), depth_(depth), data_(data) {}
+
+  uint8_t* data() const { return data_; }
+  size_t width() const { return width_; }
+  size_t height() const { return height_; }
+  size_t depth() const { return depth_; }
+
+ private:
+  size_t width_, height_, depth_;
+  uint8_t* data_;
+};
+
 class Action;
 
 class Model {
  protected:
   gazebo::physics::ModelPtr model_;
+  std::map<
+      std::string,
+      std::pair<gazebo::sensors::CameraSensorPtr, gazebo::rendering::CameraPtr>>
+      cameras_;
 
  public:
   typedef std::tuple<std::tuple<double, double, double>,
@@ -64,6 +88,41 @@ class Agent : public Model {
     }
     return names;
   }
+
+  CameraObservation GetCameraObservation(const std::string& sensor_scope_name) {
+    auto it = cameras_.find(sensor_scope_name);
+
+    if (it == cameras_.end()) {
+      gazebo::sensors::SensorManager* mgr =
+          gazebo::sensors::SensorManager::Instance();
+
+      gazebo::sensors::CameraSensorPtr sensor =
+          std::dynamic_pointer_cast<gazebo::sensors::CameraSensor>(
+              mgr->GetSensor(sensor_scope_name));
+
+      if (!sensor) {
+        std::cerr << "unable to find sensor: " << sensor_scope_name
+                  << std::endl;
+      }
+
+      auto camera = sensor->Camera();
+      auto ret = cameras_.insert(
+          std::make_pair(sensor_scope_name, std::make_pair(sensor, camera)));
+      it = ret.first;
+    }
+
+    auto sensor = (it->second).first;
+    auto camera = (it->second).second;
+
+    return CameraObservation(
+        sensor->ImageWidth(),
+        sensor->ImageHeight(),
+        camera->ImageDepth(),
+        // const char* => uint8_t*
+        const_cast<uint8_t*>(
+            reinterpret_cast<const uint8_t*>(sensor->ImageData())));
+  }
+
   bool TakeAction(const std::map<std::string, double>& forces) {
     auto controller = model_->GetJointController();
     for (const auto& name2force : forces) {
@@ -93,15 +152,36 @@ class World {
     }
     return std::make_unique<Agent>(world_->ModelByName(name));
   }
+
   std::unique_ptr<Model> GetModel(const std::string& name) {
     return std::make_unique<Model>(world_->ModelByName(name));
   }
+
   void Step(int num_steps) {
     gazebo::runWorld(world_, num_steps);
     gazebo::sensors::run_once();
   }
+
   void InsertModelFile(const std::string& fileName) {
     world_->InsertModelFile(fileName);
+  }
+
+  void Info() const {
+    std::cout << " ==== world info ==== " << std::endl;
+    for (auto model : world_->Models()) {
+      std::cout << "Model: " << model->GetName() << std::endl;
+      for (auto joint : model->GetJoints()) {
+        std::cout << "Joint: " << joint->GetScopedName() << std::endl;
+      }
+    }
+    gazebo::sensors::SensorManager* mgr =
+        gazebo::sensors::SensorManager::Instance();
+
+    for (auto sensor : mgr->GetSensors()) {
+      std::cout << " sensor name: " << sensor->Name()
+                << ", scoped name: " << sensor->ScopedName() << std::endl;
+    }
+    std::cout << " ======== " << std::endl;
   }
 
   void InsertModelFromSdfString(const std::string& sdfString) {
@@ -128,12 +208,6 @@ std::unique_ptr<World> NewWorldFromString(const std::string& std_string);
 
 std::unique_ptr<World> NewWorldFromFile(const std::string& world_file) {
   gazebo::physics::WorldPtr world = gazebo::loadWorld(world_file);
-  for (auto model : world->Models()) {
-    std::cout << "Model: " << model->GetName() << std::endl;
-    for (auto joint : model->GetJoints()) {
-      std::cout << "Joint: " << joint->GetScopedName() << std::endl;
-    }
-  }
   gazebo::sensors::run_once(true);
   StartSensors();
   return std::make_unique<World>(world);
@@ -170,10 +244,9 @@ PYBIND11_MODULE(social_bot, m) {
            &World::GetAgent,
            "Get an agent by name",
            py::arg("name") = "")
-      .def("get_model",
-           &World::GetModel,
-           "Get a model by name",
-           py::arg("name"));
+      .def(
+          "get_model", &World::GetModel, "Get a model by name", py::arg("name"))
+      .def("info", &World::Info, "show debug info for the world");
 
   py::class_<Model>(m, "Model")
       .def("get_pose",
@@ -182,6 +255,19 @@ PYBIND11_MODULE(social_bot, m) {
       .def("set_pose",
            &Model::SetPose,
            "Set ((x,y,z), (roll, pitch, yaw)) of the agent");
+
+  py::class_<CameraObservation>(m, "CameraObservation", py::buffer_protocol())
+      .def_buffer([](CameraObservation& m) -> py::buffer_info {
+        return py::buffer_info(m.data(),
+                               sizeof(uint8_t),
+                               py::format_descriptor<uint8_t>::format(),
+                               3,
+                               {m.height(), m.width(), m.depth()},
+                               // memory layout for image
+                               {sizeof(uint8_t) * m.width() * m.depth(),
+                                sizeof(uint8_t) * m.depth(),
+                                sizeof(uint8_t)});
+      });
 
   py::class_<Agent, Model>(m, "Agent")
       .def("get_joint_names",
@@ -192,7 +278,10 @@ PYBIND11_MODULE(social_bot, m) {
            "Take action for this agent, forces is a dictionary from joint name "
            "to force."
            " Return false if some joint name cannot be found",
-           py::arg("forces"));
+           py::arg("forces"))
+      .def("get_camera_observation",
+           &Agent::GetCameraObservation,
+           py::arg("sensor_scope_name"));
 }
 
 }  // namespace social_bot
