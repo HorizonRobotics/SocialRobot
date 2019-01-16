@@ -16,11 +16,11 @@ for i in range(1000000):
     # agent.take_action(action)
     agent.take_action({
         "pioneer2dx::pioneer2dx::right_wheel_hinge":
-        random.random() * 14
+        random.random() * 0.2
     })
     agent.take_action({
         "pioneer2dx::pioneer2dx::left_wheel_hinge":
-        random.random() * 14
+        random.random() * 0.2
     })
     len = random.randint(10, 50)
     for i in range(len):

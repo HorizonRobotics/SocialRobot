@@ -13,7 +13,7 @@
     <!-- Pioneer2dx model -->
     <model name="pioneer2dx">
       <include>
-        <uri>model://pioneer2dx</uri>
+        <uri>model://pioneer2dx_noplugin</uri>
       </include>
 
       <include>

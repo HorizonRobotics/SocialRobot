@@ -20,7 +20,7 @@ make -j
 ## To run test
 ```bash
 cd REPO_ROOT/socail_bot
-PYTHONPATH=`pwd`/../build/social_bot GAZEBO_PLUGIN_PATH=`pwd`/../build/social_bot python test.py
+PYTHONPATH=`pwd`/../build/social_bot GAZEBO_MODEL_PATH=`pwd`/../models GAZEBO_RESOURCE_PATH=`pwd`/../worlds python test.py
 ```
 
 ## Trouble shooting

@@ -74,7 +74,10 @@ class World {
     }
     return std::make_unique<Agent>(world_->ModelByName(name));
   }
-  void Step(int num_steps) { gazebo::runWorld(world_, num_steps); }
+  void Step(int num_steps) {
+    gazebo::runWorld(world_, num_steps);
+    gazebo::sensors::run_once();
+  }
   void InsertModelFile(const std::string& fileName) {
     world_->InsertModelFile(fileName);
   }
