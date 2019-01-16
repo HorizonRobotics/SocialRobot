@@ -19,11 +19,41 @@ namespace social_bot {
 class Observation;
 class Action;
 
-class Agent {
+class Model {
+ protected:
   gazebo::physics::ModelPtr model_;
 
  public:
-  explicit Agent(gazebo::physics::ModelPtr model) : model_(model) {}
+  typedef std::tuple<std::tuple<double, double, double>,
+                     std::tuple<double, double, double>>
+      Pose;
+
+  explicit Model(gazebo::physics::ModelPtr model) : model_(model) {}
+
+  // return ((x,y,z), (roll, pitch, yaw))
+  Pose GetPose() const {
+    auto pose = model_->WorldPose();
+    auto euler = pose.Rot().Euler();
+    return std::make_tuple(
+        std::make_tuple(pose.Pos().X(), pose.Pos().Y(), pose.Pos().Z()),
+        std::make_tuple(euler.X(), euler.Y(), euler.Z()));
+  }
+  void SetPose(const Pose& pose) {
+    auto loc = std::get<0>(pose);
+    auto rot = std::get<1>(pose);
+    ignition::math::Pose3d pose3d(std::get<0>(loc),
+                                  std::get<1>(loc),
+                                  std::get<2>(loc),
+                                  std::get<0>(rot),
+                                  std::get<1>(rot),
+                                  std::get<2>(rot));
+    model_->SetWorldPose(pose3d);
+  }
+};
+
+class Agent : public Model {
+ public:
+  explicit Agent(gazebo::physics::ModelPtr model) : Model(model) {}
   Observation* Sense();
   std::vector<std::string> GetJointNames() {
     std::vector<std::string> names;
@@ -45,17 +75,6 @@ class Agent {
       }
     }
   }
-
-  // return ((x,y,z), (roll, pitch, yaw))
-  std::tuple<std::tuple<double, double, double>,
-             std::tuple<double, double, double>>
-  GetPose() const {
-    auto pose = model_->WorldPose();
-    auto euler = pose.Rot().Euler();
-    return std::make_tuple(
-        std::make_tuple(pose.Pos().X(), pose.Pos().Y(), pose.Pos().Z()),
-        std::make_tuple(euler.X(), euler.Y(), euler.Z()));
-  }
 };
 
 class World {
@@ -73,6 +92,9 @@ class World {
       return nullptr;
     }
     return std::make_unique<Agent>(world_->ModelByName(name));
+  }
+  std::unique_ptr<Model> GetModel(const std::string& name) {
+    return std::make_unique<Model>(world_->ModelByName(name));
   }
   void Step(int num_steps) {
     gazebo::runWorld(world_, num_steps);
@@ -147,9 +169,21 @@ PYBIND11_MODULE(social_bot, m) {
       .def("get_agent",
            &World::GetAgent,
            "Get an agent by name",
-           py::arg("name") = "");
+           py::arg("name") = "")
+      .def("get_model",
+           &World::GetModel,
+           "Get a model by name",
+           py::arg("name"));
 
-  py::class_<Agent>(m, "Agent")
+  py::class_<Model>(m, "Model")
+      .def("get_pose",
+           &Model::GetPose,
+           "Get ((x,y,z), (roll, pitch, yaw)) of the agent")
+      .def("set_pose",
+           &Model::SetPose,
+           "Set ((x,y,z), (roll, pitch, yaw)) of the agent");
+
+  py::class_<Agent, Model>(m, "Agent")
       .def("get_joint_names",
            &Agent::GetJointNames,
            "Get the names of all the joints of this agent")
@@ -158,10 +192,7 @@ PYBIND11_MODULE(social_bot, m) {
            "Take action for this agent, forces is a dictionary from joint name "
            "to force."
            " Return false if some joint name cannot be found",
-           py::arg("forces"))
-      .def("get_pose",
-           &Agent::GetPose,
-           "Get ((x,y,z), (roll, pitch, yaw)) of the agent");
+           py::arg("forces"));
 }
 
 }  // namespace social_bot
