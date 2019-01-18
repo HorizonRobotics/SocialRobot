@@ -49,7 +49,6 @@ agent.get_joint_names()
 
 world.info()
 
-
 for i in range(10000000):
     # observation = agent.sense()
     # add reward and text to observation

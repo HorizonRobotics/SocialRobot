@@ -134,6 +134,7 @@ class Agent : public Model {
       }
     }
   }
+  void Reset() { model_->Reset(); }
 };
 
 class World {
@@ -281,7 +282,8 @@ PYBIND11_MODULE(social_bot, m) {
            py::arg("forces"))
       .def("get_camera_observation",
            &Agent::GetCameraObservation,
-           py::arg("sensor_scope_name"));
+           py::arg("sensor_scope_name"))
+      .def("reset", &Agent::Reset, "Reset to the initial state");
 }
 
 }  // namespace social_bot
