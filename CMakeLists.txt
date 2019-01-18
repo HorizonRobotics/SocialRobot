@@ -18,4 +18,4 @@ link_directories(${GAZEBO_LIBRARY_DIRS})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/pybind11/include)
 
-add_subdirectory(social_bot)
+add_subdirectory(pygazebo)

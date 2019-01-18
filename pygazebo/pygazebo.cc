@@ -42,10 +42,6 @@ class Action;
 class Model {
  protected:
   gazebo::physics::ModelPtr model_;
-  std::map<
-      std::string,
-      std::pair<gazebo::sensors::CameraSensorPtr, gazebo::rendering::CameraPtr>>
-      cameras_;
 
  public:
   typedef std::tuple<std::tuple<double, double, double>,
@@ -76,6 +72,9 @@ class Model {
 };
 
 class Agent : public Model {
+ private:
+  std::map<std::string, gazebo::sensors::CameraSensorPtr> cameras_;
+
  public:
   explicit Agent(gazebo::physics::ModelPtr model) : Model(model) {}
   Observation* Sense();
@@ -105,14 +104,12 @@ class Agent : public Model {
                   << std::endl;
       }
 
-      auto camera = sensor->Camera();
-      auto ret = cameras_.insert(
-          std::make_pair(sensor_scope_name, std::make_pair(sensor, camera)));
+      auto ret = cameras_.insert(std::make_pair(sensor_scope_name, sensor));
       it = ret.first;
     }
 
-    auto sensor = (it->second).first;
-    auto camera = (it->second).second;
+    auto sensor = it->second;
+    auto camera = sensor->Camera();
 
     return CameraObservation(
         sensor->ImageWidth(),
@@ -216,8 +213,8 @@ std::unique_ptr<World> NewWorldFromFile(const std::string& world_file) {
 
 std::unique_ptr<World> NewWorld();
 
-PYBIND11_MODULE(social_bot, m) {
-  m.doc() = "social_bot python API";
+PYBIND11_MODULE(pygazebo, m) {
+  m.doc() = "Gazebo python API";
 
   m.def("initialize",
         &Initialize,

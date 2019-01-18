@@ -1,4 +1,7 @@
 build/*
 Release/*
 Debug/*
+python/social_bot.egg-info/*
+python/social_bot/*.so
+__pycache__
 *~
