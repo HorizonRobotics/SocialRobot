@@ -8,6 +8,11 @@ register(
     entry_point='social_bot.envs:SimpleNavigation',
 )
 
+register(
+    id='SocialBot-CartPole-v0',
+    entry_point='social_bot.envs:CartPole',
+)
+
 
 def get_world_dir():
     return os.path.join(os.path.dirname(__file__), 'worlds')
