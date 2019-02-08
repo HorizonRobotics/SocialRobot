@@ -65,6 +65,7 @@ class TaskGroup(object):
                 self._current_task = None
                 self._is_idle = True
         except StopIteration:
+            task.close()
             self._current_task = None
             self._is_idle = True
             teacher_action = TeacherAction()

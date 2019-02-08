@@ -9,6 +9,11 @@ register(
 )
 
 register(
+    id='SocialBot-SimpleNavigationNoLanguage-v0',
+    entry_point='social_bot.envs:SimpleNavigationNoLanguage',
+)
+
+register(
     id='SocialBot-CartPole-v0',
     entry_point='social_bot.envs:CartPole',
 )
