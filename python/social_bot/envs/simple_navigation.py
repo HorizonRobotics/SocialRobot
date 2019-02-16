@@ -124,11 +124,15 @@ class SimpleNavigation(gym.Env):
     it will get reward -1.
     """
 
-    def __init__(self, with_language=True):
+    def __init__(self, with_language=True, port=None):
+        if port is None:
+            port = 0
+        gazebo.initialize(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(),
                          "pioneer2dx_camera.world"))
         self._agent = self._world.get_agent()
+        assert self._agent is not None
         logger.info("joint names: %s" % self._agent.get_joint_names())
         self._joint_names = self._agent.get_joint_names()
         self._teacher = teacher.Teacher(False)
@@ -216,8 +220,21 @@ class SimpleNavigation(gym.Env):
 
 
 class SimpleNavigationNoLanguage(SimpleNavigation):
-    def __init__(self):
-        super(SimpleNavigationNoLanguage, self).__init__(with_language=False)
+    def __init__(self, port=None):
+        super(SimpleNavigationNoLanguage, self).__init__(
+            with_language=False, port=port)
+
+
+class SimpleNavigationNoLanguageDiscreteAction(SimpleNavigationNoLanguage):
+    def __init__(self, port=None):
+        super(SimpleNavigationNoLanguageDiscreteAction,
+              self).__init__(port=port)
+        self._action_space = gym.spaces.Discrete(25)
+
+    def step(self, action):
+        control = [0.05 * (action // 5) - 0.1, 0.05 * (action % 5) - 0.1, 0.]
+        return super(SimpleNavigationNoLanguageDiscreteAction,
+                     self).step(control)
 
 
 def main():
@@ -239,5 +256,4 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    gazebo.initialize()
     main()

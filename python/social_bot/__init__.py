@@ -14,21 +14,25 @@ register(
 )
 
 register(
+    id='SocialBot-SimpleNavigationNoLanguageDiscreteAction-v0',
+    entry_point='social_bot.envs:SimpleNavigationNoLanguageDiscreteAction',
+)
+
+register(
     id='SocialBot-CartPole-v0',
     entry_point='social_bot.envs:CartPole',
 )
 
 
 def get_world_dir():
-    return os.path.join(os.path.dirname(__file__), 'worlds')
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'worlds')
 
 
 def get_model_dir():
-    return os.path.join(os.path.dirname(__file__), 'models')
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
 
 
 os.environ['GAZEBO_MODEL_PATH'] = get_model_dir() + ':' + os.environ.get(
     'GAZEBO_MODEL_PATH', '')
 
 from . import pygazebo
-pygazebo.initialize()
