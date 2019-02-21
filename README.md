@@ -30,7 +30,10 @@ pip3 install -e .
 cd REPO_ROOT/examples
 python3 test_simple_navigation.py
 ```
-To see the graphics, you can open another terminal and run `gzclient`
+To see the graphics, you can open another terminal and run
+```bash
+GAZEBO_MODEL_PATH=`pwd`/../python/social_bot/models gzclient
+```
 
 ## Trouble shooting
 You need to make sure the python you use matches the python found by cmake. You can check this by looking at REPO_ROOT/build/CMakeCache.txt
