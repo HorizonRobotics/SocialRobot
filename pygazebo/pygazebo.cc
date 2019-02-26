@@ -16,6 +16,7 @@
 #include <gazebo/sensors/SensorsIface.hh>
 #include <gazebo/util/LogRecord.hh>
 
+#include <stdlib.h>
 #include <mutex>  // NOLINT
 
 namespace py = pybind11;
@@ -270,8 +271,12 @@ class World {
   void Reset() { world_->Reset(); }
 };
 
-void Initialize(const std::vector<std::string>& args) {
+void Initialize(const std::vector<std::string>& args, int port = 0) {
   static std::once_flag flag;
+  if (port != 0) {
+    std::string uri = "localhost:" + std::to_string(port);
+    setenv("GAZEBO_MASTER_URI", uri.c_str(), 1);
+  }
   std::call_once(flag, [&args]() {
     gazebo::common::Console::SetQuiet(false);
     gazebo::setupServer(args);
@@ -286,6 +291,7 @@ void Initialize(const std::vector<std::string>& args) {
     {
       gazebo::util::LogRecordParams params;
       params.period = 1e300;  // In fact, we don't need to do logging.
+      // gazebo::util::LogRecord::Instance()->Init("pygazebo");
       gazebo::util::LogRecord::Instance()->Start(params);
     }
   });
@@ -313,7 +319,8 @@ PYBIND11_MODULE(pygazebo, m) {
   m.def("initialize",
         &Initialize,
         "Initialize",
-        py::arg("args") = std::vector<std::string>());
+        py::arg("args") = std::vector<std::string>(),
+        py::arg("port") = 0);
 
   // Global functions
   m.def("new_world_from_file",
