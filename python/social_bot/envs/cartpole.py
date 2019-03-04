@@ -50,6 +50,7 @@ class CartPole(gym.Env):
     """
 
     def __init__(self, x_threshold=5, theta_threshold=0.314, noise=0.001):
+        gazebo.initialize(port=0)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "cartpole.world"))
 
@@ -123,5 +124,4 @@ def main():
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    gazebo.initialize()
     main()
