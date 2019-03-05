@@ -18,48 +18,59 @@ class ReplayBuffer(object):
         self._buffer_size = buffer_size
         self._history_length = history_length
         self._future_length = future_length
-        self._buffer = deque(maxlen=buffer_size)
+        self._buffer = [None] * buffer_size
         self._previous_done = 0  # how long ago is the previous done
         # number of experience whose do_not_sample is False
         self._num_valid_experiences = 0
-        self._do_not_sample_flags = deque(maxlen=buffer_size)
+        self._do_not_sample_flags = [False] * buffer_size
+        self._current_idx = 0
+        self._num_samples = 0
 
     def get_experience(self, index):
-        return self._buffer[index]
+        return self._buffer[self._idx_to_location(index)]
 
     @property
     def initial_priority(self):
         return 1.0
 
     def __getitem__(self, index):
-        return self._buffer[index]
+        return self._buffer[self._idx_to_location(index)]
 
     def __setitem__(self, index, e):
-        self._buffer[index] = e
+        self._buffer[self._idx_to_location(index)] = e
 
     def __len__(self):
         """Return the current size of internal memory."""
-        return len(self._buffer)
+        return self._num_samples
 
     def add_experience(self, experience):
         """
         Add a new experience to memory. experience is an object which has 'done' attribute
         indicating the end of an episode.
         """
-        if (len(self._buffer) == self._buffer_size
-                and not self._do_not_sample_flags[0]):
+        if (self._num_samples == self._buffer_size
+                and not self._do_not_sample_flags[self._current_idx]):
             self._num_valid_experiences -= 1
 
+        if self._num_samples == self._buffer_size:
+            self._current_idx += 1
+            if self._current_idx >= self._buffer_size:
+                self._current_idx = 0
+        else:
+            self._num_samples += 1
+
+        loc = self._idx_to_location(self._num_samples - 1)
         if self._previous_done < self._history_length:
             priority = 0
-            self._do_not_sample_flags.append(True)
+            self._do_not_sample_flags[loc] = True
         else:
             priority = None
-            self._do_not_sample_flags.append(False)
+            self._do_not_sample_flags[loc] = False
             self._num_valid_experiences += 1
+
         self._add_sample(priority)
 
-        self._buffer.append(experience)
+        self._buffer[loc] = experience
         if experience.done:
             self._previous_done = 0
         else:
@@ -81,9 +92,9 @@ class ReplayBuffer(object):
         is_weights = []
         while len(indices) < num:
             idx = random.randint(self._history_length,
-                                 len(self._buffer) - self._future_length - 1)
+                                 self._num_samples - self._future_length - 1)
             weight = 1.
-            if self._do_not_sample_flags[idx]:
+            if self._do_not_sample_flags[self._idx_to_location(idx)]:
                 continue
             indices.append(idx)
             is_weights.append(weight)
@@ -109,7 +120,7 @@ class ReplayBuffer(object):
         batch_features = []
         for idx in indices:
             exps = [
-                self._buffer[i]
+                self._buffer[self._idx_to_location(i)]
                 for i in range(idx - self._history_length, idx +
                                self._future_length + 1)
             ]
@@ -124,6 +135,18 @@ class ReplayBuffer(object):
 
         return batch_features, indices, np.vstack(is_weights).astype(
             np.float32)
+
+    def _idx_to_location(self, idx):
+        idx += self._current_idx
+        if idx >= self._buffer_size:
+            idx -= self._buffer_size
+        return idx
+
+    def _location_to_idx(self, loc):
+        loc -= self._current_idx
+        if loc < 0:
+            loc += self._buffer_size
+        return loc
 
     def _add_sample(self, priority=None):
         """
@@ -150,7 +173,6 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self._min_tree = MinSegmentTree(buffer_size)
         for i in range(buffer_size):
             self._min_tree[i] = 1.0
-        self._current_idx = 0
         self._max_priority = 1.0
 
     @property
@@ -158,44 +180,32 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         return self._max_priority
 
     def get_priority(self, idx):
-        idx = self._buffer_idx_to_tree_idx(idx)
+        idx = self._idx_to_location(idx)
         return self._sum_tree[idx]
 
     def update_priority(self, indices, priorities):
         for idx, priority in zip(indices, priorities):
-            idx = self._buffer_idx_to_tree_idx(idx)
+            idx = self._idx_to_location(idx)
             self._sum_tree[idx] = priority
             self._min_tree[idx] = priority
             self._max_priority = max(self._max_priority, priority)
-
-    def _buffer_idx_to_tree_idx(self, idx):
-        idx += self._current_idx
-        if idx >= self._buffer_size:
-            idx -= self._buffer_size
-        return idx
-
-    def _tree_idx_to_buffer_idx(self, idx):
-        idx -= self._current_idx
-        if idx < 0:
-            idx += self._buffer_size
-        return idx
 
     def get_sample_indices(self, num):
         indices = []
         weights = []
         total = self._sum_tree.summary()
         min_idx = self._history_length
-        max_idx = len(self._buffer) - self._future_length - 1
+        max_idx = self._num_samples - self._future_length - 1
         min_priority = self._min_tree.summary()
         while len(indices) < num:
             n_remaining = num - len(indices)
             for i in range(n_remaining):
                 r = total * (i + random.random()) / n_remaining
-                idx = self._sum_tree.find_sum_bound(r)
-                priority = self._sum_tree[idx]
-                idx = self._tree_idx_to_buffer_idx(idx)
+                loc = self._sum_tree.find_sum_bound(r)
+                priority = self._sum_tree[loc]
+                idx = self._location_to_idx(loc)
                 if idx < min_idx or idx > max_idx or self._do_not_sample_flags[
-                        idx]:
+                        loc]:
                     continue
                 indices.append(idx)
                 weights.append(min_priority / priority)
@@ -204,13 +214,7 @@ class PrioritizedReplayBuffer(ReplayBuffer):
     def _add_sample(self, priority=None):
         if priority is None:
             priority = self._max_priority
-        if len(self._buffer) == self._buffer_size:
-            idx = self._current_idx
-            self._current_idx += 1
-            if self._current_idx >= self._buffer_size:
-                self._current_idx = 0
-        else:
-            idx = len(self._buffer)
+        idx = self._idx_to_location(self._num_samples - 1)
         self._sum_tree[idx] = priority
         if priority > 0:
             self._min_tree[idx] = priority

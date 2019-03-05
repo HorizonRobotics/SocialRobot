@@ -2,7 +2,7 @@
 
 import unittest
 import random
-from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+from social_bot.util.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from collections import namedtuple
 
 Experience = namedtuple("Experience", field_names=["state", "action", "done"])
