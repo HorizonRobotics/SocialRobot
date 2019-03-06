@@ -32,11 +32,11 @@ class GoalTask(teacher.Task):
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5):
         """
-        Arguments
-            max_steps(int): episode will end if not reaching gaol in so many steps
-            goal_name(string): name of the goal in the world
-            success_distance_thresh(float): the goal is reached if it's within this distance to the agent
-            fail_distance_thresh(float): if the agent moves away from the goal more than this distance,
+        Args:
+            max_steps (int): episode will end if not reaching gaol in so many steps
+            goal_name (string): name of the goal in the world
+            success_distance_thresh (float): the goal is reached if it's within this distance to the agent
+            fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is givne reward -1
         """
         self._goal_name = goal_name
@@ -47,9 +47,9 @@ class GoalTask(teacher.Task):
     def run(self, agent, world):
         """
         Start a teaching episode for this task.
-        Arguments
-            agent(pygazebo.Agent): the learning agent 
-            world(pygazebo.World): the simulation world
+        Args:
+            agent (pygazebo.Agent): the learning agent 
+            world (pygazebo.World): the simulation world
         """
         agent_sentence = yield
         agent.reset()
@@ -106,9 +106,9 @@ class DiscreteSequence(gym.Space):
 
     def __init__(self, vocab_size, max_length):
         """
-        Arguments
-            vocab_size(int): number of different tokens
-            max_length(int): maximal length of the sequence
+        Args:
+            vocab_size (int): number of different tokens
+            max_length (int): maximal length of the sequence
         """
         super()
         self._vocab_size = vocab_size
@@ -158,7 +158,7 @@ class SimpleNavigation(gym.Env):
                     dtype=np.float32),
                 sentence=DiscreteSequence(256, 20))
         else:
-            self._observation_space = image = gym.spaces.Box(
+            self._observation_space = gym.spaces.Box(
                 low=0, high=1, shape=image.shape, dtype=np.uint8)
             self._action_space = gym.spaces.Box(
                 low=-0.2,
@@ -180,12 +180,12 @@ class SimpleNavigation(gym.Env):
 
     def step(self, action):
         """
-        Arguments
-            action(dict|int): If with_language, action is a dictionary with key "control" and "sentence".
+        Args:
+            action (dict|int): If with_language, action is a dictionary with key "control" and "sentence".
                     action['control'] is a vector whose dimention is
                     len(_joint_names). action['sentence'] is a string.
                     If not with_language, it is an int for the action id.
-        Returns
+        Returns:
             If with_language, it is a dictionary with key 'obs' and 'sentence'
             If not with_language, it is a numpy.array for observation
         """

@@ -34,18 +34,18 @@ class Options(object):
     resized_image_size = (84, 84)
 
     # use nstep reward for updating Q values
-    nstep_reward = 3
+    nstep_reward = 10
 
     # update model every so many steps
     learn_freq = 4
 
     # starts to update model after so many steps
-    learn_start = 10000
+    learn_start = 80000
 
     batch_size = 64
 
     # update Q value target net every so many steps
-    target_net_update_freq = 20000
+    target_net_update_freq = 40000
 
     # use this device for computation
     device = torch.device("cuda:1")
@@ -73,7 +73,7 @@ class Options(object):
     # action_discretize_levels = 6
 
     # Prioritized Experience Replay: https://arxiv.org/pdf/1511.05952.pdf
-    use_prioiritized_replay = True
+    use_prioritized_replay = False
     prioritized_replay_eps = 1e-6
     prioritized_replay_alpha = 0.5
     prioritized_replay_beta0 = 0.3
@@ -82,11 +82,11 @@ class Options(object):
     # It scales the priority from above by (1+d)**(-gamma), where d is how many steps in
     # the future a non-zero rewad will be encountered. It is gamma linearly decreases
     # from gamma0 to 0 towards the end of the training.
-    prioritized_replay_gamma0 = 1.
+    prioritized_replay_gamma0 = 0.3
 
     log_freq = 10000
     save_freq = 100000
-    model_dir = '/tmp/train_simple_navigation/ema_r_prioritized_replay_3step'
+    model_dir = '/tmp/train_simple_navigation/ema_r_10step'
 
     show_param_stats_freq = 10000
 
@@ -95,8 +95,8 @@ def main(options):
     """
     The entrance of the program
     
-    Arguments
-        options(Options): options
+    Args:
+        options (Options): options
     """
     for attr in dir(options):
         if not attr.startswith('__'):
@@ -200,7 +200,7 @@ class QAgent(object):
             self._acting_net.parameters(), lr=options.learning_rate)
         self._episode_steps = 0
         self._total_steps = 0
-        C = PrioritizedReplayBuffer if options.use_prioiritized_replay else ReplayBuffer
+        C = PrioritizedReplayBuffer if options.use_prioritized_replay else ReplayBuffer
         self._replay_buffer = C(
             options.replay_buffer_size,
             options.history_length,
@@ -222,9 +222,9 @@ class QAgent(object):
     def act(self, obs, reward):
         """
         Calcuate the action for the current step
-        Arguments:
-            obs(np.array): observation for the current step
-            reward(float): reward received for the previous step
+        Args:
+            obs (np.array): observation for the current step
+            reward (float): reward received for the previous step
         Returns:
             int: action id
         """
@@ -250,6 +250,8 @@ class QAgent(object):
             q = q_values[action]
             if self._options.ema_reward_alpha > 0:
                 q += self.calc_ema_reward()
+            self._sum_act_q += q
+            self._num_act_q += 1
 
         self._total_steps += 1
         self._episode_steps += 1
@@ -302,11 +304,11 @@ class QAgent(object):
         """
         Perform one stap of learning
         
-        Arguments
-            obs(np.array): The observation
-            action(int): Action taken at this step
-            reward(float): Reward received for this step
-            done(bool): Whether reached the end of an episode
+        Args:
+            obs (np.array): The observation
+            action (int): Action taken at this step
+            reward (float): Reward received for this step
+            done (bool): Whether reached the end of an episode
         """
         self._ema_c = self._options.ema_reward_alpha * (
             self._options.discount_factor * self._ema_c - 1) + 1
@@ -338,7 +340,8 @@ class QAgent(object):
         _, a = torch.max(qs_next, dim=1)
         q_target = qs_target[torch.arange(batch_size, dtype=torch.long), a]
         q_target = q_target.reshape(batch_size, 1) + ema_reward
-        q_target = rewards + options.discount_factor * q_target * (1 - dones)
+        q_target = rewards + (options.discount_factor**
+                              options.nstep_reward) * q_target * (1 - dones)
 
         self._acting_net.train()
         qs = self._acting_net.calc_q_values(inputs)
@@ -349,7 +352,7 @@ class QAgent(object):
         # minimize the loss
         q_target = q_target.detach()
         td_error = q - q_target
-        loss = td_error * td_error
+        loss = F.smooth_l1_loss(q, q_target, reduction='none')
         priorities = abs(td_error.cpu().detach().numpy()).reshape(-1)
         priorities = (priorities + options.prioritized_replay_eps
                       )**options.prioritized_replay_alpha
@@ -357,7 +360,7 @@ class QAgent(object):
         reward_dist = reward_dist.cpu().detach().numpy().reshape(-1)
         priorities = priorities * (1 + reward_dist)**(-gamma)
         self._replay_buffer.update_priority(indices, priorities)
-        loss = torch.mean(loss * is_weights)
+        loss = 2 * torch.mean(loss * is_weights)
         self._optimizer.zero_grad()
         loss.backward()
         self._optimizer.step()
@@ -397,11 +400,13 @@ class QAgent(object):
         stats += " exp_rate=%.3g" % self.get_exploration_rate()
         if self._options.ema_reward_alpha > 0:
             stats += " ema_r=%.3g" % (self.calc_ema_reward())
+        stats += " avg_act_q=%.3g" % (self._sum_act_q / self._num_act_q)
         if self._batches > 0:
             stats += " avg_loss=%.3g" % (self._sum_loss / self._batches)
             stats += " avg_r=%.3g" % (self._sum_r / self._batches)
             stats += " avg_q=%.3g" % (self._sum_q / self._batches)
             stats += " avg_qt=%.3g" % (self._sum_q_target / self._batches)
+        if self._batches > 0 and self._options.use_prioritized_replay:
             stats += " WEIGHTED"
             stats += " avg_loss=%.3g" % (self._sum_loss * self._options.
                                          batch_size / self._sum_is_weights)
@@ -414,6 +419,8 @@ class QAgent(object):
         return stats
 
     def reset_stats(self):
+        self._sum_act_q = 0.
+        self._num_act_q = 0.
         self._sum_loss = 0.
         self._sum_r = 0.
         self._sum_r_weighted = 0.
@@ -471,8 +478,8 @@ def show_parameter_stats(module):
     """
     Show the parameter statistics for the neural net module
     
-    Arguments
-        module(nn.Module): the statistics of this module will be shown.
+    Args:
+        module (nn.Module): the statistics of this module will be shown.
     """
     for name, para in module.named_parameters():
         if para.grad is None:
@@ -551,6 +558,9 @@ class Network(nn.Module):
         adjust = value - mean_q
         q_values = q_values + adjust
         return q_values
+
+    def __call__(self, state):
+        return self.calc_q_values()
 
 
 if __name__ == "__main__":
