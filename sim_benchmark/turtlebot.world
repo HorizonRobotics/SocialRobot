@@ -1,0 +1,44 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <world name="default">
+    <physics type="bullet">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>0</real_time_update_rate>
+    </physics>
+    <!-- Ground -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+    <!-- A global light source -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- turtlebot model -->
+    <model name="turtlebot">
+      <include>
+        <uri>./robot_df/turtlebot</uri>
+      </include>
+    </model>
+
+
+    <model name="box">
+      <static>1</static>
+      <pose>1.5 0 0.1 0 0 0</pose>
+      <link name ="link">
+        <pose>0 0 0 0 0 0</pose>
+        <collision name ="collision">
+          <geometry>
+            <box><size>0.2 2.8 0.2</size></box>
+          </geometry>
+        </collision>
+        <visual name ='visual'>
+          <geometry>
+            <box><size>0.2 2.8 0.2</size></box>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>
