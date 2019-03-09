@@ -9,7 +9,7 @@ import time
 import psutil
 import os
 
-enable_camera = True
+enable_camera = False
 
 bot.initialize()
 

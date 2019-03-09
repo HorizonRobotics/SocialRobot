@@ -44,5 +44,6 @@ See also the [PyBullet Quickstart Guide](https://docs.google.com/document/d/10sX
 
 # Note
 Change the mesh file path to absoulte path in model.urdf file at robot_df/turtlebot/
+
 Pybullet working with relative path , but gazebo not.
 
