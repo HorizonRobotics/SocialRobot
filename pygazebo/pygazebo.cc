@@ -167,10 +167,9 @@ class Agent : public Model {
   }
 
   // TODO: this is not the correct way to expose contacts from gazebo
-  // there are at least two different ways to do that
-  // 1) call back.
-  // 2) sensor -> collision_cnt -> enumerate through collision index
-  //      to get collision scoped name to figure out collided links.
+  // we could expose api to check whether two links are in contact,
+  // the other way of registering async callback does not seem to fit
+  // in the current pygazebo interface.
   unsigned int GetCollisionCount(const std::string& contact_sensor_name) {
     auto it = contacts_.find(contact_sensor_name);
 

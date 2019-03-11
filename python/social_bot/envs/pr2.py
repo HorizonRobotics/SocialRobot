@@ -20,12 +20,37 @@ def rgb2gray(rgb):
 
 
 class Pr2Gripper(gym.Env):
+    """
+    The goal of this task is to train the agent to use its arm and fingers.
+
+    All the joints in the right arm of PR2 are controllable by force,
+    the observations are the image taken from head camera, the goal could be
+    blocked by agent's own arm.
+
+    The goal position will be randomly placed in front of the agent at start of each
+    episode.
+
+    In the version:
+    * agent will receive +1 reward every timestep the goal lifts off the groud
+    * agent will receive -0.01 reward every timestep
+    * agent will receive 1.2 - finger_tip_to_goal distance at the end of episode
+
+    currently, the agent only learns to use arm/hand to play bat to hit the goal
+    off the ground.
+
+    """
     def __init__(self,
                  goal_name='beer',
                  max_steps=100,
-                 success_distance_thresh=0.4,
                  reward_shaping=True,
                  port=None):
+        """
+        Args:
+            goal_name (string): name of the object to lift off ground
+            max_steps (int): episode will end when the agent exceeds the number of steps.
+            reward_shaping (boolean): whether it adds distance based reward shaping.
+            port: Gazebo port, need to specify when run multiple environment in parallel
+        """
 
         if port is None:
             port = 0
@@ -40,12 +65,11 @@ class Pr2Gripper(gym.Env):
         self._world.info()
         self._r_arm_joints = list(
             filter(lambda s: s.find('pr2::r_') != -1, self._all_joints))
-        print("right arms to control", self._r_arm_joints)
+        logger.info("joints in the right arm to control: %s" % self._r_arm_joints)
 
         self._goal_name = goal_name
         self._goal = self._world.get_agent(self._goal_name)
         self._max_steps = max_steps
-        self._success_distance_thresh = success_distance_thresh
         self._steps_in_this_episode = 0
         self._reward_shaping = reward_shaping
         self._resized_image_size = (84, 84)
@@ -53,10 +77,6 @@ class Pr2Gripper(gym.Env):
         self._prev_dist = self._get_finger_tip_distance()
         self._collision_cnt = 0
         self._cum_reward = 0.0
-        # self._teacher = teacher.Teacher(False)
-        # task_group = teacher.TaskGroup()
-        # task_group.add_task(GripTask())
-        # self._teacher.add_task_group(task_group)
 
         img = self._get_observation()
         self.observation_space = gym.spaces.Box(
@@ -95,24 +115,20 @@ class Pr2Gripper(gym.Env):
         obs = PIL.Image.fromarray(rgb2gray(obs)).resize(
             self._resized_image_size, PIL.Image.ANTIALIAS)
 
-        obs = np.reshape(np.array(obs), [84, 84, 1])
-        #print(obs.shape)
+        obs = np.reshape(np.array(obs),
+                         [self._resized_image_size[0], self._resized_image_size[1], 1])
         return obs
 
     def _get_finger_tip_distance(self):
         loc, _ = self._goal.get_pose()
         goal_loc = np.array(loc)
-        #import pdb; pdb.set_trace()
         finger_tip_loc, _ = self._agent.get_link_pose(
             "pr2::pr2::r_gripper_l_finger_tip_link")
 
-        #print(self._steps_in_this_episode,  finger_tip_loc)
         dist = np.linalg.norm(np.array(finger_tip_loc) - np.array(goal_loc))
         return dist
 
     def step(self, action):
-        #import pdb; pdb.set_trace()
-        sentence = ''
         controls = dict(zip(self._r_arm_joints, action))
 
         self._agent.take_action(controls)
@@ -133,7 +149,6 @@ class Pr2Gripper(gym.Env):
         collision_cnt = self._goal.get_collision_count("beer_contact")
         if collision_cnt > 1:
             logger.debug("collide_cnt:" + str(collision_cnt))
-            reward += 1
 
         goal_loc, _ = self._goal.get_pose()
 
@@ -147,16 +162,17 @@ class Pr2Gripper(gym.Env):
             logger.debug("episode ends at dist: " + str(dist) +
                          " with cum reward:" + str(self._cum_reward))
 
-        #print(self._steps_in_this_episode, ":", shape_reward, ":", dist, ":", goal_move_reward, ":", self._cum_reward)
         self._prev_dist = dist
         return obs, reward, done, {}
 
     def run(self):
         while True:
-            self._world.step(200)
-            obs = self._get_observation()
+            actions = np.random.randn(len(self._r_arm_joints))
+            obs, _, done, _ = self.step(actions)
             plt.imshow(obs[:, :, 0], cmap='gray')
             plt.pause(0.001)
+            if done:
+                self.reset()
 
     def render(self, mode='human'):
         return
@@ -164,34 +180,7 @@ class Pr2Gripper(gym.Env):
 
 def main():
     env = Pr2Gripper()
-    env.reset()
     env.run()
-
-
-def main2():
-    world = gazebo.new_world_from_file(
-        os.path.join(social_bot.get_world_dir(), "pr2.world"))
-
-    agent = world.get_agent()
-    all_joints = agent.get_joint_names()
-
-    r_arm_joints = list(
-        filter(lambda s: s.find('pr2::r_') != -1 and s.find('gripper') == -1,
-               all_joints))
-
-    world.info()
-
-    print('\n'.join(r_arm_joints))
-
-    idx = 0
-    while True:
-        joint = r_arm_joints[idx % len(r_arm_joints)]
-        f = 20 if random.random() < 0.5 else -20
-        print("force:", f, ' on ', joint)
-        for j in range(20):
-            agent.set_joint_force(joint, f)
-            world.step(100)
-        idx += 1
 
 
 if __name__ == "__main__":

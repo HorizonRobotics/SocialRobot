@@ -33,6 +33,4 @@ def eval_ppo2():
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
-    logging.getLogger().addHandler(
-        logging.FileHandler(filename='/home/taoxu/models/pr2/train.log'))
-    eval_ppo2_lstm()
+    ppo2_lstm()
