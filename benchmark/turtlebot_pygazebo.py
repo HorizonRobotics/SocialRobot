@@ -10,13 +10,14 @@ import psutil
 import os
 
 enable_camera = False
+show_image = enable_camera & False
 
 bot.initialize()
 
 if enable_camera:
-    world = bot.new_world_from_file("./turtlebot_camera.world")
+    world = bot.new_world_from_file("../python/social_bot/worlds/turtlebot_camera.world")
 else:
-    world = bot.new_world_from_file("./turtlebot.world")
+    world = bot.new_world_from_file("../python/social_bot/worlds/turtlebot.world")
 
 world.info()
 agent = world.get_agent()
@@ -42,13 +43,12 @@ for i in range(10000000):
         obs = agent.get_camera_observation(
             "default::turtlebot::camera::link::camera")        
         npdata = np.array(obs, copy=False)
-        """
-        if fig is None:
-            fig = plt.imshow(npdata)
-        else:
-            fig.set_data(npdata)
-        plt.pause(0.00001)
-        """
+        if show_image:
+            if fig is None:
+                fig = plt.imshow(npdata)
+            else:
+                fig.set_data(npdata)
+            plt.pause(0.00001)
     if (i+1) % interval == 0:
         print("steps=%s" % interval +
                      " frame_rate=%s" % (interval / (time.time() - t0)))

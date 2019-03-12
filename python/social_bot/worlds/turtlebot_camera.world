@@ -32,13 +32,6 @@
                     <izz>0.000166667</izz>
                   </inertia>
           </inertial>
-          <collision name="collision">
-                  <geometry>
-                    <box>
-          <size>0.01 0.01 0.01</size>
-                    </box>
-                  </geometry>
-          </collision>
           <visual name="visual">
                   <geometry>
                     <box>
@@ -77,23 +70,5 @@
       </joint>
     </model>
 
-
-    <model name="box">
-      <static>1</static>
-      <pose>1.5 0 0.1 0 0 0</pose>
-      <link name ="link">
-        <pose>0 0 0 0 0 0</pose>
-        <collision name ="collision">
-          <geometry>
-            <box><size>0.2 2.8 0.2</size></box>
-          </geometry>
-        </collision>
-        <visual name ='visual'>
-          <geometry>
-            <box><size>0.2 2.8 0.2</size></box>
-          </geometry>
-        </visual>
-      </link>
-    </model>
   </world>
 </sdf>
