@@ -7,26 +7,22 @@ The scene is a turtlebot with 2 randomly moving wheels and a camera sensor.
 
 Pybullet incompatible sensors and plugins were removed from the turtlebot urdf file. The model file contains 2 continuous joints and 30 fixed joints.
 
-# Test Result  ( Core i9-7960X@2.8Ghz, RTX 2080 Ti)
+
+# Test Result ( Core i7-6700HQ@2.6Ghz, GTX970M)
 Note there are 100 substeps per one step
 
-Turtlebot pyBullet without camera sensor:
-11.5 steps/second
+Turtlebot pyBullet without camera sensor (enable_bt_rigid_body = True):
+268 steps/second
 
 Turtlebot pyBullet with camera sensor (image rendered by OpenGL) :
-15 steps/second
-
-Turtlebot pyBullet with camera sensor (image rendered by CPU) :
-14.50 steps/second
+30 steps/second
 
 
 Turtlebot pyGazebo without camera sensor:
-175 steps/second
+185 steps/second
 
 Turtlebot pyGazebo with camera sensor:
-98 steps/second
-
-
+104 steps/second
 
 # btMultiBody and btRigidBody
 
