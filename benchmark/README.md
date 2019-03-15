@@ -14,14 +14,14 @@ Note there are 100 substeps per one step
 Turtlebot pyBullet without camera sensor (enable_bt_rigid_body = True):
 268 steps/second
 
-Turtlebot pyBullet with camera sensor (image rendered by OpenGL) :
-30 steps/second
+Turtlebot pyBullet with camera sensor (image rendered by OpenGL, disbale GUI rendering) :
+320x240 - 65 steps/second   160x120 - 112 steps/second
 
 
 Turtlebot pyGazebo without camera sensor:
 185 steps/second
 
-Turtlebot pyGazebo with camera sensor:
+Turtlebot pyGazebo with camera sensor (320x240):
 104 steps/second
 
 # btMultiBody and btRigidBody
