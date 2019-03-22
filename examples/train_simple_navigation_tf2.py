@@ -1,6 +1,8 @@
 # Copyright (c) 2019 Horizon Robotics. All Rights Reserved.
 """
 A demonstration of Q learning for simple_navigation environment
+It is the same as train_simple_navigation.py but implemented in tensorflow 2.0
+
 """
 
 import gym
@@ -15,12 +17,10 @@ import PIL
 from social_bot.util.replay_buffer import PrioritizedReplayBuffer, ReplayBuffer
 from collections import deque, namedtuple
 import time
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-
+import tensorflow as tf
+import tensorflow.keras as keras
+import tensorflow.keras.layers as layers
+import tensorflow.keras.models as models
 
 class Options(object):
     """
@@ -46,9 +46,6 @@ class Options(object):
 
     # update Q value target net every so many steps
     target_net_update_freq = 40000
-
-    # use this device for computation
-    device = torch.device("cuda:1")
 
     # exploration linearly decreases from exploration_start to exploration_end
     # in the first exploration_steps steps
@@ -84,7 +81,7 @@ class Options(object):
     # from gamma0 to 0 towards the end of the training.
     prioritized_replay_gamma0 = 0.3
 
-    log_freq = 10000
+    log_freq = 1000
     save_freq = 100000
     model_dir = '/tmp/train_simple_navigation/ema_r_10step'
 
@@ -94,7 +91,7 @@ class Options(object):
 def main(options):
     """
     The entrance of the program
-    
+
     Args:
         options (Options): options
     """
@@ -150,7 +147,7 @@ def main(options):
             obs = env.reset()
             agent.start_new_episode()
 
-        if total_steps % options.log_freq == 0:
+        if total_steps % options.log_freq == 0 and len(steps) > 0 and len(episode_rewards) > 0:
             logging.info(
                 " episodes=%s" % episodes + " total_steps=%s" % total_steps +
                 " fps=%.2f" % (options.log_freq / (time.time() - t0)) +
@@ -178,6 +175,21 @@ Experience = namedtuple(
     field_names=["state", "action", "reward", "done", "reward_dist"])
 
 
+def select(mat, indices):
+    sel = tf.concat([
+        tf.reshape(tf.range(mat.shape[0], dtype=tf.int64), (-1, 1)),
+        tf.reshape(tf.cast(indices, dtype=tf.int64), (-1, 1))
+    ], axis=1)
+    return tf.gather_nd(mat, sel)
+
+def huber_loss(x, delta=1.0):
+    """Reference: https://en.wikipedia.org/wiki/Huber_loss"""
+    return tf.where(
+        tf.abs(x) < delta,
+        tf.square(x) * 0.5,
+        delta * (tf.abs(x) - 0.5 * delta)
+    )
+
 class QAgent(object):
     """
     A simple Q learning agent for discrete action space
@@ -191,13 +203,14 @@ class QAgent(object):
                 (options.f_action_feature)(0)) * options.history_length
         self._num_actions = num_actions
         self._options = options
-        self._acting_net = Network((num_input_channels, ) + image_shape[1:],
-                                   num_actions).to(options.device)
-        self._target_net = Network((num_input_channels, ) + image_shape[1:],
-                                   num_actions).to(options.device)
-        self._target_net.eval()
-        self._optimizer = optim.Adam(
-            self._acting_net.parameters(), lr=options.learning_rate)
+        self._distribute_strategy =  tf.distribute.MirroredStrategy()
+        input_shape = image_shape[1:] + (num_input_channels, )
+
+        #with self._distribute_strategy.scope():
+        self._acting_net = Network("acting_net", input_shape, num_actions)
+        self._target_net = Network("target_net", input_shape, num_actions)
+        self._optimizer = tf.keras.optimizers.Adam(lr=options.learning_rate)
+
         self._episode_steps = 0
         self._total_steps = 0
         C = PrioritizedReplayBuffer if options.use_prioritized_replay else ReplayBuffer
@@ -236,13 +249,8 @@ class QAgent(object):
             q = 0
         else:
             input = self._make_input(obs, self._history)
-            input = torch.from_numpy(input).to(self._options.device)
-
-            self._acting_net.eval()
-            with torch.no_grad():
-                q_values = self._acting_net.calc_q_values(input)
-
-            q_values = q_values.cpu().numpy().reshape(-1)
+            q_values = self._acting_net.calc_q_values(input)
+            q_values = q_values.numpy().reshape(-1)
             if random.random() < eps:
                 action = random.randint(0, self._num_actions - 1)
             else:
@@ -272,7 +280,7 @@ class QAgent(object):
         self._ema_c = 0.
 
     def save_model(self, path):
-        torch.save(self._acting_net.state_dict(), path)
+        self._acting_net.save_weights(path)
 
     def _get_prioritized_replay_beta(self):
         p = min(1., float(self._total_steps) / self._options.max_steps)
@@ -300,10 +308,38 @@ class QAgent(object):
             i -= 1
         self._replay_buffer.update_priority(indices, priorities)
 
+
+    @tf.function
+    def _tf_learn(self, inputs, actions, rewards, next_inputs, dones, is_weights):
+        # Double Q Learning: https://arxiv.org/pdf/1509.06461.pdf
+        qs_next = self._acting_net.calc_q_values(next_inputs)
+        qs_target = self._target_net.calc_q_values(next_inputs)
+        a = tf.argmax(qs_next, axis=1)
+        q_target = select(qs_target, a)
+        ema_reward = 1.0
+        q_target = tf.reshape(q_target, (-1, 1)) + ema_reward
+        q_target = rewards + (self._options.discount_factor**
+                              self._options.nstep_reward) * q_target * (1 - dones)
+
+        with tf.GradientTape() as tape:
+            qs = self._acting_net.calc_q_values(inputs)
+            q = tf.reshape(select(qs, actions), (-1, 1))
+            td_error = q - q_target
+            loss = huber_loss(td_error)
+            loss = tf.reduce_mean(loss * is_weights)
+
+
+        grads = tape.gradient(loss, self._acting_net.trainable_variables)
+        self._optimizer.apply_gradients(
+            zip(grads, self._acting_net.trainable_variables))
+
+        return td_error, q, q_target, loss
+
+
     def learn(self, obs, action, reward, done):
         """
         Perform one stap of learning
-        
+
         Args:
             obs (np.array): The observation
             action (int): Action taken at this step
@@ -323,52 +359,33 @@ class QAgent(object):
         if self._total_steps % options.learn_freq != 0:
             return
 
-        inputs, actions, rewards, next_inputs, dones, reward_dist, is_weights, indices = \
-            self._get_samples(options.batch_size)
+        data =  self._get_samples(options.batch_size)
+
+        with tf.device('/device:GPU:0'):
+            inputs, actions, rewards, next_inputs, dones, reward_dist, is_weights  = map(tf.convert_to_tensor, data[:-1])
+        indices = data[-1]
 
         ema_reward = 0
         if options.ema_reward_alpha > 0:
             ema_reward = self.calc_ema_reward()
 
-        is_weights = is_weights.pow(self._get_prioritized_replay_beta())
+        is_weights = is_weights ** self._get_prioritized_replay_beta()
         batch_size = options.batch_size
 
-        # Double Q Learning: https://arxiv.org/pdf/1509.06461.pdf
-        self._acting_net.eval()
-        qs_next = self._acting_net.calc_q_values(next_inputs)
-        qs_target = self._target_net.calc_q_values(next_inputs)
-        _, a = torch.max(qs_next, dim=1)
-        q_target = qs_target[torch.arange(batch_size, dtype=torch.long), a]
-        q_target = q_target.reshape(batch_size, 1) + ema_reward
-        q_target = rewards + (options.discount_factor**
-                              options.nstep_reward) * q_target * (1 - dones)
-
-        self._acting_net.train()
-        qs = self._acting_net.calc_q_values(inputs)
-        q = qs[torch.arange(batch_size, dtype=torch.long),
-               actions.reshape(batch_size)]
-        q = q.reshape(batch_size, 1) + ema_reward
+        td_error, q, q_target, loss = self._tf_learn(
+            inputs, actions, rewards, next_inputs, dones, is_weights)
 
         # minimize the loss
-        q_target = q_target.detach()
-        td_error = q - q_target
-        loss = F.smooth_l1_loss(q, q_target, reduction='none')
-        priorities = abs(td_error.cpu().detach().numpy()).reshape(-1)
+        priorities = abs(td_error.numpy()).reshape(-1)
         priorities = (priorities + options.prioritized_replay_eps
-                      )**options.prioritized_replay_alpha
+        )**options.prioritized_replay_alpha
         gamma = self._get_prioritized_replay_gamma()
-        reward_dist = reward_dist.cpu().detach().numpy().reshape(-1)
+        #reward_dist = reward_dist.reshape(-1)
+        #import pdb; pdb.set_trace()
+        reward_dist = np.reshape(reward_dist, -1)
         priorities = priorities * (1 + reward_dist)**(-gamma)
         self._replay_buffer.update_priority(indices, priorities)
-        loss = 2 * torch.mean(loss * is_weights)
-        self._optimizer.zero_grad()
-        loss.backward()
-        self._optimizer.step()
 
-        is_weights, loss, q, q_target, rewards = [
-            t.cpu().detach().numpy()
-            for t in (is_weights, loss, q, q_target, rewards)
-        ]
         self._sum_is_weights += np.sum(is_weights)
         self._sum_loss += loss
         self._sum_q += np.mean(q)
@@ -379,20 +396,20 @@ class QAgent(object):
         self._sum_r_weighted += np.sum(rewards * is_weights)
         self._batches += 1
 
+        tf.summary.scalar('loss', loss)
+
         if (options.show_param_stats_freq > 0
                 and self._total_steps % options.show_param_stats_freq == 0):
-            show_parameter_stats(self._acting_net)
+            self._acting_net.show_parameter_stats()
 
         # update target network
         if self._total_steps % options.target_net_update_freq == 0:
-            for target_param, param in zip(self._target_net.parameters(),
-                                           self._acting_net.parameters()):
-                target_param.data.copy_(param.data)
+            self._target_net.set_weights(self._acting_net.get_weights())
 
     def get_stats(self):
         """
         Get the internal statistics of this agnet
-        
+
         Returns
             A string showing all the statistics
         """
@@ -445,6 +462,7 @@ class QAgent(object):
                 features.append(make_action_feature(e.action))
         features.append(obs.astype(np.float32) * scale - 1)
         input = np.vstack(features)
+        input = input.transpose([1, 2, 0])
         input = input.reshape((1, ) + input.shape)
         return input
 
@@ -466,107 +484,88 @@ class QAgent(object):
                     self._make_input(exps[-1].state, exps[-(h + 1):-1]),
                     np.float32(done), np.float32(exps[h].reward_dist))
 
-        device = self._options.device
         features, indices, is_weights = self._replay_buffer.get_sample_features(
             self._options.batch_size, _make_sample)
-        features = [torch.from_numpy(f).to(device) for f in features]
-        is_weights = torch.from_numpy(is_weights).to(device)
         return features + [is_weights, indices]
 
 
-def show_parameter_stats(module):
-    """
-    Show the parameter statistics for the neural net module
-    
-    Args:
-        module (nn.Module): the statistics of this module will be shown.
-    """
-    for name, para in module.named_parameters():
-        if para.grad is None:
-            continue
-        p = para.detach()
-        g = para.grad.detach()
-        p_max = float(torch.max(torch.abs(p)))
-        p_mean = float(torch.mean(torch.abs(p)))
-        p_pos = float(torch.sum(p > 0)) / np.prod(p.shape)
-        g_max = float(torch.max(torch.abs(g)))
-        g_mean = float(torch.mean(torch.abs(g)))
-        logging.info(" name=%-20s" % name + " pos_ratio=%-10.5g" % p_pos +
-                     " max=%-10.5g" % p_max + " mean=%-10.5g" % p_mean +
-                     " gmax=%-10.5g" % g_max + " gmean=%-10.5g" % g_mean)
 
-
-class Network(nn.Module):
+class Network(tf.keras.Model):
     """
     The neural network module for calculating the Q values.
     """
 
-    def __init__(self, input_shape, num_actions):
+    def __init__(self, name, input_shape, num_actions):
         super(Network, self).__init__()
 
         num_filters = (16, 32)
         fc_size = (64, 64)
 
-        self.latent_nn = nn.Sequential(
-            nn.Conv2d(
-                input_shape[0],
+        self.latent_nn = tf.keras.Sequential([
+            tf.keras.layers.Conv2D(
                 num_filters[0],
                 kernel_size=(3, 3),
-                stride=1,
-                padding=(1, 1)),
-            nn.LeakyReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)),  # 42*42
-            nn.Conv2d(
-                num_filters[0],
+                strides=1,
+                padding='same',
+                input_shape=input_shape,
+                data_format='channels_last',
+            ),
+            tf.keras.layers.LeakyReLU(alpha=0.01),
+            tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), data_format='channels_last'),
+            tf.keras.layers.Conv2D(
                 num_filters[1],
                 kernel_size=(3, 3),
-                stride=1,
-                padding=(1, 1)),
-            nn.LeakyReLU(),
-            nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)),  # 21*21
-        )
-        calc_size = lambda x: (x // 2) // 2
-        latent_size = num_filters[1] * calc_size(input_shape[1]) * calc_size(
-            input_shape[2])
-        self.q_nn = nn.Sequential(
-            nn.Linear(latent_size, fc_size[0]),
-            nn.LeakyReLU(),
-            nn.Linear(fc_size[0], fc_size[1]),
-            nn.LeakyReLU(),
-            nn.Linear(fc_size[1], num_actions),
-        )
-        self.q_nn[-1].weight.data.fill_(0.0)
-        self.q_nn[-1].bias.data.fill_(0.0)
-        self.v_nn = nn.Sequential(
-            nn.Linear(latent_size, fc_size[0]),
-            nn.LeakyReLU(),
-            nn.Linear(fc_size[0], fc_size[1]),
-            nn.LeakyReLU(),
-            nn.Linear(fc_size[1], 1),
-        )
-        self.v_nn[-1].weight.data.fill_(0.0)
-        self.v_nn[-1].bias.data.fill_(0.0)
+                padding='same',
+                strides=1,
+                data_format='channels_last'),
+            tf.keras.layers.LeakyReLU(alpha=0.01),
+            tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), data_format='channels_last'),
+            tf.keras.layers.Flatten(data_format='channels_last')
+            ], name = name + "/latent_nn")
+
+        self.latent_nn.summary()
+
+        self.q_nn = tf.keras.Sequential([
+            tf.keras.layers.Dense(fc_size[0], input_shape=self.latent_nn.output_shape[1:]),
+            tf.keras.layers.LeakyReLU(alpha=0.01),
+            tf.keras.layers.Dense(fc_size[1]),
+            tf.keras.layers.LeakyReLU(alpha=0.01),
+            tf.keras.layers.Dense(num_actions)
+            ], name = name + "/q_nn")
+        self.q_nn.summary()
+
+        self.v_nn = tf.keras.Sequential([
+            tf.keras.layers.Dense(fc_size[0], input_shape=self.latent_nn.output_shape[1:]),
+            tf.keras.layers.LeakyReLU(alpha=0.01),
+            tf.keras.layers.Dense(fc_size[1]),
+            tf.keras.layers.LeakyReLU(alpha=0.01),
+            tf.keras.layers.Dense(1)
+            ], name = name + "/v_nn")
+        self.v_nn.summary()
+
 
     def calc_q_values(self, state):
         latent = self.latent_nn(state)
-        latent = latent.reshape(latent.shape[0], -1)
         q_values = self.q_nn(latent)
 
         # Dueling Network: https://arxiv.org/pdf/1511.06581.pdf
         value = self.v_nn(latent)
-        mean_q = torch.mean(q_values, dim=-1, keepdim=True)
+        mean_q = tf.reduce_mean(q_values, axis=-1, keepdims=True)
         adjust = value - mean_q
         q_values = q_values + adjust
         return q_values
 
-    def __call__(self, state):
+    def call(self, state):
         return self.calc_q_values()
 
+    def show_parameter_stats(self):
+        pass
 
 if __name__ == "__main__":
     options = Options()
     os.makedirs(options.model_dir, exist_ok=True)
     logging.basicConfig(level=logging.INFO)
+    logging.getLogger().setLevel(logging.INFO)
     logging.getLogger().addHandler(
         logging.FileHandler(filename=options.model_dir + '/train.log'))
     main(options)
