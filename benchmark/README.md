@@ -1,6 +1,6 @@
 # Sim Benchmark
 
-A simple benchmark for pygazebo and pybullet simulator.
+A simple benchmark for pygazebo(use bullet as physic engine) and pybullet simulator.
 
 
 The scene is a turtlebot with 2 randomly moving wheels and a camera sensor. 
@@ -18,11 +18,18 @@ Turtlebot pyBullet with camera sensor (image rendered by OpenGL, disbale GUI ren
 320x240 - 65 steps/second   160x120 - 112 steps/second
 
 
-Turtlebot pyGazebo without camera sensor:
+Turtlebot pyGazebo(bullet) without camera sensor:
 185 steps/second
 
-Turtlebot pyGazebo with camera sensor (320x240):
+Turtlebot pyGazebo(bullet) with camera sensor (320x240):
 104 steps/second
+
+Turtlebot pyGazebo(ode) without camera sensor:
+225 steps/second
+
+Turtlebot pyGazebo(ode) with camera sensor (320x240):
+122 steps/second
+
 
 
 # Known Problems
