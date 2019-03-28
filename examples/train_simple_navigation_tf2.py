@@ -40,7 +40,7 @@ class Options(object):
     learn_freq = 4
 
     # starts to update model after so many steps
-    learn_start = 80000
+    learn_start = 8000
 
     batch_size = 64
 
@@ -182,14 +182,6 @@ def select(mat, indices):
     ], axis=1)
     return tf.gather_nd(mat, sel)
 
-def huber_loss(x, delta=1.0):
-    """Reference: https://en.wikipedia.org/wiki/Huber_loss"""
-    return tf.where(
-        tf.abs(x) < delta,
-        tf.square(x) * 0.5,
-        delta * (tf.abs(x) - 0.5 * delta)
-    )
-
 class QAgent(object):
     """
     A simple Q learning agent for discrete action space
@@ -203,13 +195,12 @@ class QAgent(object):
                 (options.f_action_feature)(0)) * options.history_length
         self._num_actions = num_actions
         self._options = options
-        self._distribute_strategy =  tf.distribute.MirroredStrategy()
         input_shape = image_shape[1:] + (num_input_channels, )
 
-        #with self._distribute_strategy.scope():
         self._acting_net = Network("acting_net", input_shape, num_actions)
         self._target_net = Network("target_net", input_shape, num_actions)
         self._optimizer = tf.keras.optimizers.Adam(lr=options.learning_rate)
+        self._huber_loss = tf.keras.losses.Huber()
 
         self._episode_steps = 0
         self._total_steps = 0
@@ -310,24 +301,21 @@ class QAgent(object):
 
 
     @tf.function
-    def _tf_learn(self, inputs, actions, rewards, next_inputs, dones, is_weights):
+    def _tf_learn(self, inputs, actions, rewards, next_inputs, dones, is_weights, ema_reward):
         # Double Q Learning: https://arxiv.org/pdf/1509.06461.pdf
         qs_next = self._acting_net.calc_q_values(next_inputs)
         qs_target = self._target_net.calc_q_values(next_inputs)
         a = tf.argmax(qs_next, axis=1)
         q_target = select(qs_target, a)
-        ema_reward = 1.0
         q_target = tf.reshape(q_target, (-1, 1)) + ema_reward
         q_target = rewards + (self._options.discount_factor**
                               self._options.nstep_reward) * q_target * (1 - dones)
 
         with tf.GradientTape() as tape:
             qs = self._acting_net.calc_q_values(inputs)
-            q = tf.reshape(select(qs, actions), (-1, 1))
+            q = tf.reshape(select(qs, actions), (-1, 1)) + ema_reward
             td_error = q - q_target
-            loss = huber_loss(td_error)
-            loss = tf.reduce_mean(loss * is_weights)
-
+            loss = self._huber_loss(q, q_target, sample_weight=is_weights)
 
         grads = tape.gradient(loss, self._acting_net.trainable_variables)
         self._optimizer.apply_gradients(
@@ -368,20 +356,18 @@ class QAgent(object):
         ema_reward = 0
         if options.ema_reward_alpha > 0:
             ema_reward = self.calc_ema_reward()
+        ema_reward = tf.constant(ema_reward)
 
         is_weights = is_weights ** self._get_prioritized_replay_beta()
         batch_size = options.batch_size
 
         td_error, q, q_target, loss = self._tf_learn(
-            inputs, actions, rewards, next_inputs, dones, is_weights)
+            inputs, actions, rewards, next_inputs, dones, is_weights, ema_reward)
 
         # minimize the loss
         priorities = abs(td_error.numpy()).reshape(-1)
-        priorities = (priorities + options.prioritized_replay_eps
-        )**options.prioritized_replay_alpha
+        priorities = (priorities + options.prioritized_replay_eps)**options.prioritized_replay_alpha
         gamma = self._get_prioritized_replay_gamma()
-        #reward_dist = reward_dist.reshape(-1)
-        #import pdb; pdb.set_trace()
         reward_dist = np.reshape(reward_dist, -1)
         priorities = priorities * (1 + reward_dist)**(-gamma)
         self._replay_buffer.update_priority(indices, priorities)
@@ -395,8 +381,6 @@ class QAgent(object):
         self._sum_r += np.mean(rewards)
         self._sum_r_weighted += np.sum(rewards * is_weights)
         self._batches += 1
-
-        tf.summary.scalar('loss', loss)
 
         if (options.show_param_stats_freq > 0
                 and self._total_steps % options.show_param_stats_freq == 0):
@@ -565,6 +549,8 @@ if __name__ == "__main__":
     options = Options()
     os.makedirs(options.model_dir, exist_ok=True)
     logging.basicConfig(level=logging.INFO)
+    # tensorflow already created a logger, thus previous line won't create new logger
+    # hence have no effect.
     logging.getLogger().setLevel(logging.INFO)
     logging.getLogger().addHandler(
         logging.FileHandler(filename=options.model_dir + '/train.log'))
