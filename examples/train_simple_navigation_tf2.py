@@ -353,7 +353,7 @@ class QAgent(object):
             inputs, actions, rewards, next_inputs, dones, reward_dist, is_weights  = map(tf.convert_to_tensor, data[:-1])
         indices = data[-1]
 
-        ema_reward = 0
+        ema_reward = 0.0
         if options.ema_reward_alpha > 0:
             ema_reward = self.calc_ema_reward()
         ema_reward = tf.constant(ema_reward)
