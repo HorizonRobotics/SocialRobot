@@ -38,11 +38,23 @@ class Pr2Gripper(gym.Env):
     currently, the agent only learns to use arm/hand to play bat to hit the goal
     off the ground.
 
+
+    joints to control fingers for gripping task:
+            "r_gripper_r_finger_joint",
+            "r_gripper_l_finger_joint",
+            "r_gripper_r_finger_tip_joint",
+            "r_gripper_l_finger_tip_joint",
+
+
+    contact sensors:
+           r_gripper_l_finger_tip_contact_sensor
+           r_gripper_r_finger_tip_contact_sensor
     """
     def __init__(self,
                  goal_name='beer',
-                 max_steps=100,
+                 max_steps=150,
                  reward_shaping=True,
+                 motion_loss=0.00001,
                  port=None):
         """
         Args:
@@ -72,17 +84,18 @@ class Pr2Gripper(gym.Env):
         self._max_steps = max_steps
         self._steps_in_this_episode = 0
         self._reward_shaping = reward_shaping
-        self._resized_image_size = (84, 84)
+        self._resized_image_size = (168, 168) #(84, 84)
 
         self._prev_dist = self._get_finger_tip_distance()
         self._collision_cnt = 0
         self._cum_reward = 0.0
+        self._motion_loss = motion_loss
 
         img = self._get_observation()
         self.observation_space = gym.spaces.Box(
             low=0, high=1, shape=img.shape, dtype=np.uint8)
         self.action_space = gym.spaces.Box(
-            low=-5, high=5, shape=[len(self._r_arm_joints)], dtype=np.float32)
+            low=-1, high=1, shape=[len(self._r_arm_joints)], dtype=np.float32)
 
     def reset(self):
         self._world.reset()
@@ -92,18 +105,21 @@ class Pr2Gripper(gym.Env):
         joint_state.set_velocities([0.0])
         self._collision_cnt = 0
         self._agent.set_joint_state("pr2::pr2::head_tilt_joint", joint_state)
+        self._move_goal()
         self._world.step(200)
 
         self._goal = self._world.get_agent(self._goal_name)
-        self._move_goal()
+        goal_loc, _ = self._goal.get_pose()
+        self._table_height = goal_loc[2]
+        #logger.debug("table height:" + str(self._table_height))
         self._steps_in_this_episode = 0
         self._cum_reward = 0.0
         self._prev_dist = self._get_finger_tip_distance()
         return self._get_observation()
 
     def _move_goal(self):
-        loc = (0.6 + 0.3 * (random.random() - 1), 0.4 * (random.random() - 1),
-               0)
+        loc = (0.76 + 0.14 * (random.random() - 1),  0.1 * (random.random() - 1.0),
+               0.43)
         self._goal.set_pose((loc, (0, 0, 0)))
 
     def _get_observation(self):
@@ -122,11 +138,15 @@ class Pr2Gripper(gym.Env):
     def _get_finger_tip_distance(self):
         loc, _ = self._goal.get_pose()
         goal_loc = np.array(loc)
-        finger_tip_loc, _ = self._agent.get_link_pose(
+        l_finger_tip_loc, _ = self._agent.get_link_pose(
             "pr2::pr2::r_gripper_l_finger_tip_link")
 
-        dist = np.linalg.norm(np.array(finger_tip_loc) - np.array(goal_loc))
-        return dist
+        r_finger_tip_loc, _ = self._agent.get_link_pose(
+            "pr2::pr2::r_gripper_r_finger_tip_link")
+
+        l_dist = np.linalg.norm(np.array(l_finger_tip_loc) - np.array(goal_loc))
+        r_dist = np.linalg.norm(np.array(r_finger_tip_loc) - np.array(goal_loc))
+        return l_dist, r_dist
 
     def step(self, action):
         controls = dict(zip(self._r_arm_joints, action))
@@ -140,22 +160,33 @@ class Pr2Gripper(gym.Env):
 
         done = self._steps_in_this_episode >= self._max_steps
 
-        reward = -0.01 if (not done) else (1.2 - dist)
+        reward = 0.0 if (not done) else 1.0 - np.tanh(5.0 * (dist[0] + dist[1]))
 
-        shape_reward = self._prev_dist - dist
+        shape_reward = (self._prev_dist[0] - dist[0]) + (self._prev_dist[1] - dist[1])
         if self._reward_shaping:
             reward += shape_reward
 
-        collision_cnt = self._goal.get_collision_count("beer_contact")
-        if collision_cnt > 1:
-            logger.debug("collide_cnt:" + str(collision_cnt))
+        if self._agent.get_contact("r_gripper_l_finger_tip_contact_sensor", self._goal_name):
+            logger.debug("l finger touch!")
+            reward += 0.25
+
+        if self._agent.get_contact("r_gripper_r_finger_tip_contact_sensor", self._goal_name):
+            logger.debug("r finger touch!")
+            reward += 0.25
 
         goal_loc, _ = self._goal.get_pose()
 
-        goal_move_reward = (goal_loc[2] > 0.001)
+        goal_move_reward = (goal_loc[2] > self._table_height + 0.01)
         if goal_move_reward:
             logger.debug("beer lift! " + str(goal_loc))
-            reward += 10
+            reward += 1
+
+        if self._motion_loss > 0.0:
+            v2s = 0.0
+            for joint in self._r_arm_joints:
+                v = self._agent.get_joint_state(joint).get_velocities()[0]
+                v2s += v*v
+            reward += -1.0 * self._motion_loss * v2s
 
         self._cum_reward += reward
         if done:
@@ -166,6 +197,7 @@ class Pr2Gripper(gym.Env):
         return obs, reward, done, {}
 
     def run(self):
+        self.reset()
         while True:
             actions = np.random.randn(len(self._r_arm_joints))
             obs, _, done, _ = self.step(actions)
@@ -179,7 +211,7 @@ class Pr2Gripper(gym.Env):
 
 
 def main():
-    env = Pr2Gripper()
+    env = Pr2Gripper(max_steps=50)
     env.run()
 
 

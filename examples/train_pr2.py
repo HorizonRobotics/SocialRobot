@@ -17,12 +17,12 @@ def ppo2():
 
 
 def ppo2_lstm():
-    M('--alg=ppo2 --env=SocialBot-Pr2Gripper-v0 --num_timesteps=2e6 --network=cnn_lstm --save_path=~/models/pr2_lstm.model --num_env 1 --nminibatches=1'
+    M('--alg=ppo2 --env=SocialBot-Pr2Gripper-v0 --num_timesteps=2e6 --network=cnn_lstm --save_path=~/models/pr2_lstm.model --num_env 1 --nminibatches=1 --ent_coef=0.01'
       .split(' '))
 
 
 def eval_ppo2_lstm():
-    M('--alg=ppo2 --env=SocialBot-Pr2Gripper-v0 --num_timesteps=0 --network=cnn_lstm --load_path=~/models/pr2_lstm.model --play --num_env 1 --nminibatches=1'
+    M('--alg=ppo2 --env=SocialBot-Pr2Gripper-v0 --num_timesteps=0 --network=cnn_lstm --load_path=~/models/pr2_lstm.model --play --num_env 1 --nminibatches=1 --ent_coef=0.01'
       .split(' '))
 
 

@@ -175,11 +175,9 @@ class Agent : public Model {
     }
   }
 
-  // TODO: this is not the correct way to expose contacts from gazebo
-  // we could expose api to check whether two links are in contact,
-  // the other way of registering async callback does not seem to fit
-  // in the current pygazebo interface.
-  unsigned int GetCollisionCount(const std::string& contact_sensor_name) {
+  // check contact_sensor whether it touches particular link
+  bool GetContact(const std::string& contact_sensor_name,
+                  const std::string& link_scope_name) {
     auto it = contacts_.find(contact_sensor_name);
 
     if (it == contacts_.end()) {
@@ -198,7 +196,17 @@ class Agent : public Model {
       auto ret = contacts_.insert(std::make_pair(contact_sensor_name, sensor));
       it = ret.first;
     }
-    return it->second->GetCollisionCount();
+
+    auto contacts = it->second->Contacts();
+
+    for (int i = 0; i < contacts.contact_size(); i++) {
+      if (contacts.contact(i).collision1() == link_scope_name ||
+          contacts.contact(i).collision2() == link_scope_name) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   CameraObservation GetCameraObservation(const std::string& sensor_scope_name) {
@@ -461,9 +469,10 @@ PYBIND11_MODULE(pygazebo, m) {
            py::arg("sensor_scope_name"))
       .def("get_joint_state", &Agent::GetJointState, py::arg("joint_name"))
       .def("get_link_pose", &Agent::GetLinkPose, py::arg("link_name"))
-      .def("get_collision_count",
-           &Agent::GetCollisionCount,
-           py::arg("contact_sensor_name"))
+      .def("get_contact",
+           &Agent::GetContact,
+           py::arg("contact_sensor_name"),
+           py::arg("link_scope_name"))
       .def("set_joint_state",
            &Agent::SetJointState,
            py::arg("joint_name"),

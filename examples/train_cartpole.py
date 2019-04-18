@@ -14,6 +14,10 @@ def ppo2():
     M('--alg=ppo2 --env=SocialBot-CartPole-v0 --num_timesteps=1e6 --save_path=~/models/cartpole'
       .split(' '))
 
+def ddpg():
+    M('--alg=ddpg --env=SocialBot-CartPole-v0 --num_timesteps=1e6 --save_path=~/models/cartpole'
+      .split(' '))
+
 
 def cem(num_timesteps=200, n_samples=400, top_frac=0.2, smooth_alpha=0.9):
     """
@@ -69,4 +73,4 @@ def cem(num_timesteps=200, n_samples=400, top_frac=0.2, smooth_alpha=0.9):
 
 
 if __name__ == '__main__':
-    ppo2()
+    ddpg()
