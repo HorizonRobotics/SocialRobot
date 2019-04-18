@@ -49,8 +49,10 @@ class CartPole(gym.Env):
 
     """
 
-    def __init__(self, x_threshold=5, theta_threshold=0.314, noise=0.001):
-        gazebo.initialize(port=0)
+    def __init__(self, x_threshold=5, theta_threshold=0.314, noise=0.01, port=None):
+        if port is None:
+            port = 0
+        gazebo.initialize(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "cartpole.world"))
 
