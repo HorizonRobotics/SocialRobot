@@ -36,7 +36,7 @@ class GroceryGroundGoalTask(GoalTask):
                  goal_name="bookshelf",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=3.0,
-                 goal_random_range=20.0):
+                 goal_random_range=10.0):
         """
         Args:
             max_steps (int): episode will end if not reaching gaol in so many steps
@@ -84,14 +84,9 @@ class GroceryGround(gym.Env):
 
     """
 
-    def __init__(self,
-                 max_steps=500,
-                 with_language=False,
-                 use_image_obs=False,
-                 port=None):
+    def __init__(self, with_language=False, use_image_obs=False, port=None):
         """
         Args:
-            max_steps (int): episode will end when the agent exceeds the number of steps
             with_language (bool): the observation will be a dict with an extra sentence
             use_image_obs (bool): use image as observation, or use pose of the objects
             port: Gazebo port, need to specify when run multiple environment in parallel
@@ -117,14 +112,12 @@ class GroceryGround(gym.Env):
             'plastic_cup_2', 'plastic_cup_3'
         ]
         self._goal_name = 'bookshelf'
-        self._object_name = 'trash_can'
 
         self._teacher = teacher.Teacher(False)
         task_group = teacher.TaskGroup()
         task_group.add_task(GroceryGroundGoalTask())
         self._teacher.add_task_group(task_group)
 
-        self._max_steps = max_steps
         self._with_language = with_language
         self._use_image_obs = use_image_obs
         self._resized_image_size = (84, 84)
@@ -159,7 +152,6 @@ class GroceryGround(gym.Env):
         self._collision_cnt = 0
         self._cum_reward = 0.0
         self._steps_in_this_episode = 0
-        self._prev_dist = self._get_object_distance()
         self._goal = self._world.get_agent(self._goal_name)
         self._teacher.reset(self._agent, self._world)
         teacher_action = self._teacher.teach("")
@@ -190,19 +182,6 @@ class GroceryGround(gym.Env):
             obs_data = np.array(objects_poses).reshape(-1)
         return obs_data
 
-    def _get_object_distance(self):
-        object_loc, _ = self._world.get_agent(self._object_name).get_pose()
-        agent_loc, _ = self._agent.get_pose()
-        dist = np.linalg.norm(np.array(object_loc) - np.array(agent_loc))
-        return dist
-
-    def _compute_reward(self):
-        dist = self._get_object_distance()
-        diff = self._prev_dist - dist
-        self._prev_dist = dist
-        reward = diff
-        return reward
-
     def step(self, action):
         """
         Args:
@@ -229,16 +208,11 @@ class GroceryGround(gym.Env):
             obs = OrderedDict(data=obs_data, sentence=teacher_action.sentence)
         else:
             obs = self._get_observation()
-        reward = self._compute_reward()
         self._steps_in_this_episode += 1
-        done = self._steps_in_this_episode >= self._max_steps
-        self._cum_reward += reward
-        if done:
+        self._cum_reward += teacher_action.reward
+        if teacher_action.done:
             logger.debug("episode ends at cum reward:" + str(self._cum_reward))
-        if self._with_language:
-            return obs, teacher_action.reward, teacher_action.done, {}
-        else:
-            return obs, reward, done, {}
+        return obs, teacher_action.reward, teacher_action.done, {}
 
 
 def main():
