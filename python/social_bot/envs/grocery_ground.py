@@ -39,7 +39,7 @@ class GroceryGroundGoalTask(GoalTask):
                  goal_random_range=10.0):
         """
         Args:
-            max_steps (int): episode will end if not reaching gaol in so many steps
+            max_steps (int): episode will end if not reaching goal in so many steps
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
@@ -105,11 +105,11 @@ class GroceryGround(gym.Env):
                 self._agent.get_joint_names()))
         logger.info("joints to control: %s" % self._pr2_joints)
         self._objects_names = [
-            'coke_can', 'coke_can_0', 'coke_can_1', 'coke_can_2', 'coke_can_3',
-            'unit_sphere', 'unit_sphere_0', 'table', 'grey_wall', 'cube_20k',
-            'caffe_table', 'bookshelf', 'car_wheel', 'car_wheel_0',
-            'trash_can', 'plastic_cup', 'plastic_cup_0', 'plastic_cup_1',
-            'plastic_cup_2', 'plastic_cup_3'
+            'coke_can_0', 'coke_can_1', 'coke_can_2', 'coke_can_3',
+            'coke_can_4', 'table', 'grey_wall', 'cube_20k', 'caffe_table',
+            'bookshelf', 'car_wheel_0', 'car_wheel_1', 'trash_can',
+            'plastic_cup_0', 'plastic_cup_1', 'plastic_cup_2', 'plastic_cup_3',
+            'plastic_cup_4'
         ]
         self._goal_name = 'bookshelf'
 
@@ -219,7 +219,7 @@ def main():
     """
     Simple testing of this enviroenment.
     """
-    env = GroceryGround(port=11345)
+    env = GroceryGround()
     while True:
         actions = 20 * np.random.randn(env.action_space.shape[0])
         obs, _, done, _ = env.step(actions)
