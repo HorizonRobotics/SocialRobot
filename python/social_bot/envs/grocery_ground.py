@@ -66,10 +66,6 @@ class GroceryGroundGoalTask(GoalTask):
         goal.set_pose((loc, (0, 0, 0)))
 
 
-def rgb2gray(rgb):
-    return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
-
-
 class GroceryGround(gym.Env):
     """
     The goal of this task is to train the agent to navigate to the objects given its
@@ -120,7 +116,7 @@ class GroceryGround(gym.Env):
 
         self._with_language = with_language
         self._use_image_obs = use_image_obs
-        self._resized_image_size = (84, 84)
+        self._resized_image_size = (84, 84, 3)
 
         obs = self.reset()
         if self._use_image_obs:
@@ -169,12 +165,14 @@ class GroceryGround(gym.Env):
                     "default::pr2::pr2::head_tilt_link::head_mount_prosilica_link_sensor"
                 ),
                 copy=False)
-            obs_data = PIL.Image.fromarray(rgb2gray(obs_data)).resize(
-                self._resized_image_size, PIL.Image.ANTIALIAS)
+            obs_data = PIL.Image.fromarray(
+                obs_data.resize(self._resized_image_size, PIL.Image.ANTIALIAS))
 
             obs_data = np.reshape(
-                np.array(obs_data),
-                [self._resized_image_size[0], self._resized_image_size[1], 1])
+                np.array(obs_data), [
+                    self._resized_image_size[0], self._resized_image_size[1],
+                    self._resized_image_size[2]
+                ])
         else:
             objects_poses = []
             objects_poses.append(self._goal.get_pose())
