@@ -8,11 +8,16 @@ from baselines import ppo2
 from baselines import deepq
 from baselines import ddpg
 from baselines.run import main as M
+import tensorflow as tf
 import numpy as np
 
 
 def ppo2():
     M('--alg=ppo2 --env=SocialBot-Pr2Gripper-v0 --num_timesteps=1e6 --network=cnn --save_path=~/models/pr2.model'
+      .split(' '))
+
+def ppo2_mlp():
+    M('--alg=ppo2 --env=SocialBot-Pr2Gripper-v0 --num_timesteps=2e6 --network=lstm --save_path=~/models/pr2_lstm.model --num_env 1 --nminibatches=1 --ent_coef=0.01'
       .split(' '))
 
 
@@ -32,5 +37,7 @@ def eval_ppo2():
 
 
 if __name__ == '__main__':
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
     logging.basicConfig(level=logging.DEBUG)
-    ppo2_lstm()
+    ppo2_mlp()

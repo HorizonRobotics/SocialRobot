@@ -111,9 +111,9 @@
           <plugin name='gazebo_contact' filename='libContactPlugin.so'/>
         </sensor>
         <sensor name='base_laser' type='ray'>
-          <always_on>1</always_on>
-          <visualize>1</visualize>
-          <update_rate>20</update_rate>
+          <always_on>0</always_on>
+          <visualize>0</visualize>
+          <update_rate>1</update_rate>
           <pose frame=''>0.275 0 0.303 0 -0 0</pose>
           <ray>
             <scan>
@@ -1729,6 +1729,7 @@
           </geometry>
         </visual>
         <sensor name='l_gripper_l_finger_tip_contact_sensor' type='contact'>
+          <always_on>0</always_on>
           <update_rate>100</update_rate>
           <contact>
             <collision>l_gripper_l_finger_tip_link_geom</collision>
@@ -1957,7 +1958,9 @@
           </geometry>
         </visual>
         <sensor name='laser_tilt' type='ray'>
-          <update_rate>40</update_rate>
+          <always_on>0</always_on>
+          <visualize>0</visualize>
+          <update_rate>1</update_rate>
           <pose frame=''>0 0 0.03 0 -0 0</pose>
           <ray>
             <scan>
@@ -2568,6 +2571,7 @@
           </geometry>
         </visual>
         <sensor name='r_gripper_l_finger_tip_contact_sensor' type='contact'>
+          <always_on>1</always_on>
           <update_rate>100</update_rate>
           <contact>
             <collision>r_gripper_l_finger_tip_link_geom</collision>
@@ -2733,6 +2737,7 @@
           </geometry>
         </visual>
         <sensor name='r_gripper_r_finger_tip_contact_sensor' type='contact'>
+          <always_on>1</always_on>
           <update_rate>100</update_rate>
           <contact>
             <collision>r_gripper_r_finger_tip_link_geom</collision>
@@ -3168,8 +3173,8 @@
             <spring_stiffness>0</spring_stiffness>
           </dynamics>
           <limit>
-            <lower>-0.8</lower>
-            <upper>3.90001</upper>
+            <lower>-3.9</lower>
+            <upper>0.8</upper>
             <effort>30</effort>
             <velocity>3.27</velocity>
           </limit>
@@ -3540,7 +3545,7 @@
         <axis>
           <xyz>0 0 1</xyz>
           <dynamics>
-            <damping>0.02</damping>
+            <damping>0.2</damping>
             <friction>0</friction>
             <spring_reference>0</spring_reference>
             <spring_stiffness>0</spring_stiffness>
@@ -3827,16 +3832,14 @@
         <axis>
           <xyz>0 1 0</xyz>
           <dynamics>
-            <damping>0</damping>
+            <damping>10</damping>
             <friction>0</friction>
             <spring_reference>0</spring_reference>
             <spring_stiffness>0</spring_stiffness>
           </dynamics>
           <limit>
-            <lower>-1e+16</lower>
-            <upper>1e+16</upper>
-            <effort>30</effort>
-            <velocity>4</velocity>
+            <effort>100</effort>
+            <velocity>0.2</velocity>
           </limit>
           <use_parent_model_frame>1</use_parent_model_frame>
         </axis>

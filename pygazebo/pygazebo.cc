@@ -46,6 +46,9 @@ class JointState {
   unsigned int GetDOF() const { return dof_; }
   const std::vector<double>& GetPositions() const { return positions_; }
   const std::vector<double>& GetVelocities() const { return velocities_; }
+  const std::vector<double>& GetEffortLimits() const {
+    return effort_limits_;
+  }
 
   explicit JointState(unsigned int dof) : dof_(dof) {}
   void SetVelocities(const std::vector<double>& v) {
@@ -54,11 +57,15 @@ class JointState {
   void SetPositions(const std::vector<double>& pos) {
     positions_.assign(pos.begin(), pos.end());
   }
+  void SetEffortLimits(const std::vector<double> limits) {
+    effort_limits_.assign(limits.begin(), limits.end());
+  }
 
  private:
   unsigned int dof_;
   std::vector<double> positions_;
   std::vector<double> velocities_;
+  std::vector<double> effort_limits_;
 };
 
 class Action;
@@ -130,17 +137,21 @@ class Agent : public Model {
 
     unsigned int dof = joint->DOF();
     JointState state(dof);
-    std::vector<double> positions, velocities;
+    std::vector<double> positions, velocities, limits;
     positions.reserve(dof);
     velocities.reserve(dof);
+    limits.reserve(dof);
+
 
     for (unsigned int i = 0; i < dof; i++) {
       positions.push_back(joint->Position(i));
       velocities.push_back(joint->GetVelocity(i));
+      limits.push_back(joint->GetEffortLimit(i));
     }
 
     state.SetPositions(positions);
     state.SetVelocities(velocities);
+    state.SetEffortLimits(limits);
     return state;
   }
 
@@ -175,9 +186,11 @@ class Agent : public Model {
     }
   }
 
-  // check contact_sensor whether it touches particular link
-  bool GetContact(const std::string& contact_sensor_name,
-                  const std::string& link_scope_name) {
+  std::set<std::tuple<std::string, std::string>> GetCollisions(
+    const std::string& contact_sensor_name) {
+
+    std::set<std::tuple<std::string, std::string>> collisions;
+
     auto it = contacts_.find(contact_sensor_name);
 
     if (it == contacts_.end()) {
@@ -200,13 +213,13 @@ class Agent : public Model {
     auto contacts = it->second->Contacts();
 
     for (int i = 0; i < contacts.contact_size(); i++) {
-      if (contacts.contact(i).collision1() == link_scope_name ||
-          contacts.contact(i).collision2() == link_scope_name) {
-        return true;
-      }
+      auto contact = contacts.contact(i);
+
+      collisions.insert(
+        std::make_tuple(contact.collision1(), contact.collision2()));
     }
 
-    return false;
+    return collisions;
   }
 
   CameraObservation GetCameraObservation(const std::string& sensor_scope_name) {
@@ -431,6 +444,7 @@ PYBIND11_MODULE(pygazebo, m) {
       .def(py::init<unsigned int>())
       .def("get_positions", &JointState::GetPositions, "get joint positions")
       .def("get_velocities", &JointState::GetVelocities, "get joint velocities")
+      .def("get_effort_limits", &JointState::GetEffortLimits, "get joint effort limits")
       .def("set_positions",
            &JointState::SetPositions,
            "set joint positions",
@@ -469,10 +483,9 @@ PYBIND11_MODULE(pygazebo, m) {
            py::arg("sensor_scope_name"))
       .def("get_joint_state", &Agent::GetJointState, py::arg("joint_name"))
       .def("get_link_pose", &Agent::GetLinkPose, py::arg("link_name"))
-      .def("get_contact",
-           &Agent::GetContact,
-           py::arg("contact_sensor_name"),
-           py::arg("link_scope_name"))
+      .def("get_collisions",
+           &Agent::GetCollisions,
+           py::arg("contact_sensor_name"))
       .def("set_joint_state",
            &Agent::SetJointState,
            py::arg("joint_name"),

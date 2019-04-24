@@ -55,6 +55,8 @@ class Pr2Gripper(gym.Env):
                  max_steps=150,
                  reward_shaping=True,
                  motion_loss=0.00001,
+                 use_internal_states_only=True,
+                 use_scaled_actions=True,
                  port=None):
         """
         Args:
@@ -75,25 +77,63 @@ class Pr2Gripper(gym.Env):
         self._all_joints = self._agent.get_joint_names()
 
         self._world.info()
+
+        # from https://github.com/PR2/pr2_mechanism/blob/melodic-devel/pr2_mechanism_model/pr2.urdf
+        passive_joints = set(["r_gripper_l_finger_joint",
+                              "r_gripper_r_finger_joint",
+                              "r_gripper_r_finger_tip_joint",
+                              "r_gripper_l_finger_tip_joint",
+                              "r_gripper_r_parallel_root_joint",
+                              "r_gripper_l_parallel_root_joint"])
+
+        unused_joints = set([
+            "r_gripper_motor_slider_joint",
+            "r_gripper_motor_screw_joint",
+            "r_gripper_r_screw_screw_joint",
+            "r_gripper_l_screw_screw_joint",
+            "r_gripper_r_parallel_tip_joint",
+            "r_gripper_l_parallel_tip_joint"])
+
+        unused_joints = passive_joints.union(unused_joints)
+
         self._r_arm_joints = list(
-            filter(lambda s: s.find('pr2::r_') != -1, self._all_joints))
+            filter(lambda s: s.find('pr2::r_') != -1
+                   and s.split("::")[-1] not in unused_joints, self._all_joints))
         logger.info("joints in the right arm to control: %s" % self._r_arm_joints)
+
+        joint_states = list(map(lambda s: self._agent.get_joint_state(s), self._r_arm_joints))
+
+        self._r_arm_joints_limits = list(map(lambda s: s.get_effort_limits()[0],
+                                        joint_states));
+
+        logger.info('\n'.join(map(lambda s: str(s[0]) + ":" + str(s[1]), zip(
+            self._r_arm_joints, self._r_arm_joints_limits))))
 
         self._goal_name = goal_name
         self._goal = self._world.get_agent(self._goal_name)
         self._max_steps = max_steps
         self._steps_in_this_episode = 0
         self._reward_shaping = reward_shaping
-        self._resized_image_size = (168, 168) #(84, 84)
+        self._resized_image_size = (128, 128) #(84, 84)
 
         self._prev_dist = self._get_finger_tip_distance()
-        self._collision_cnt = 0
+        self._prev_gripper_pos = self._get_gripper_pos()
+
         self._cum_reward = 0.0
         self._motion_loss = motion_loss
+        self._use_internal_states_only = use_internal_states_only
+        self._use_scaled_actions = use_scaled_actions
+        self._gripper_reward_dir = 1
+        self._gripper_upper_limit = 0.07
+        self._gripper_lower_limit = 0.01
 
-        img = self._get_observation()
-        self.observation_space = gym.spaces.Box(
-            low=0, high=1, shape=img.shape, dtype=np.uint8)
+        obs = self._get_observation()
+        if self._use_internal_states_only:
+            self.observation_space = gym.spaces.Box(
+                low=-np.inf, high=np.inf, shape=obs.shape, dtype=np.float32)
+        else:
+            self.observation_space = gym.spaces.Box(
+                low=0, high=256.0, shape=obs.shape, dtype=np.float32)
         self.action_space = gym.spaces.Box(
             low=-1, high=1, shape=[len(self._r_arm_joints)], dtype=np.float32)
 
@@ -103,9 +143,10 @@ class Pr2Gripper(gym.Env):
         joint_state = gazebo.JointState(1)
         joint_state.set_positions([1.4])
         joint_state.set_velocities([0.0])
-        self._collision_cnt = 0
         self._agent.set_joint_state("pr2::pr2::head_tilt_joint", joint_state)
         self._move_goal()
+
+        self._agent.take_action(dict({"pr2::pr2::r_gripper_joint":50}))
         self._world.step(200)
 
         self._goal = self._world.get_agent(self._goal_name)
@@ -115,6 +156,8 @@ class Pr2Gripper(gym.Env):
         self._steps_in_this_episode = 0
         self._cum_reward = 0.0
         self._prev_dist = self._get_finger_tip_distance()
+        self._prev_gripper_pos = self._get_gripper_pos()
+        self._gripper_reward_dir = 1
         return self._get_observation()
 
     def _move_goal(self):
@@ -123,16 +166,34 @@ class Pr2Gripper(gym.Env):
         self._goal.set_pose((loc, (0, 0, 0)))
 
     def _get_observation(self):
-        obs = np.array(
-            self._agent.get_camera_observation(
-                "default::pr2::pr2::head_tilt_link::head_mount_prosilica_link_sensor"
-            ),
-            copy=False)
-        obs = PIL.Image.fromarray(rgb2gray(obs)).resize(
-            self._resized_image_size, PIL.Image.ANTIALIAS)
+        if self._use_internal_states_only:
+            joint_states = [self._agent.get_joint_state(joint) for joint in self._r_arm_joints]
+            joint_positions = [s.get_positions()[0] for s in joint_states]
+            joint_velocities = [s.get_velocities()[0] for s in joint_states]
+            loc, loc_a = self._goal.get_pose()
+            l_finger_tip_loc, l_finger_tip_loc_a = self._agent.get_link_pose(
+                "pr2::pr2::r_gripper_l_finger_tip_link")
+            r_finger_tip_loc, r_finger_tip_loc_a = self._agent.get_link_pose(
+                "pr2::pr2::r_gripper_r_finger_tip_link")
+            l_dist = np.linalg.norm(np.array(l_finger_tip_loc) - np.array(goal_loc))
+            r_dist = np.linalg.norm(np.array(r_finger_tip_loc) - np.array(goal_loc))
+            obs = np.concatenate((
+                np.array(joint_positions), np.array(joint_velocities), np.array(loc),
+                np.array(loc_a), np.array(l_finger_tip_loc), np.array(l_finger_tip_loc_a),
+                np.array(r_finger_tip_loc), np.array(r_finger_tip_loc_a),
+                np.array([l_dist, r_dist])), 0)
+        else:
+            obs = np.array(
+                self._agent.get_camera_observation(
+                    "default::pr2::pr2::head_tilt_link::head_mount_prosilica_link_sensor"
+                ),
+                copy=False)
+            obs = PIL.Image.fromarray(rgb2gray(obs)).resize(
+                self._resized_image_size, PIL.Image.ANTIALIAS)
 
-        obs = np.reshape(np.array(obs),
-                         [self._resized_image_size[0], self._resized_image_size[1], 1])
+            obs = np.reshape(np.array(obs),
+                              [self._resized_image_size[0], self._resized_image_size[1], 1])
+
         return obs
 
     def _get_finger_tip_distance(self):
@@ -148,8 +209,27 @@ class Pr2Gripper(gym.Env):
         r_dist = np.linalg.norm(np.array(r_finger_tip_loc) - np.array(goal_loc))
         return l_dist, r_dist
 
-    def step(self, action):
-        controls = dict(zip(self._r_arm_joints, action))
+    def _get_gripper_pos(self):
+        state = self._agent.get_joint_state("pr2::pr2::r_gripper_joint")
+        return state.get_positions()[0]
+
+
+    def step(self, actions):
+        def trunc_scale(a, limit):
+            if a < -1.0:
+                return -limit
+            elif a > 1.0:
+                return limit
+            else:
+                return a * limit
+
+        scaled_actions = [trunc_scale(x, self._r_arm_joints_limits[i]) \
+                          for i,x in enumerate(actions)]
+
+        if self._use_scaled_actions:
+            actions = scaled_actions
+
+        controls = dict(zip(self._r_arm_joints, actions))
 
         self._agent.take_action(controls)
         self._world.step(100)
@@ -157,29 +237,67 @@ class Pr2Gripper(gym.Env):
 
         self._steps_in_this_episode += 1
         dist = self._get_finger_tip_distance()
+        gripper_pos = self._get_gripper_pos()
 
         done = self._steps_in_this_episode >= self._max_steps
 
-        reward = 0.0 if (not done) else 1.0 - np.tanh(5.0 * (dist[0] + dist[1]))
+        reward = 0 if (not done) else 1.0 - np.tanh(5.0 * (dist[0] + dist[1]))
 
-        shape_reward = (self._prev_dist[0] - dist[0]) + (self._prev_dist[1] - dist[1])
+        dist_reward = (self._prev_dist[0] - dist[0]) + (self._prev_dist[1] - dist[1])
+
+        pos_reward = self._gripper_reward_dir * (gripper_pos - self._prev_gripper_pos)
+
         if self._reward_shaping:
-            reward += shape_reward
+            reward += dist_reward + pos_reward
 
-        if self._agent.get_contact("r_gripper_l_finger_tip_contact_sensor", self._goal_name):
-            logger.debug("l finger touch!")
-            reward += 0.25
+        delta_reward = 0
 
-        if self._agent.get_contact("r_gripper_r_finger_tip_contact_sensor", self._goal_name):
-            logger.debug("r finger touch!")
-            reward += 0.25
+        l_finger_collisions = self._agent.get_collisions("r_gripper_l_finger_tip_contact_sensor")
+        r_finger_collisions = self._agent.get_collisions("r_gripper_r_finger_tip_contact_sensor")
+
+        def check_goal_collisions(collisions, goal_link):
+            for collision in collisions:
+                if goal_link == collision[0] or goal_link == collision[1]:
+                    return True
+            return False
+
+        l_touch = check_goal_collisions(l_finger_collisions, "beer::link::box_collision"):
+        r_touch = check_goal_collisions(r_finger_collisions, "beer::link::box_collision"):
+        if l_touch:
+            logger.info("l finger touch!")
+            delta_reward += 0.5
+
+        if r_touch:
+            logger.info("r finger touch!")
+            delta_reward += 0.5
+
+        if l_touch and r_touch:
+            logger.info("both touch!")
+            delta_reward += 0.5
+            goal_loc, _ = self._goal.get_pose()
+
+            goal_move_reward = (goal_loc[2] > self._table_height + 0.2)
+            if goal_move_reward:
+                logger.debug("beer lift! " + str(goal_loc))
+                delta_reward += 1
+
+
+        # need to undesirable behavior
+        # if self._goal.get_num_contacts("beer_contact") > 1:
+        #     logger.debug("beer touch!")
+        #     reward += 0.25
 
         goal_loc, _ = self._goal.get_pose()
 
         goal_move_reward = (goal_loc[2] > self._table_height + 0.01)
         if goal_move_reward:
             logger.debug("beer lift! " + str(goal_loc))
-            reward += 1
+            delta_reward += 1
+
+        if delta_reward > 0:
+            reward += delta_reward
+        else:
+            reward += -0.01     #if no positive reward, penalize it a bit to speed up
 
         if self._motion_loss > 0.0:
             v2s = 0.0
@@ -190,28 +308,49 @@ class Pr2Gripper(gym.Env):
 
         self._cum_reward += reward
         if done:
-            logger.debug("episode ends at dist: " + str(dist) +
+            logger.debug("episode ends at dist: " + str(dist) + "|" + str(gripper_pos) +
                          " with cum reward:" + str(self._cum_reward))
 
+        if self._gripper_reward_dir == 1 and gripper_pos > self._gripper_upper_limit:
+            self._gripper_reward_dir = -1
+            logger.debug("-switch!")
+        elif self._gripper_reward_dir == -1 and gripper_pos < self._gripper_lower_limit:
+            self._gripper_reward_dir = 1
+            logger.debug("+switch!")
         self._prev_dist = dist
+        self._prev_gripper_pos = gripper_pos
         return obs, reward, done, {}
 
     def run(self):
         self.reset()
+        r_gripper_index = -1
+        for i in range(len(self._r_arm_joints)):
+            if self._r_arm_joints[i].find("pr2::pr2::r_gripper_joint") != -1:
+                r_gripper_index = i
+                break
+        reward = 0.0
         while True:
-            actions = np.random.randn(len(self._r_arm_joints))
-            obs, _, done, _ = self.step(actions)
-            plt.imshow(obs[:, :, 0], cmap='gray')
-            plt.pause(0.001)
+            actions =  np.random.randn(len(self._r_arm_joints))
+            #actions = np.zeros(len(self._r_arm_joints))
+            #actions[r_gripper_index] = np.random.uniform() - 0.5
+            obs, r, done, _ = self.step(actions * self._gripper_reward_dir)
+            reward += r
+            if not self._use_internal_states_only:
+                plt.imshow(obs[:, :, 0], cmap='gray')
+                plt.pause(0.001)
             if done:
+                logger.debug("episode reward:" + str(reward))
                 self.reset()
+                reward = 0.0
+
+
 
     def render(self, mode='human'):
         return
 
 
 def main():
-    env = Pr2Gripper(max_steps=50)
+    env = Pr2Gripper(max_steps=150)
     env.run()
 
 
