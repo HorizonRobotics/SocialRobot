@@ -5,7 +5,6 @@ A simple enviroment for an agent play on a groceryground
 import os
 import logging
 import numpy as np
-import math
 import random
 import PIL
 
@@ -16,9 +15,8 @@ from collections import OrderedDict
 import social_bot
 from social_bot import teacher
 from social_bot.teacher import TeacherAction
-from social_bot.envs import simple_navigation
-from social_bot.envs.simple_navigation import GoalTask
-from social_bot.envs.simple_navigation import DiscreteSequence
+from social_bot import goal_task
+from social_bot.goal_task import GoalTask
 import social_bot.pygazebo as gazebo
 
 logger = logging.getLogger(__name__)
@@ -64,6 +62,24 @@ class GroceryGroundGoalTask(GoalTask):
             if self._initial_dist > 0.5:
                 break
         goal.set_pose((loc, (0, 0, 0)))
+
+
+class DiscreteSequence(gym.Space):
+    """
+    gym.Space object for language sequence
+    """
+
+    def __init__(self, vocab_size, max_length):
+        """
+        Args:
+            vocab_size (int): number of different tokens
+            max_length (int): maximal length of the sequence
+        """
+        super()
+        self._vocab_size = vocab_size
+        self._max_length = max_length
+        self.dtype = np.int32
+        self.shape = (max_length)
 
 
 class GroceryGround(gym.Env):
@@ -139,9 +155,10 @@ class GroceryGround(gym.Env):
 
     def reset(self):
         """
-        Reset the environment
-        Args: None
-        Returns: Observaion of the first step
+        Args:
+            None
+        Returns:
+            Observaion of the first step
         """
         self._world.reset()
         self._world.step(5)
