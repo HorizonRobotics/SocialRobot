@@ -1,4 +1,16 @@
 # Copyright (c) 2019 Horizon Robotics. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
 A simple teacher task to find a goal.
 """
@@ -27,7 +39,8 @@ class GoalTask(teacher.Task):
                  max_steps=500,
                  goal_name="goal",
                  success_distance_thresh=0.5,
-                 fail_distance_thresh=0.5):
+                 fail_distance_thresh=0.5,
+                 goal_random_range=10.0):
         """
         Args:
             max_steps (int): episode will end if not reaching gaol in so many steps
@@ -35,11 +48,13 @@ class GoalTask(teacher.Task):
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is givne reward -1
+            goal_random_range (float): the goal's random position range
         """
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._max_steps = max_steps
+        self._goal_random_range = goal_random_range
 
     def run(self, agent, world):
         """
@@ -88,9 +103,11 @@ class GoalTask(teacher.Task):
         yield TeacherAction(reward=-1.0, sentence="Failed", done=True)
 
     def _move_goal(self, goal, agent_loc):
+        range = self._goal_random_range
         while True:
-            loc = (random.random() * 2 - 1, random.random() * 2 - 1, 0)
+            loc = (random.random() * range - range / 2,
+                   random.random() * range - range / 2, 0)
             self._initial_dist = np.linalg.norm(loc - agent_loc)
-            if self._initial_dist > 0.5:
+            if self._initial_dist > self._success_distance_thresh:
                 break
         goal.set_pose((loc, (0, 0, 0)))

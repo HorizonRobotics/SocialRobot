@@ -1,4 +1,16 @@
 # Copyright (c) 2019 Horizon Robotics. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """
 A simple enviroment for an agent play on a groceryground
 """
@@ -15,7 +27,7 @@ from collections import OrderedDict
 import social_bot
 from social_bot import teacher
 from social_bot.teacher import TeacherAction
-from social_bot import goal_task
+from social_bot.teacher import DiscreteSequence
 from social_bot.goal_task import GoalTask
 import social_bot.pygazebo as gazebo
 
@@ -45,41 +57,12 @@ class GroceryGroundGoalTask(GoalTask):
             goal_random_range (float): the goal's random position range
             
         """
-        self._goal_random_range = goal_random_range
         super(GroceryGroundGoalTask, self).__init__(
             max_steps=max_steps,
             goal_name=goal_name,
             success_distance_thresh=success_distance_thresh,
-            fail_distance_thresh=fail_distance_thresh)
-
-    def _move_goal(self, goal, agent_loc):
-        while True:
-            loc = (random.random() * self._goal_random_range -
-                   self._goal_random_range / 2,
-                   random.random() * self._goal_random_range -
-                   self._goal_random_range / 2, 0)
-            self._initial_dist = np.linalg.norm(loc - agent_loc)
-            if self._initial_dist > 0.5:
-                break
-        goal.set_pose((loc, (0, 0, 0)))
-
-
-class DiscreteSequence(gym.Space):
-    """
-    gym.Space object for language sequence
-    """
-
-    def __init__(self, vocab_size, max_length):
-        """
-        Args:
-            vocab_size (int): number of different tokens
-            max_length (int): maximal length of the sequence
-        """
-        super()
-        self._vocab_size = vocab_size
-        self._max_length = max_length
-        self.dtype = np.int32
-        self.shape = (max_length)
+            fail_distance_thresh=fail_distance_thresh,
+            goal_random_range=goal_random_range)
 
 
 class GroceryGround(gym.Env):
