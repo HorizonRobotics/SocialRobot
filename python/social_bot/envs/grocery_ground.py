@@ -89,23 +89,27 @@ class GroceryGround(gym.Env):
         if port is None:
             port = 0
         gazebo.initialize(port=port)
+        # TODO: Load a empty world without agent, then spwan the agent model
+        # Issue: Inserting agent won't work. Report ERROR "Assertion `px != 0' failed"
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
-        # self._world.info()
+        self._object_types = [
+            'coke_can', 'cube_20k', 'car_wheel', 'first_2015_trash_can',
+            'plastic_cup', 'mailbox', 'postbox', 'cabinet', 'beer', 'hammer'
+        ]
+        # self._world.insertModelFile("model://pr2_differential_driver")
+        self._random_insert_objects()
+        self._world.info()
+        self._world.step(10)
 
-        self._agent = self._world.get_agent()
+        self._agent = self._world.get_agent('pr2')
+        print(self._agent.get_joint_names())
+
         self._pr2_joints = list(
             filter(
                 lambda s: s.find('fl_caster_r_wheel_joint') != -1 or s.find('fr_caster_l_wheel_joint') != -1,
                 self._agent.get_joint_names()))
         logger.info("joints to control: %s" % self._pr2_joints)
-        self._objects_names = [
-            'coke_can_0', 'coke_can_1', 'coke_can_2', 'coke_can_3',
-            'coke_can_4', 'table', 'grey_wall', 'cube_20k', 'caffe_table',
-            'bookshelf', 'car_wheel_0', 'car_wheel_1', 'trash_can',
-            'plastic_cup_0', 'plastic_cup_1', 'plastic_cup_2', 'plastic_cup_3',
-            'plastic_cup_4'
-        ]
         self._goal_name = 'bookshelf'
 
         self._teacher = teacher.Teacher(False)
@@ -144,7 +148,7 @@ class GroceryGround(gym.Env):
             Observaion of the first step
         """
         self._world.reset()
-        self._world.step(5)
+        self._world.step(10)
         self._collision_cnt = 0
         self._cum_reward = 0.0
         self._steps_in_this_episode = 0
@@ -211,6 +215,18 @@ class GroceryGround(gym.Env):
         if teacher_action.done:
             logger.debug("episode ends at cum reward:" + str(self._cum_reward))
         return obs, teacher_action.reward, teacher_action.done, {}
+
+    def _random_insert_objects(self, random_range=10.0):
+        for obj_id in range(len(self._object_types)):
+            # Add URI string
+            # obj_idx = random.randint(0, len(self._object_types) - 1)
+            model_name = self._object_types[obj_id]
+            self._world.insertModelFile('model://' + model_name)
+            self._world.step(5)
+            # setpose not working now, report ERROR "Assertion `px != 0' failed"
+            # loc = (random.random() * random_range - random_range / 2,
+            #        random.random() * random_range - random_range / 2, 0)
+            # self._world.get_model(model_name).set_pose((loc, (0, 0, 0)))
 
 
 def main():

@@ -24,37 +24,7 @@
         <uri>model://pr2_differential_driver</uri>
       </include>
     </model>
-    <!-- Objects -->
-    <model name='coke_can_0'>
-      <include>
-        <uri>model://coke_can</uri>
-      </include>
-      <pose frame=''>1.54318 -0.407498 0 0 -0 0</pose>
-    </model>
-    <model name='coke_can_1'>
-      <include>
-        <uri>model://coke_can</uri>
-      </include>
-      <pose frame=''>1.58902 -0.759089 0 0 -0 0</pose>
-    </model>
-    <model name='coke_can_2'>
-      <include>
-        <uri>model://coke_can</uri>
-      </include>
-      <pose frame=''>0.028272 -0.570156 0 0 -0 0</pose>
-    </model>
-    <model name='coke_can_3'>
-      <include>
-        <uri>model://coke_can</uri>
-      </include>
-      <pose frame=''>-0.072068 0.687987 0 0 -0 0</pose>
-    </model>
-    <model name='coke_can_4'>
-      <include>
-        <uri>model://coke_can</uri>
-      </include>
-      <pose frame=''>1.53557 -0.073439 0 0 -0 0</pose>
-    </model>
+    <!-- Static Objects -->
     <!--
     <model name='trash_can'>
       <include>
@@ -69,18 +39,24 @@
       </include>
       <pose frame=''>2.27206 1.33922 0 0 -0 0</pose>
     </model>
+    <model name='coke_can'>
+      <include>
+        <uri>model://coke_can</uri>
+      </include>
+      <pose frame=''>2.33206 1.33922 1.0 0 -0 0</pose>
+    </model>
+    <model name='plastic_cup'>
+      <include>
+        <uri>model://plastic_cup</uri>
+      </include>
+      <pose frame=''>2.45206 1.33922 0.98 0 -0 0</pose>
+    </model>
     <model name='grey_wall'>
       <static>1</static>
       <include>
         <uri>model://grey_wall</uri>
       </include>
       <pose frame=''>1.11896 5.46577 0 0 -0 0</pose>
-    </model>
-    <model name='cube_20k'>
-      <include>
-        <uri>model://cube_20k</uri>
-      </include>
-      <pose frame=''>-1.91354 2.45344 0 0 -0 0</pose>
     </model>
     <model name='cafe_table'>
       <static>1</static>
@@ -90,59 +66,17 @@
       <pose frame=''>4.51744 4.15288 0 0 -0 0</pose>
     </model>
     <model name='bookshelf'>
-      <static>1</static>
       <include>
         <uri>model://bookshelf</uri>
       </include>
       <pose frame=''>6.47686 6.15769 0 0 -0 0</pose>
     </model>
-    <model name='car_wheel_0'>
-      <include>
-        <uri>model://car_wheel</uri>
-      </include>
-      <pose frame=''>-0.896922 1.14379 0 0 -0 0</pose>
-    </model>
-    <model name='car_wheel_1'>
-      <include>
-        <uri>model://car_wheel</uri>
-      </include>
-      <pose frame=''>-0.243047 2.02414 0 0 -0 0</pose>
-    </model>
     <model name='jersey_barrier'>
+      <static>1</static>
       <include>
         <uri>model://jersey_barrier</uri>
       </include>
       <pose frame=''>0.104795 -4.75637 0 0 -0 0</pose>
-    </model>
-    <model name='plastic_cup_0'>
-      <include>
-        <uri>model://plastic_cup</uri>
-      </include>
-      <pose frame=''>-1.26576 0.708127 0 0 -0 0</pose>
-    </model>
-    <model name='plastic_cup_1'>
-      <include>
-        <uri>model://plastic_cup</uri>
-      </include>
-      <pose frame=''>-1.25618 0.401658 0 0 -0 0</pose>
-    </model>
-    <model name='plastic_cup_2'>
-      <include>
-        <uri>model://plastic_cup</uri>
-      </include>
-      <pose frame=''>-1.26161 0.089297 0 0 -0 0</pose>
-    </model>
-    <model name='plastic_cup_3'>
-      <include>
-        <uri>model://plastic_cup</uri>
-      </include>
-      <pose frame=''>-1.27414 -0.222756 0 0 -0 0</pose>
-    </model>
-    <model name='plastic_cup_4'>
-      <include>
-        <uri>model://plastic_cup</uri>
-      </include>
-      <pose frame=''>-1.26539 1.02484 0 0 -0 0</pose>
     </model>
 
   </world>

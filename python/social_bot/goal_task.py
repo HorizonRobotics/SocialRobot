@@ -40,7 +40,7 @@ class GoalTask(teacher.Task):
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
-                 goal_random_range=10.0):
+                 goal_random_range=2.0):
         """
         Args:
             max_steps (int): episode will end if not reaching gaol in so many steps
