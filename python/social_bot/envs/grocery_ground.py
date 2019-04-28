@@ -91,19 +91,20 @@ class GroceryGround(gym.Env):
         gazebo.initialize(port=port)
         # TODO: Load a empty world without agent, then spwan the agent model
         # Issue: Inserting agent won't work. Report ERROR "Assertion `px != 0' failed"
+        # self._world.insertModelFile("model://pr2_differential_driver")
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
         self._object_types = [
             'coke_can', 'cube_20k', 'car_wheel', 'first_2015_trash_can',
-            'plastic_cup', 'mailbox', 'postbox', 'cabinet', 'beer', 'hammer'
+            'plastic_cup', 'postbox', 'cabinet', 'beer', 'hammer'
         ]
-        # self._world.insertModelFile("model://pr2_differential_driver")
-        self._random_insert_objects()
         self._world.info()
         self._world.step(10)
+        self._random_insert_objects()
+        self._world.model_list_info()
+        self._random_move_objects()
 
         self._agent = self._world.get_agent('pr2')
-        print(self._agent.get_joint_names())
 
         self._pr2_joints = list(
             filter(
@@ -154,6 +155,7 @@ class GroceryGround(gym.Env):
         self._steps_in_this_episode = 0
         self._goal = self._world.get_agent(self._goal_name)
         self._teacher.reset(self._agent, self._world)
+        self._random_move_objects()
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
@@ -218,15 +220,19 @@ class GroceryGround(gym.Env):
 
     def _random_insert_objects(self, random_range=10.0):
         for obj_id in range(len(self._object_types)):
-            # Add URI string
             # obj_idx = random.randint(0, len(self._object_types) - 1)
             model_name = self._object_types[obj_id]
             self._world.insertModelFile('model://' + model_name)
-            self._world.step(5)
-            # setpose not working now, report ERROR "Assertion `px != 0' failed"
-            # loc = (random.random() * random_range - random_range / 2,
-            #        random.random() * random_range - random_range / 2, 0)
-            # self._world.get_model(model_name).set_pose((loc, (0, 0, 0)))
+            print('model ' + model_name + ' inserted')
+            self._world.step(10)  # Avoid 'px!=0' error
+
+    def _random_move_objects(self, random_range=10.0):
+        for obj_id in range(len(self._object_types)):
+            model_name = self._object_types[obj_id]
+            loc = (random.random() * random_range - random_range / 2,
+                   random.random() * random_range - random_range / 2, 0)
+            pose = (loc, (0, 0, 0))
+            self._world.get_model(model_name).set_pose(pose)
 
 
 def main():
