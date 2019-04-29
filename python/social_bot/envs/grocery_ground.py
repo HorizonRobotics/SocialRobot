@@ -70,28 +70,30 @@ class GroceryGround(gym.Env):
     The goal of this task is to train the agent to navigate to the objects given its
     name.
 
-    Joints of caster and arms in the PR2 are controllable by force,
-    the observations are the states of the world, including every model's position
-    and rotation.
+    Joints of the agent are controllable by force,
+    the observations are image or the states of the world, including every model's
+    position and rotation.
 
-    In the version:
-    * agent will receive the total contacts of the wall as the reward
+    Agent will receive a reward provided by the teacher
 
     """
 
-    def __init__(self, with_language=False, use_image_obs=False, port=None):
+    def __init__(self,
+                 with_language=False,
+                 use_image_obs=False,
+                 agent_type='pioneer2dx_noplugin',
+                 port=None):
         """
         Args:
             with_language (bool): the observation will be a dict with an extra sentence
             use_image_obs (bool): use image as observation, or use pose of the objects
+            agent_type (string): select the agent robot, supporting pr2_differential, 
+                pioneer2dx_noplugin, turtlebot, and create for now
             port: Gazebo port, need to specify when run multiple environment in parallel
         """
         if port is None:
             port = 0
         gazebo.initialize(port=port)
-        # TODO: Load a empty world without agent, then spwan the agent model
-        # Issue: Inserting agent won't work. Report ERROR "Assertion `px != 0' failed"
-        # self._world.insertModelFile("model://pr2_differential_driver")
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
         self._object_types = [
@@ -100,18 +102,52 @@ class GroceryGround(gym.Env):
         ]
         self._world.info()
         self._world.step(10)
+        self._world.insertModelFile('model://' + agent_type)
+        self._world.info()
         self._random_insert_objects()
         self._world.model_list_info()
         self._random_move_objects()
 
-        self._agent = self._world.get_agent('pr2')
+        # Specify joints and sensors for the robots
+        control_joints = {
+            'pr2_differential': [
+                'pr2_differential::fl_caster_r_wheel_joint',
+                'pr2_differential::fr_caster_l_wheel_joint'
+            ],
+            'pioneer2dx_noplugin': [
+                'pioneer2dx_noplugin::left_wheel_hinge',
+                'pioneer2dx_noplugin::right_wheel_hinge'
+            ],
+            'turtlebot': [
+                'turtlebot::create::left_wheel',
+                'turtlebot::create::right_wheel'
+            ],
+            'create': ['create::left_wheel', 'create::right_wheel'],
+        }
+        control_force = {
+            'pr2_differential': 20,
+            'pioneer2dx_noplugin': 2,
+            'turtlebot': 1,
+            'create': 0.5,
+        }
+        # TODO
+        camera_sensor = {
+            'pr2_differential':
+            'default::pr2::pr2::head_tilt_link::head_mount_prosilica_link_sensor',
+            'pioneer2dx_noplugin':
+            ' ',
+            'turtlebot':
+            ' ',
+            'create':
+            ' ',
+        }
 
-        self._pr2_joints = list(
-            filter(
-                lambda s: s.find('fl_caster_r_wheel_joint') != -1 or s.find('fr_caster_l_wheel_joint') != -1,
-                self._agent.get_joint_names()))
-        logger.info("joints to control: %s" % self._pr2_joints)
-        self._goal_name = 'bookshelf'
+        self._agent = self._world.get_agent(agent_type)
+        self._agent_joints = control_joints[agent_type]
+        self._agent_control_force = control_force[agent_type]
+        self._agent_camera = camera_sensor[agent_type]
+
+        logger.info("joints to control: %s" % self._agent_joints)
 
         self._teacher = teacher.Teacher(False)
         task_group = teacher.TaskGroup()
@@ -129,8 +165,12 @@ class GroceryGround(gym.Env):
         else:
             obs_data_space = gym.spaces.Box(
                 low=-50, high=50, shape=obs.shape, dtype=np.float32)
+
         control_space = gym.spaces.Box(
-            low=-20, high=20, shape=[len(self._pr2_joints)], dtype=np.float32)
+            low=-self._agent_control_force,
+            high=self._agent_control_force,
+            shape=[len(self._agent_joints)],
+            dtype=np.float32)
 
         if self._with_language:
             self.observation_space = gym.spaces.Dict(
@@ -153,7 +193,6 @@ class GroceryGround(gym.Env):
         self._collision_cnt = 0
         self._cum_reward = 0.0
         self._steps_in_this_episode = 0
-        self._goal = self._world.get_agent(self._goal_name)
         self._teacher.reset(self._agent, self._world)
         self._random_move_objects()
         teacher_action = self._teacher.teach("")
@@ -167,13 +206,10 @@ class GroceryGround(gym.Env):
     def _get_observation(self):
         if self._use_image_obs:
             obs_data = np.array(
-                self._agent.get_camera_observation(
-                    "default::pr2::pr2::head_tilt_link::head_mount_prosilica_link_sensor"
-                ),
+                self._agent.get_camera_observation(self._agent_camera),
                 copy=False)
             obs_data = PIL.Image.fromarray(
                 obs_data.resize(self._resized_image_size, PIL.Image.ANTIALIAS))
-
             obs_data = np.reshape(
                 np.array(obs_data), [
                     self._resized_image_size[0], self._resized_image_size[1],
@@ -181,7 +217,6 @@ class GroceryGround(gym.Env):
                 ])
         else:
             objects_poses = []
-            objects_poses.append(self._goal.get_pose())
             objects_poses.append(self._agent.get_pose())
             obs_data = np.array(objects_poses).reshape(-1)
         return obs_data
@@ -189,7 +224,8 @@ class GroceryGround(gym.Env):
     def step(self, action):
         """
         Args:
-            action (dict|int): If with_language, action is a dictionary with key "control" and "sentence".
+            action (dict|int): If with_language, action is a dictionary 
+                    with key "control" and "sentence".
                     action['control'] is a vector whose dimention is
                     len(_joint_names). action['sentence'] is a string.
                     If not with_language, it is an int for the action id.
@@ -203,7 +239,7 @@ class GroceryGround(gym.Env):
         else:
             sentence = ''
             controls = action
-        controls = dict(zip(self._pr2_joints, controls))
+        controls = dict(zip(self._agent_joints, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(5)
@@ -218,12 +254,11 @@ class GroceryGround(gym.Env):
             logger.debug("episode ends at cum reward:" + str(self._cum_reward))
         return obs, teacher_action.reward, teacher_action.done, {}
 
-    def _random_insert_objects(self, random_range=10.0):
+    def _random_insert_objects(self):
         for obj_id in range(len(self._object_types)):
-            # obj_idx = random.randint(0, len(self._object_types) - 1)
             model_name = self._object_types[obj_id]
             self._world.insertModelFile('model://' + model_name)
-            print('model ' + model_name + ' inserted')
+            logger.debug('model ' + model_name + ' inserted')
             self._world.step(10)  # Avoid 'px!=0' error
 
     def _random_move_objects(self, random_range=10.0):
@@ -241,7 +276,8 @@ def main():
     """
     env = GroceryGround()
     while True:
-        actions = 20 * np.random.randn(env.action_space.shape[0])
+        actions = env._agent_control_force * np.random.randn(
+            env.action_space.shape[0])
         obs, _, done, _ = env.step(actions)
         if done:
             env.reset()

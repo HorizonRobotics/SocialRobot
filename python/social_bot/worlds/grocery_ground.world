@@ -18,10 +18,10 @@
     <include>
       <uri>model://sun</uri>
     </include>
-    <!-- The PR2 robot -->
-    <model name="pr2">
+    <!-- A PR2 robot, serve as the teacher -->
+    <model name="pr2_teacher">
       <include>
-        <uri>model://pr2_differential_driver</uri>
+        <uri>model://pr2_differential</uri>
       </include>
     </model>
     <!-- Static Objects -->
@@ -78,6 +78,5 @@
       </include>
       <pose frame=''>0.104795 -4.75637 0 0 -0 0</pose>
     </model>
-
   </world>
 </sdf>
