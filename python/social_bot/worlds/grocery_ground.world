@@ -6,7 +6,7 @@
 <sdf version="1.5">
   <world name="default">
     <physics type="ode">
-      <max_step_size>0.01</max_step_size>
+      <max_step_size>0.005</max_step_size>
       <real_time_factor>1</real_time_factor>
       <real_time_update_rate>0</real_time_update_rate>
     </physics>
@@ -23,6 +23,7 @@
       <include>
         <uri>model://pr2_differential</uri>
       </include>
+      <pose frame=''>2.0 -0.0 0 0 0 3.14159265 </pose>
     </model>
     <!-- Static Objects -->
     <!--
@@ -39,13 +40,13 @@
       </include>
       <pose frame=''>2.27206 1.33922 0 0 -0 0</pose>
     </model>
-    <model name='coke_can'>
+    <model name='coke_can_on_table'>
       <include>
         <uri>model://coke_can</uri>
       </include>
       <pose frame=''>2.33206 1.33922 1.0 0 -0 0</pose>
     </model>
-    <model name='plastic_cup'>
+    <model name='plastic_cup_on_table'>
       <include>
         <uri>model://plastic_cup</uri>
       </include>

@@ -43,7 +43,7 @@ class GroceryGroundGoalTask(GoalTask):
 
     def __init__(self,
                  max_steps=500,
-                 goal_name="bookshelf",
+                 goal_name="first_2015_trash_can",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=3.0,
                  goal_random_range=10.0):
@@ -101,9 +101,8 @@ class GroceryGround(gym.Env):
             'plastic_cup', 'postbox', 'cabinet', 'beer', 'hammer'
         ]
         self._world.info()
-        self._world.step(10)
         self._world.insertModelFile('model://' + agent_type)
-        self._world.info()
+        self._world.step(20)
         self._random_insert_objects()
         self._world.model_list_info()
         self._random_move_objects()
@@ -130,10 +129,10 @@ class GroceryGround(gym.Env):
             'turtlebot': 1,
             'create': 0.5,
         }
-        # TODO
+        # Camera, TODO
         camera_sensor = {
             'pr2_differential':
-            'default::pr2::pr2::head_tilt_link::head_mount_prosilica_link_sensor',
+            'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
             'pioneer2dx_noplugin':
             ' ',
             'turtlebot':
@@ -189,12 +188,13 @@ class GroceryGround(gym.Env):
             Observaion of the first step
         """
         self._world.reset()
-        self._world.step(10)
+        self._world.step(20)
         self._collision_cnt = 0
         self._cum_reward = 0.0
         self._steps_in_this_episode = 0
         self._teacher.reset(self._agent, self._world)
         self._random_move_objects()
+        self._world.step(20)
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
@@ -218,6 +218,10 @@ class GroceryGround(gym.Env):
         else:
             objects_poses = []
             objects_poses.append(self._agent.get_pose())
+            for obj_id in range(len(self._object_types)):
+                model_name = self._object_types[obj_id]
+                pose = self._world.get_model(model_name).get_pose()
+                objects_poses.append(pose)
             obs_data = np.array(objects_poses).reshape(-1)
         return obs_data
 
@@ -242,7 +246,7 @@ class GroceryGround(gym.Env):
         controls = dict(zip(self._agent_joints, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
-        self._world.step(5)
+        self._world.step(10)
         if self._with_language:
             obs_data = self._get_observation()
             obs = OrderedDict(data=obs_data, sentence=teacher_action.sentence)
@@ -259,7 +263,7 @@ class GroceryGround(gym.Env):
             model_name = self._object_types[obj_id]
             self._world.insertModelFile('model://' + model_name)
             logger.debug('model ' + model_name + ' inserted')
-            self._world.step(10)  # Avoid 'px!=0' error
+            self._world.step(20)  # Avoid 'px!=0' error
 
     def _random_move_objects(self, random_range=10.0):
         for obj_id in range(len(self._object_types)):
