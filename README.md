@@ -7,6 +7,7 @@ SocialBot is built on top of [Gazebo simulator](http://gazebosim.org). You need 
 ```bash
 curl -sSL http://get.gazebosim.org | sh
 ```
+If you already have a gazebo in your system, please make sure its version is greater than 9.6. You can check gazebo version by running `gazebo --version`. SocialRobot had been tested with Gazebo 9.6 and Gazebo 10.0.
 
 You also need to install the following packages:
 ```bash
