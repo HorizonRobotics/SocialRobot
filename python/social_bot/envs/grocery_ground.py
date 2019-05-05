@@ -28,41 +28,10 @@ import social_bot
 from social_bot import teacher
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
-from social_bot.goal_task import GoalTask
+from social_bot import teacher_tasks
 import social_bot.pygazebo as gazebo
 
 logger = logging.getLogger(__name__)
-
-
-class GroceryGroundGoalTask(GoalTask):
-    """
-    For this task, the agent will receive reward 1 when it is close enough to the goal.
-    If it is moving away from the goal too much or still not close to the goal after max_steps,
-    it will get reward -1.
-    """
-
-    def __init__(self,
-                 max_steps=500,
-                 goal_name="first_2015_trash_can",
-                 success_distance_thresh=0.5,
-                 fail_distance_thresh=3.0,
-                 goal_random_range=10.0):
-        """
-        Args:
-            max_steps (int): episode will end if not reaching goal in so many steps
-            goal_name (string): name of the goal in the world
-            success_distance_thresh (float): the goal is reached if it's within this distance to the agent
-            fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
-                it's considered a failure and is givne reward -1
-            goal_random_range (float): the goal's random position range
-            
-        """
-        super(GroceryGroundGoalTask, self).__init__(
-            max_steps=max_steps,
-            goal_name=goal_name,
-            success_distance_thresh=success_distance_thresh,
-            fail_distance_thresh=fail_distance_thresh,
-            goal_random_range=goal_random_range)
 
 
 class GroceryGround(gym.Env):
@@ -82,6 +51,7 @@ class GroceryGround(gym.Env):
                  with_language=False,
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
+                 goal_name='first_2015_trash_can',
                  port=None):
         """
         Args:
@@ -145,12 +115,18 @@ class GroceryGround(gym.Env):
         self._agent_joints = control_joints[agent_type]
         self._agent_control_force = control_force[agent_type]
         self._agent_camera = camera_sensor[agent_type]
+        self._goal_name = goal_name
 
         logger.info("joints to control: %s" % self._agent_joints)
 
         self._teacher = teacher.Teacher(False)
         task_group = teacher.TaskGroup()
-        task_group.add_task(GroceryGroundGoalTask())
+        teacher_task = teacher_tasks.GoalTask(max_steps=500,
+                                goal_name=self._goal_name,
+                                success_distance_thresh=0.5,
+                                fail_distance_thresh=3.0,
+                                random_range=10.0)
+        task_group.add_task(teacher_task)
         self._teacher.add_task_group(task_group)
 
         self._with_language = with_language
@@ -218,10 +194,8 @@ class GroceryGround(gym.Env):
         else:
             objects_poses = []
             objects_poses.append(self._agent.get_pose())
-            for obj_id in range(len(self._object_types)):
-                model_name = self._object_types[obj_id]
-                pose = self._world.get_model(model_name).get_pose()
-                objects_poses.append(pose)
+            pose = self._world.get_model(self._goal_name).get_pose()
+            objects_poses.append(pose)
             obs_data = np.array(objects_poses).reshape(-1)
         return obs_data
 
