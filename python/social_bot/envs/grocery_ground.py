@@ -15,6 +15,7 @@
 A simple enviroment for an agent play on a groceryground
 """
 import os
+import time
 import logging
 import numpy as np
 import random
@@ -34,6 +35,60 @@ import social_bot.pygazebo as gazebo
 logger = logging.getLogger(__name__)
 
 
+class GroceryGroundGoalTask(teacher_tasks.GoalTask):
+    """
+    A simple teacher task to find a goal for env GroceryGround.
+    """
+
+    def __init__(self, reward_shaping=False, **kwargs):
+        """
+        Args:
+            eward_shaping (bool): if ture, use shaped reward accroding to distance rather than -1 and 1
+        """
+        super(GroceryGroundGoalTask, self).__init__(**kwargs)
+        self._reward_shaping = reward_shaping
+
+    def run(self, agent, world):
+        """
+        Start a teaching episode for this task.
+        Args:
+            agent (pygazebo.Agent): the learning agent 
+            world (pygazebo.World): the simulation world
+        """
+        agent_sentence = yield
+        agent.reset()
+        goal = world.get_agent(self._goal_name)
+        loc, dir = agent.get_pose()
+        loc = np.array(loc)
+        self._move_goal(goal, loc)
+        steps_since_last_reward = 0
+        while steps_since_last_reward < self._max_steps:
+            steps_since_last_reward += 1
+            loc, dir = agent.get_pose()
+            goal_loc, _ = goal.get_pose()
+            loc = np.array(loc)
+            goal_loc = np.array(goal_loc)
+            dist = np.linalg.norm(loc - goal_loc)
+            if dist < self._success_distance_thresh:
+                logger.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
+                             "dist: " + str(dist))
+                agent_sentence = yield TeacherAction(
+                    reward=10.0, sentence="Well done!", done=True)
+                steps_since_last_reward = 0
+                self._move_goal(goal, loc)
+            else:
+                if self._reward_shaping:
+                    agent_sentence = yield TeacherAction(
+                        reward=-0.1 * dist / self._random_range,
+                        sentence="Failed",
+                        done=False)
+                else:
+                    agent_sentence = yield TeacherAction()
+        logger.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
+                     "dist: " + str(dist))
+        yield TeacherAction(reward=-10.0, sentence="Failed", done=True)
+
+
 class GroceryGround(gym.Env):
     """
     The goal of this task is to train the agent to navigate to the objects given its
@@ -51,7 +106,8 @@ class GroceryGround(gym.Env):
                  with_language=False,
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
-                 goal_name='first_2015_trash_can',
+                 goal_name='table',
+                 max_steps=128,
                  port=None):
         """
         Args:
@@ -68,11 +124,12 @@ class GroceryGround(gym.Env):
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
         self._object_types = [
             'coke_can', 'cube_20k', 'car_wheel', 'first_2015_trash_can',
-            'plastic_cup', 'postbox', 'cabinet', 'beer', 'hammer'
+            'plastic_cup', 'beer', 'hammer'
         ]
         self._world.info()
         self._world.insertModelFile('model://' + agent_type)
         self._world.step(20)
+        time.sleep(0.1)  # Avoid 'px!=0' error
         self._random_insert_objects()
         self._world.model_list_info()
         self._random_move_objects()
@@ -95,8 +152,8 @@ class GroceryGround(gym.Env):
         }
         control_force = {
             'pr2_differential': 20,
-            'pioneer2dx_noplugin': 2,
-            'turtlebot': 1,
+            'pioneer2dx_noplugin': 0.5,
+            'turtlebot': 0.5,
             'create': 0.5,
         }
         # Camera, TODO
@@ -121,11 +178,13 @@ class GroceryGround(gym.Env):
 
         self._teacher = teacher.Teacher(False)
         task_group = teacher.TaskGroup()
-        teacher_task = teacher_tasks.GoalTask(max_steps=500,
-                                goal_name=self._goal_name,
-                                success_distance_thresh=0.5,
-                                fail_distance_thresh=3.0,
-                                random_range=10.0)
+        teacher_task = GroceryGroundGoalTask(
+            max_steps=max_steps,
+            goal_name=self._goal_name,
+            success_distance_thresh=0.5,
+            fail_distance_thresh=3.0,
+            reward_shaping=True,
+            random_range=10.0)
         task_group.add_task(teacher_task)
         self._teacher.add_task_group(task_group)
 
@@ -170,7 +229,7 @@ class GroceryGround(gym.Env):
         self._steps_in_this_episode = 0
         self._teacher.reset(self._agent, self._world)
         self._random_move_objects()
-        self._world.step(20)
+        self._world.step(100)
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
@@ -192,11 +251,19 @@ class GroceryGround(gym.Env):
                     self._resized_image_size[2]
                 ])
         else:
-            objects_poses = []
-            objects_poses.append(self._agent.get_pose())
-            pose = self._world.get_model(self._goal_name).get_pose()
-            objects_poses.append(pose)
-            obs_data = np.array(objects_poses).reshape(-1)
+            goal_pose = np.array(
+                self._world.get_model(self._goal_name).get_pose()).flatten()
+            agent_pose = np.array(self._agent.get_pose()).flatten()
+            agent_vel = np.array(self._agent.get_velocities()).flatten()
+            joint_vel = []
+            for joint_id in range(len(self._agent_joints)):
+                joint_name = self._agent_joints[joint_id]
+                joint_state = self._agent.get_joint_state(joint_name)
+                joint_vel.append(joint_state.get_velocities())
+            joint_vel = np.array(joint_vel).flatten()
+            obs_data = np.concatenate(
+                (goal_pose, agent_pose, agent_vel, joint_vel), axis=0)
+            obs_data = np.array(obs_data).reshape(-1)
         return obs_data
 
     def step(self, action):
@@ -237,7 +304,8 @@ class GroceryGround(gym.Env):
             model_name = self._object_types[obj_id]
             self._world.insertModelFile('model://' + model_name)
             logger.debug('model ' + model_name + ' inserted')
-            self._world.step(20)  # Avoid 'px!=0' error
+            self._world.step(10)
+            time.sleep(0.1)  # Avoid 'px!=0' error
 
     def _random_move_objects(self, random_range=10.0):
         for obj_id in range(len(self._object_types)):
@@ -246,11 +314,12 @@ class GroceryGround(gym.Env):
                    random.random() * random_range - random_range / 2, 0)
             pose = (loc, (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
+            self._world.step(10)
 
 
 def main():
     """
-    Simple testing of this enviroenment.
+    Simple testing of this environment.
     """
     env = GroceryGround()
     while True:

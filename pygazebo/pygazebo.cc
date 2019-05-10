@@ -93,6 +93,13 @@ class Model {
                                   std::get<2>(rot));
     model_->SetWorldPose(pose3d);
   }
+  auto GetVelocities() const {
+    auto lin_ver = model_->WorldLinearVel();
+    auto ang_ver = model_->WorldAngularVel();
+    return std::make_tuple(
+        std::make_tuple(lin_ver.X(), lin_ver.Y(), lin_ver.Z()),
+        std::make_tuple(ang_ver.X(), ang_ver.Y(), ang_ver.Z()));
+  }
 };
 
 class Agent : public Model {
@@ -403,7 +410,10 @@ PYBIND11_MODULE(pygazebo, m) {
            "Get ((x,y,z), (roll, pitch, yaw)) of the agent")
       .def("set_pose",
            &Model::SetPose,
-           "Set ((x,y,z), (roll, pitch, yaw)) of the agent");
+           "Set ((x,y,z), (roll, pitch, yaw)) of the agent")
+      .def("get_velocities",
+           &Model::GetVelocities,
+           "Get (linear, angular) velocities of the agent");
 
   py::class_<JointState>(m, "JointState")
       .def(py::init<unsigned int>())

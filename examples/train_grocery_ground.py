@@ -1,12 +1,12 @@
 # Copyright (c) 2019 Horizon Robotics. All Rights Reserved.
 #
 # A simple test for SocialBot-GroceryGround env use TF-Agents
-# The original file is from the TD3 example of TF-Agents:
+# The original file is from the PPO example of TF-Agents:
 #
 #     https://github.com/tensorflow/agents
 #
 # Some parameters are modifed suite the environment.
-#
+# Require about 30K episodes/3.6M steps to train the nvaigation task
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,17 +19,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Train and Eval GroceryGround with TD3.
+r"""Train and Eval GroceryGround.
 
 To run:
 
 ```bash
-examples/train_grocery_ground -- \
-  --root_dir=$HOME/tmp/SocialBot-GroceryGround-v0/ \
-  --num_iterations=2000000 \
-  --alsologtostderr
-```
+tensorboard --logdir ~/tmp/GroceryGroundExample &
 
+python ./examples/grocery_ground.py --logtostderr
+```
 """
 
 from __future__ import absolute_import
@@ -44,28 +42,28 @@ from absl import flags
 from absl import logging
 
 import tensorflow as tf
-
-from tf_agents.agents.ddpg import actor_network
-from tf_agents.agents.ddpg import critic_network
-from tf_agents.agents.td3 import td3_agent
-from tf_agents.drivers import dynamic_step_driver
+from tf_agents.agents.ppo import ppo_agent
+from tf_agents.drivers import dynamic_episode_driver
+from tf_agents.environments import parallel_py_environment
 from tf_agents.environments import tf_py_environment
 from tf_agents.metrics import metric_utils
 from tf_agents.metrics import tf_metrics
+from tf_agents.networks import actor_distribution_network
+from tf_agents.networks import actor_distribution_rnn_network
+from tf_agents.networks import value_network
+from tf_agents.networks import value_rnn_network
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
-import gin.tf
 
 import social_bot
 from alf.environments import suite_socialbot
 
-flags.DEFINE_string('root_dir', os.getenv('TEST_UNDECLARED_OUTPUTS_DIR'),
-                    'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_integer('num_iterations', 100000,
-                     'Total number train/eval iterations to perform.')
-flags.DEFINE_multi_string('gin_file', None, 'Paths to the gin-config files.')
-flags.DEFINE_multi_string('gin_param', None, 'Gin binding parameters.')
+import gin.tf
 
+flags.DEFINE_string('root_dir', '~/tmp/GroceryGroundExample',
+                    'Root directory for writing logs/summaries/checkpoints.')
+flags.DEFINE_boolean('use_rnns', False,
+                     'If true, use RNN for policy and value function.')
 FLAGS = flags.FLAGS
 
 
@@ -73,42 +71,33 @@ FLAGS = flags.FLAGS
 def train_eval(
         root_dir,
         env_name='SocialBot-GroceryGround-v0',
-        num_iterations=2000000,
-        actor_fc_layers=(256, 128, 128),
-        critic_obs_fc_layers=(400, ),
-        critic_action_fc_layers=None,
-        critic_joint_fc_layers=(256, 128),
+        env_load_fn=suite_socialbot.load,
+        random_seed=0,
+        # TODO(b/127576522): rename to policy_fc_layers.
+        actor_fc_layers=(200, 100, 50),
+        value_fc_layers=(200, 100, 50),
+        use_rnns=False,
         # Params for collect
-        initial_collect_steps=1000,
-        collect_steps_per_iteration=1,
-        replay_buffer_capacity=100000,
-        ou_stddev=0.2,
-        ou_damping=0.15,
-        # Params for target update
-        target_update_tau=0.05,
-        target_update_period=5,
+        num_environment_steps=10000000,
+        collect_episodes_per_iteration=8,
+        num_parallel_environments=8,
+        replay_buffer_capacity=2001,  # Per-environment
         # Params for train
-        train_steps_per_iteration=1,
-        batch_size=64,
-        actor_learning_rate=1e-4,
-        critic_learning_rate=1e-3,
-        dqda_clipping=None,
-        td_errors_loss_fn=tf.compat.v1.losses.huber_loss,
-        gamma=0.995,
-        reward_scale_factor=1.0,
-        gradient_clipping=None,
-        use_tf_functions=True,
+        num_epochs=16,
+        learning_rate=1e-4,
         # Params for eval
         num_eval_episodes=10,
-        eval_interval=10000,
-        # Params for checkpoints, summaries, and logging
-        log_interval=1000,
-        summary_interval=1000,
-        summaries_flush_secs=10,
+        eval_interval=500,
+        # Params for summaries and logging
+        log_interval=50,
+        summary_interval=50,
+        summaries_flush_secs=1,
+        use_tf_functions=True,
         debug_summaries=False,
-        summarize_grads_and_vars=False,
-        eval_metrics_callback=None):
-    """A simple train and eval for TD3."""
+        summarize_grads_and_vars=False):
+    """A simple train and eval for GroceryGround."""
+
+    # Set summary writer and eval metrics
     root_dir = os.path.expanduser(root_dir)
     train_dir = os.path.join(root_dir, 'train')
     eval_dir = os.path.join(root_dir, 'eval')
@@ -127,145 +116,82 @@ def train_eval(
     global_step = tf.compat.v1.train.get_or_create_global_step()
     with tf.compat.v2.summary.record_if(
             lambda: tf.math.equal(global_step % summary_interval, 0)):
+        # Create envs and ptimizer
+        tf.compat.v1.set_random_seed(random_seed)
+        eval_tf_env = tf_py_environment.TFPyEnvironment(env_load_fn(env_name))
         tf_env = tf_py_environment.TFPyEnvironment(
-            suite_socialbot.load(env_name))
-        eval_tf_env = tf_py_environment.TFPyEnvironment(
-            suite_socialbot.load(env_name))
+            parallel_py_environment.ParallelPyEnvironment(
+                [lambda: env_load_fn(env_name)] * num_parallel_environments))
+        optimizer = tf.compat.v1.train.AdamOptimizer(
+            learning_rate=learning_rate)
+        # Create actor and value network
+        if use_rnns:
+            actor_net = actor_distribution_rnn_network.ActorDistributionRnnNetwork(
+                tf_env.observation_spec(),
+                tf_env.action_spec(),
+                input_fc_layer_params=actor_fc_layers,
+                output_fc_layer_params=None)
+            value_net = value_rnn_network.ValueRnnNetwork(
+                tf_env.observation_spec(),
+                input_fc_layer_params=value_fc_layers,
+                output_fc_layer_params=None)
+        else:
+            actor_net = actor_distribution_network.ActorDistributionNetwork(
+                tf_env.observation_spec(),
+                tf_env.action_spec(),
+                fc_layer_params=actor_fc_layers)
+            value_net = value_network.ValueNetwork(
+                tf_env.observation_spec(), fc_layer_params=value_fc_layers)
 
-        actor_net = actor_network.ActorNetwork(
-            tf_env.time_step_spec().observation,
-            tf_env.action_spec(),
-            fc_layer_params=actor_fc_layers,
-        )
-
-        critic_net_input_specs = (tf_env.time_step_spec().observation,
-                                  tf_env.action_spec())
-
-        critic_net = critic_network.CriticNetwork(
-            critic_net_input_specs,
-            observation_fc_layer_params=critic_obs_fc_layers,
-            action_fc_layer_params=critic_action_fc_layers,
-            joint_fc_layer_params=critic_joint_fc_layers,
-        )
-
-        tf_agent = td3_agent.Td3Agent(
+        # Create ppo agent
+        tf_agent = ppo_agent.PPOAgent(
             tf_env.time_step_spec(),
             tf_env.action_spec(),
-            actor_network=actor_net,
-            critic_network=critic_net,
-            actor_optimizer=tf.compat.v1.train.AdamOptimizer(
-                learning_rate=actor_learning_rate),
-            critic_optimizer=tf.compat.v1.train.AdamOptimizer(
-                learning_rate=critic_learning_rate),
-            ou_stddev=ou_stddev,
-            ou_damping=ou_damping,
-            target_update_tau=target_update_tau,
-            target_update_period=target_update_period,
-            dqda_clipping=dqda_clipping,
-            td_errors_loss_fn=td_errors_loss_fn,
-            gamma=gamma,
-            reward_scale_factor=reward_scale_factor,
-            gradient_clipping=gradient_clipping,
+            optimizer,
+            actor_net=actor_net,
+            value_net=value_net,
+            num_epochs=num_epochs,
             debug_summaries=debug_summaries,
             summarize_grads_and_vars=summarize_grads_and_vars,
-            train_step_counter=global_step,
-        )
+            train_step_counter=global_step)
         tf_agent.initialize()
 
-        train_metrics = [
+        # Create metrics, replay_buffer and collect_driver
+        environment_steps_metric = tf_metrics.EnvironmentSteps()
+        step_metrics = [
             tf_metrics.NumberOfEpisodes(),
-            tf_metrics.EnvironmentSteps(),
+            environment_steps_metric,
+        ]
+        train_metrics = step_metrics + [
             tf_metrics.AverageReturnMetric(),
             tf_metrics.AverageEpisodeLengthMetric(),
         ]
-
         eval_policy = tf_agent.policy
         collect_policy = tf_agent.collect_policy
-
         replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
             tf_agent.collect_data_spec,
-            batch_size=tf_env.batch_size,
+            batch_size=num_parallel_environments,
             max_length=replay_buffer_capacity)
-
-        initial_collect_driver = dynamic_step_driver.DynamicStepDriver(
-            tf_env,
-            collect_policy,
-            observers=[replay_buffer.add_batch],
-            num_steps=initial_collect_steps)
-
-        collect_driver = dynamic_step_driver.DynamicStepDriver(
+        collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(
             tf_env,
             collect_policy,
             observers=[replay_buffer.add_batch] + train_metrics,
-            num_steps=collect_steps_per_iteration)
-
+            num_episodes=collect_episodes_per_iteration)
         if use_tf_functions:
-            initial_collect_driver.run = common.function(
-                initial_collect_driver.run)
-            collect_driver.run = common.function(collect_driver.run)
-            tf_agent.train = common.function(tf_agent.train)
+            # TODO(b/123828980): Enable once the cause for slowdown was identified.
+            collect_driver.run = common.function(
+                collect_driver.run, autograph=False)
+            tf_agent.train = common.function(tf_agent.train, autograph=False)
 
-        # Collect initial replay data.
-        logging.info(
-            'Initializing replay buffer by collecting experience for %d steps with '
-            'a random policy.', initial_collect_steps)
-        initial_collect_driver.run()
-
-        results = metric_utils.eager_compute(
-            eval_metrics,
-            eval_tf_env,
-            eval_policy,
-            num_episodes=num_eval_episodes,
-            train_step=global_step,
-            summary_writer=eval_summary_writer,
-            summary_prefix='Metrics',
-        )
-        if eval_metrics_callback is not None:
-            eval_metrics_callback(results, global_step.numpy())
-        metric_utils.log_metrics(eval_metrics)
-
-        time_step = None
-        policy_state = collect_policy.get_initial_state(tf_env.batch_size)
-
+        collect_time = 0
+        train_time = 0
         timed_at_step = global_step.numpy()
-        time_acc = 0
 
-        # Dataset generates trajectories with shape [Bx2x...]
-        dataset = replay_buffer.as_dataset(
-            num_parallel_calls=3, sample_batch_size=batch_size,
-            num_steps=2).prefetch(3)
-        iterator = iter(dataset)
-
-        for _ in range(num_iterations):
-            start_time = time.time()
-            time_step, policy_state = collect_driver.run(
-                time_step=time_step,
-                policy_state=policy_state,
-            )
-            for _ in range(train_steps_per_iteration):
-                experience, _ = next(iterator)
-                train_loss = tf_agent.train(experience)
-            time_acc += time.time() - start_time
-
-            if global_step.numpy() % log_interval == 0:
-                logging.info('step = %d, loss = %f', global_step.numpy(),
-                             train_loss.loss)
-                steps_per_sec = (
-                    global_step.numpy() - timed_at_step) / time_acc
-                logging.info('%.3f steps/sec', steps_per_sec)
-                tf.compat.v2.summary.scalar(
-                    name='global_steps_per_sec',
-                    data=steps_per_sec,
-                    step=global_step)
-                timed_at_step = global_step.numpy()
-                time_acc = 0
-
-            for train_metric in train_metrics:
-                train_metric.tf_summaries(
-                    train_step=global_step, step_metrics=train_metrics[:2])
-
-            if global_step.numpy() % eval_interval == 0:
-                results = metric_utils.eager_compute(
+        # Evaluate and train
+        while environment_steps_metric.result() < num_environment_steps:
+            global_step_val = global_step.numpy()
+            if global_step_val % eval_interval == 0:
+                metric_utils.eager_compute(
                     eval_metrics,
                     eval_tf_env,
                     eval_policy,
@@ -274,20 +200,45 @@ def train_eval(
                     summary_writer=eval_summary_writer,
                     summary_prefix='Metrics',
                 )
-                if eval_metrics_callback is not None:
-                    eval_metrics_callback(results, global_step.numpy())
-                metric_utils.log_metrics(eval_metrics)
 
-        return train_loss
+            start_time = time.time()
+            collect_driver.run()
+            collect_time += time.time() - start_time
+
+            start_time = time.time()
+            trajectories = replay_buffer.gather_all()
+            total_loss, _ = tf_agent.train(experience=trajectories)
+            replay_buffer.clear()
+            train_time += time.time() - start_time
+
+            for train_metric in train_metrics:
+                train_metric.tf_summaries(
+                    train_step=global_step, step_metrics=step_metrics)
+
+            if global_step_val % log_interval == 0:
+                logging.info('step = %d, loss = %f', global_step_val,
+                             total_loss)
+                steps_per_sec = ((global_step_val - timed_at_step) /
+                                 (collect_time + train_time))
+                logging.info('%.3f steps/sec', steps_per_sec)
+                logging.info('collect_time = {}, train_time = {}'.format(
+                    collect_time, train_time))
+                with tf.compat.v2.summary.record_if(True):
+                    tf.compat.v2.summary.scalar(
+                        name='global_steps_per_sec',
+                        data=steps_per_sec,
+                        step=global_step)
+
+                timed_at_step = global_step_val
+                collect_time = 0
+                train_time = 0
 
 
 def main(_):
-    tf.compat.v1.enable_v2_behavior()
     logging.set_verbosity(logging.INFO)
-    gin.parse_config_files_and_bindings(FLAGS.gin_file, FLAGS.gin_param)
-    train_eval(FLAGS.root_dir, num_iterations=FLAGS.num_iterations)
+    tf.compat.v1.enable_v2_behavior()
+    train_eval(FLAGS.root_dir, use_rnns=FLAGS.use_rnns)
 
 
 if __name__ == '__main__':
-    flags.mark_flag_as_required('root_dir')
     app.run(main)
