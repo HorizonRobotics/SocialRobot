@@ -26,7 +26,7 @@ import social_bot
 from social_bot import teacher
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
-from social_bot.goal_task import GoalTask
+from social_bot.teacher_tasks import GoalTask
 import social_bot.pygazebo as gazebo
 
 logger = logging.getLogger(__name__)
