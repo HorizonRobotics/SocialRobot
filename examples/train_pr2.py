@@ -12,6 +12,10 @@ import tensorflow as tf
 import numpy as np
 
 
+# please refer to alf branch for an successful training setup for PR2 gripper
+# task using PPO with tf_agents with 60 parallel environments with about
+# 120 frames per sec
+
 def ppo2():
     M('--alg=ppo2 --env=SocialBot-Pr2Gripper-v0 --num_timesteps=1e6 --network=cnn --save_path=~/models/pr2.model'
       .split(' '))

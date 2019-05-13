@@ -37,6 +37,14 @@
               <size>0.04 0.04 0.1</size>
             </box>
           </geometry>
+          <surface>
+            <friction>
+              <ode>
+                <mu>50.0</mu>
+                <mu2>50.0</mu2>
+              </ode>
+            </friction>
+          </surface>
         </collision>
         <visual name="visual">
           <material>
@@ -50,12 +58,18 @@
             </box>
           </geometry>
         </visual>
-        <sensor name='beer_contact' type='contact'>
-          <contact>
-            <collision>beer_collision</collision>
-          </contact>
-        </sensor>
       </link>
+
+      <!-- <gazebo reference="link"> -->
+      <!--   <turnGravityOff>false</turnGravityOff> -->
+      <!--   <genTexCoord>true</genTexCoord> -->
+      <!--   <kp>100000000.0</kp> -->
+      <!--   <kd>1000000.0</kd> -->
+      <!--   <controller:gazebo_ros_grasp_hack name="cup_grasp_hack_controller" plugin="libgazebo_ros_grasp_hack.so"> -->
+      <!--     <alwaysOn>true</alwaysOn> -->
+      <!--     <updateRate>1000</updateRate> -->
+      <!--    </controller:gazebo_ros_grasp_hack> -->
+      <!-- </gazebo> -->
     </model>
   </world>
 </sdf>
