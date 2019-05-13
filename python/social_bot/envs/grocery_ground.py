@@ -20,6 +20,7 @@ import logging
 import numpy as np
 import random
 import PIL
+import itertools
 
 import gym
 from gym import spaces
@@ -107,7 +108,7 @@ class GroceryGround(gym.Env):
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
                  goal_name='table',
-                 max_steps=128,
+                 max_steps=160,
                  port=None):
         """
         Args:
@@ -123,16 +124,16 @@ class GroceryGround(gym.Env):
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
         self._object_types = [
-            'coke_can', 'cube_20k', 'car_wheel', 'first_2015_trash_can',
-            'plastic_cup', 'beer', 'hammer'
+            'coke_can', 'cube_20k', 'car_wheel', 'plastic_cup', 'beer', 'hammer'
         ]
+        self._pos_list=list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._pos_list.remove((0,0))
         self._world.info()
         self._world.insertModelFile('model://' + agent_type)
         self._world.step(20)
         time.sleep(0.1)  # Avoid 'px!=0' error
         self._random_insert_objects()
         self._world.model_list_info()
-        self._random_move_objects()
 
         # Specify joints and sensors for the robots
         control_joints = {
@@ -173,19 +174,20 @@ class GroceryGround(gym.Env):
         self._agent_control_force = control_force[agent_type]
         self._agent_camera = camera_sensor[agent_type]
         self._goal_name = goal_name
+        self._goal = self._world.get_model(goal_name)
 
         logger.info("joints to control: %s" % self._agent_joints)
 
         self._teacher = teacher.Teacher(False)
         task_group = teacher.TaskGroup()
-        teacher_task = GroceryGroundGoalTask(
+        self._teacher_task = GroceryGroundGoalTask(
             max_steps=max_steps,
             goal_name=self._goal_name,
             success_distance_thresh=0.5,
             fail_distance_thresh=3.0,
             reward_shaping=True,
             random_range=10.0)
-        task_group.add_task(teacher_task)
+        task_group.add_task(self._teacher_task)
         self._teacher.add_task_group(task_group)
 
         self._with_language = with_language
@@ -222,14 +224,13 @@ class GroceryGround(gym.Env):
         Returns:
             Observaion of the first step
         """
-        self._world.reset()
-        self._world.step(20)
         self._collision_cnt = 0
         self._cum_reward = 0.0
         self._steps_in_this_episode = 0
-        self._teacher.reset(self._agent, self._world)
+        self._agent.reset()
         self._random_move_objects()
-        self._world.step(100)
+        self._world.step(50)
+        self._teacher.reset(self._agent, self._world)
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
@@ -251,8 +252,7 @@ class GroceryGround(gym.Env):
                     self._resized_image_size[2]
                 ])
         else:
-            goal_pose = np.array(
-                self._world.get_model(self._goal_name).get_pose()).flatten()
+            goal_pose = np.array(self._goal.get_pose()).flatten()
             agent_pose = np.array(self._agent.get_pose()).flatten()
             agent_vel = np.array(self._agent.get_velocities()).flatten()
             joint_vel = []
@@ -308,11 +308,12 @@ class GroceryGround(gym.Env):
             time.sleep(0.1)  # Avoid 'px!=0' error
 
     def _random_move_objects(self, random_range=10.0):
-        for obj_id in range(len(self._object_types)):
+        obj_num = len(self._object_types)
+        obj_pos_list = random.sample(self._pos_list, obj_num)
+        for obj_id in range(obj_num):
             model_name = self._object_types[obj_id]
-            loc = (random.random() * random_range - random_range / 2,
-                   random.random() * random_range - random_range / 2, 0)
-            pose = (loc, (0, 0, 0))
+            loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
+            pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
             self._world.step(10)
 

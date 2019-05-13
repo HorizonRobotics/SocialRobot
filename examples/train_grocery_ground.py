@@ -116,7 +116,7 @@ def train_eval(
     global_step = tf.compat.v1.train.get_or_create_global_step()
     with tf.compat.v2.summary.record_if(
             lambda: tf.math.equal(global_step % summary_interval, 0)):
-        # Create envs and ptimizer
+        # Create envs and optimizer
         tf.compat.v1.set_random_seed(random_seed)
         eval_tf_env = tf_py_environment.TFPyEnvironment(env_load_fn(env_name))
         tf_env = tf_py_environment.TFPyEnvironment(
