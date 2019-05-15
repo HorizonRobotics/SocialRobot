@@ -186,6 +186,8 @@ class Agent : public Model {
     }
   }
 
+  // given a sensor names, it will return all pairs of link names
+  // which are in collisions detected by the touch sensor at that instant.
   std::set<std::tuple<std::string, std::string>> GetCollisions(
     const std::string& contact_sensor_name) {
 

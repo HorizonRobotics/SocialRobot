@@ -31,12 +31,15 @@ class Pr2Gripper(gym.Env):
     episode.
 
     In the version:
-    * agent will receive +1 reward every timestep the goal lifts off the groud
-    * agent will receive -0.01 reward every timestep
-    * agent will receive 1.2 - finger_tip_to_goal distance at the end of episode
+    * agent will receive small reward to get close to the goal if reward_shaping is True
+    * agent will receive small reward to open/close gripper if reward_shaping is True
+    * agent will receive 0.5 if either left finger tip or right finger tip touches the goal
+    * agent will receive 1 if both left finger and right finger touches the goal
+    * agent will receive 1.0 + 50 * lift if goal is lifted 1cm or high over the table.
 
-    currently, the agent only learns to use arm/hand to play bat to hit the goal
-    off the ground.
+    This task could be considered solved if agent could achieve average reward >300
+    per episode. Using TF_Agents/PPO, we could reach that after ~5M environment steps with
+    use_internal_states_only
 
     joints to control (with effort limits):
           r_shoulder_pan_joint:30.0
@@ -69,7 +72,7 @@ class Pr2Gripper(gym.Env):
             max_steps (int): episode will end when the agent exceeds the number of steps.
             reward_shaping (boolean): whether it adds distance based reward shaping.
             motion_loss (float): if not zero, it will add -motion_loss * || V_{all_joints} ||^2 in
-                 the reward when episode endds.
+                 the reward when episode ends.
             use_internal_states_only (boolean): whether to only use internal states (joint positions
                   and velocities) and goal positions, and not use camera sensors.
             port: Gazebo port, need to specify when run multiple environment in parallel
@@ -90,6 +93,9 @@ class Pr2Gripper(gym.Env):
 
         #self._world.info()
 
+        # passive joints are joints that could move but have no actuators, are only indirectly
+        # controled by the motion of active joints.
+        # Though in the simulation, we could "control" through API, we chose to be more realistic.
         # from https://github.com/PR2/pr2_mechanism/blob/melodic-devel/pr2_mechanism_model/pr2.urdf
         passive_joints = set(["r_gripper_l_finger_joint",
                               "r_gripper_r_finger_joint",
@@ -98,6 +104,9 @@ class Pr2Gripper(gym.Env):
                               "r_gripper_r_parallel_root_joint",
                               "r_gripper_l_parallel_root_joint"])
 
+        # PR2 right arm has 7 DOF, gripper has 1 DoF, as specified on p18/p26 on PR2 manual
+        # https://www.clearpathrobotics.com/wp-content/uploads/2014/08/pr2_manual_r321.pdf
+        # we exclude rest of the joints
         unused_joints = set([
             "r_gripper_motor_slider_joint",
             "r_gripper_motor_screw_joint",
@@ -131,7 +140,7 @@ class Pr2Gripper(gym.Env):
         self._cum_reward = 0.0
         self._motion_loss = motion_loss
 
-        # a hack to walk around gripper not open initially, might not need now.
+        # a hack to work around gripper not open initially, might not need now.
         self._gripper_reward_dir = 1
         self._gripper_upper_limit = 0.07
         self._gripper_lower_limit = 0.01
@@ -155,7 +164,6 @@ class Pr2Gripper(gym.Env):
     def reset(self):
         self._world.reset()
         self._move_goal()
-        self._grip = False
 
         if self._adjust_position_at_start:
             # move camera to focus on ground. it is hacky
@@ -244,18 +252,15 @@ class Pr2Gripper(gym.Env):
         dist = np.linalg.norm(np.array(finger_tip_center) - np.array(goal_loc))
         return dist
 
+    # gripper_joint is 1 DOF prismatic joint, the joint state represent the
+    # the parallel distance between two finger tips. see PR2 manual p18.
     def _get_gripper_pos(self):
         state = self._agent.get_joint_state("pr2::pr2::r_gripper_joint")
         return state.get_positions()[0]
 
     def step(self, actions):
         def trunc_scale(a, limit):
-            if a < -1.0:
-                return -limit
-            elif a > 1.0:
-                return limit
-            else:
-                return a * limit
+            return min(max(a, -1.0), 1.0) * limit
 
         scaled_actions = [trunc_scale(x, self._r_arm_joints_limits[i]) \
                           for i,x in enumerate(actions)]
@@ -281,6 +286,11 @@ class Pr2Gripper(gym.Env):
 
         dist_reward = self._prev_dist - dist
 
+        # this is reward to encourage the agent to open and close the gripper.
+        # if gripper is closed (< _gripper_lower_limit), agent will receive small reward
+        # to open the gripper.
+        # if the gripper is wide open (> _gripper_upper_limit), agent will receive small
+        # reward to close the gripper.
         pos_reward = self._gripper_reward_dir * (gripper_pos - self._prev_gripper_pos)
 
         if self._reward_shaping:

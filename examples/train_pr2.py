@@ -12,7 +12,7 @@ import tensorflow as tf
 import numpy as np
 
 
-# please refer to alf branch for an successful training setup for PR2 gripper
+# please refer to repo: github.com/HorizonRobotics/alf for a successful training setup for PR2 gripper
 # task using PPO with tf_agents with 60 parallel environments with about
 # 120 frames per sec
 
