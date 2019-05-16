@@ -67,12 +67,6 @@
       </include>
       <pose frame=''>3.47686 -4.15769 0 0 -0 3.1416</pose>
     </model>
-    <model name='trash_can'>
-      <include>
-        <uri>model://first_2015_trash_can</uri>
-      </include>
-      <pose frame=''>-5.3 -5.3 0 0 -0 0</pose>
-    </model>
     <model name='jersey_barrier'>
       <static>1</static>
       <include>

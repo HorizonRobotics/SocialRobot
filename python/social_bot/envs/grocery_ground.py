@@ -95,11 +95,18 @@ class GroceryGround(gym.Env):
     The goal of this task is to train the agent to navigate to the objects given its
     name.
 
-    Joints of the agent are controllable by force,
-    the observations are image or the states of the world, including every model's
-    position and rotation.
+    The envionment support agent type of pr2_differential, pioneer2dx_noplugin, 
+    turtlebot, and irobot create for now. Note that for the models without camera
+    sensor (pioneer, create), you can not use image as observation.
 
-    Agent will receive a reward provided by the teacher
+    Joints of the agent are controllable by force,
+    the observations are image or the internal states of the world, including the
+    position and rotation in world coordinate.
+
+    The objects are rearranged each time the environment is reseted.
+    
+    Agent will receive a reward provided by the teacher. The goal's position is
+    can also be controlled by the teacher.
 
     """
 
@@ -113,9 +120,10 @@ class GroceryGround(gym.Env):
         """
         Args:
             with_language (bool): the observation will be a dict with an extra sentence
-            use_image_obs (bool): use image as observation, or use pose of the objects
+            use_image_obs (bool): use image, or use internal states as observation
+                poses in internal states observation are in world coordinate
             agent_type (string): select the agent robot, supporting pr2_differential, 
-                pioneer2dx_noplugin, turtlebot, and create for now
+                pioneer2dx_noplugin, turtlebot, and irobot create for now
             port: Gazebo port, need to specify when run multiple environment in parallel
         """
         if port is None:
@@ -159,14 +167,10 @@ class GroceryGround(gym.Env):
         }
         # Camera, TODO
         camera_sensor = {
-            'pr2_differential':
-            'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
-            'pioneer2dx_noplugin':
-            ' ',
-            'turtlebot':
-            ' ',
-            'create':
-            ' ',
+            'pr2_differential': 'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
+            'pioneer2dx_noplugin': ' ',
+            'turtlebot': ' ',
+            'create': ' ',
         }
 
         self._agent = self._world.get_agent(agent_type)
@@ -197,7 +201,7 @@ class GroceryGround(gym.Env):
         obs = self.reset()
         if self._use_image_obs:
             obs_data_space = gym.spaces.Box(
-                low=0, high=1, shape=obs.shape, dtype=np.uint8)
+                low=0, high=255, shape=obs.shape, dtype=np.uint8)
         else:
             obs_data_space = gym.spaces.Box(
                 low=-50, high=50, shape=obs.shape, dtype=np.float32)
@@ -305,7 +309,10 @@ class GroceryGround(gym.Env):
             self._world.insertModelFile('model://' + model_name)
             logger.debug('model ' + model_name + ' inserted')
             self._world.step(10)
-            time.sleep(0.1)  # Avoid 'px!=0' error
+            # Sleep for a while waiting for Gazebo server to finish the inserting
+            # operation. Or the model may not be completely inserted, boost will
+            # throw 'px!=0' error when set_pose/get_pose of the model is called
+            time.sleep(0.1)
 
     def _random_move_objects(self, random_range=10.0):
         obj_num = len(self._object_types)

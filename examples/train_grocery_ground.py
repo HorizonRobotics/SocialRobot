@@ -1,13 +1,5 @@
 # Copyright (c) 2019 Horizon Robotics. All Rights Reserved.
 #
-# A simple test for SocialBot-GroceryGround env use TF-Agents
-# The original file is from the PPO example of TF-Agents:
-#
-#     https://github.com/tensorflow/agents
-#
-# Some parameters are modifed suite the environment.
-# Require about 30K episodes/3.6M steps to train the nvaigation task
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -19,15 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 r"""Train and Eval GroceryGround.
 
-To run:
+A simple test for SocialBot-GroceryGround env use TF-Agents
+The original file is from the PPO example of TF-Agents:
+    https://github.com/tensorflow/agents
+Some parameters are modifed suite the environment.
+Require about 30K episodes/3.6M steps to train the nvaigation task
 
+To run:
 ```bash
 tensorboard --logdir ~/tmp/GroceryGroundExample &
-
 python ./examples/grocery_ground.py --logtostderr
 ```
+
 """
 
 from __future__ import absolute_import
@@ -62,7 +60,7 @@ import gin.tf
 
 flags.DEFINE_string('root_dir', '~/tmp/GroceryGroundExample',
                     'Root directory for writing logs/summaries/checkpoints.')
-flags.DEFINE_boolean('use_rnns', False,
+flags.DEFINE_boolean('use_rnns', True,
                      'If true, use RNN for policy and value function.')
 FLAGS = flags.FLAGS
 
@@ -74,8 +72,8 @@ def train_eval(
         env_load_fn=suite_socialbot.load,
         random_seed=0,
         # TODO(b/127576522): rename to policy_fc_layers.
-        actor_fc_layers=(200, 100, 50),
-        value_fc_layers=(200, 100, 50),
+        actor_fc_layers=(192, 64),
+        value_fc_layers=(192, 64),
         use_rnns=False,
         # Params for collect
         num_environment_steps=10000000,
