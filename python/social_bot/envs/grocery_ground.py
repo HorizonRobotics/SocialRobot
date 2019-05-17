@@ -115,7 +115,7 @@ class GroceryGround(gym.Env):
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
                  goal_name='table',
-                 max_steps=160,
+                 max_steps=160,     
                  port=None):
         """
         Args:
@@ -142,6 +142,7 @@ class GroceryGround(gym.Env):
         time.sleep(0.1)  # Avoid 'px!=0' error
         self._random_insert_objects()
         self._world.model_list_info()
+        self._world.info()
 
         # Specify joints and sensors for the robots
         control_joints = {
@@ -165,11 +166,10 @@ class GroceryGround(gym.Env):
             'turtlebot': 0.5,
             'create': 0.5,
         }
-        # Camera, TODO
         camera_sensor = {
             'pr2_differential': 'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
             'pioneer2dx_noplugin': ' ',
-            'turtlebot': ' ',
+            'turtlebot': 'default::turtlebot::kinect::link::camera',
             'create': ' ',
         }
 
@@ -196,7 +196,6 @@ class GroceryGround(gym.Env):
 
         self._with_language = with_language
         self._use_image_obs = use_image_obs
-        self._resized_image_size = (84, 84, 3)
 
         obs = self.reset()
         if self._use_image_obs:
@@ -248,13 +247,7 @@ class GroceryGround(gym.Env):
             obs_data = np.array(
                 self._agent.get_camera_observation(self._agent_camera),
                 copy=False)
-            obs_data = PIL.Image.fromarray(
-                obs_data.resize(self._resized_image_size, PIL.Image.ANTIALIAS))
-            obs_data = np.reshape(
-                np.array(obs_data), [
-                    self._resized_image_size[0], self._resized_image_size[1],
-                    self._resized_image_size[2]
-                ])
+            obs_data = np.array(obs_data)
         else:
             goal_pose = np.array(self._goal.get_pose()).flatten()
             agent_pose = np.array(self._agent.get_pose()).flatten()
