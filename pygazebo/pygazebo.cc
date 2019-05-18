@@ -415,9 +415,9 @@ PYBIND11_MODULE(pygazebo, m) {
            "Set ((x,y,z), (roll, pitch, yaw)) of the agent")
       .def("get_velocities",
            &Model::GetVelocities,
-           "Get ((Linear velocity x, Linear velocity y, Linear velocity z),
-                 (Angular velocity x, Angular velocity y, Angular velocity z)) 
-            of the model");
+           "Get ((Linear velocity x, Linear velocity y, Linear velocity z),"
+           "(Angular velocity x, Angular velocity y, Angular velocity z))" 
+           "of the model");
   
   py::class_<JointState>(m, "JointState")
       .def(py::init<unsigned int>())
