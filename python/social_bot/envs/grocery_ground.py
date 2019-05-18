@@ -92,8 +92,9 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
 
 class GroceryGround(gym.Env):
     """
-    The goal of this task is to train the agent to navigate to the objects given its
-    name.
+    The goal of this task is to train the agent to navigate to a fixed type of 
+    object. The name of the object is provided in the constructor. In each 
+    episode, the location of the goal object is randomly chosen
 
     The envionment support agent type of pr2_differential, pioneer2dx_noplugin, 
     turtlebot, and irobot create for now. Note that for the models without camera
