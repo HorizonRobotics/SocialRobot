@@ -2,6 +2,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <stdlib.h>
 #include <gazebo/gazebo.hh>
 #include <gazebo/physics/Joint.hh>
 #include <gazebo/physics/JointController.hh>
@@ -16,7 +17,6 @@
 #include <gazebo/sensors/SensorManager.hh>
 #include <gazebo/sensors/SensorsIface.hh>
 #include <gazebo/util/LogRecord.hh>
-#include <stdlib.h>
 #include <mutex>  // NOLINT
 
 namespace py = pybind11;
@@ -92,6 +92,15 @@ class Model {
                                   std::get<1>(rot),
                                   std::get<2>(rot));
     model_->SetWorldPose(pose3d);
+  }
+  // return ((Linear velocity x, Linear velocity y, Linear velocity z),
+  //         (Angular velocity x, Angular velocity y, Angular velocity z))
+  auto GetVelocities() const {
+    auto lin_ver = model_->WorldLinearVel();
+    auto ang_ver = model_->WorldAngularVel();
+    return std::make_tuple(
+        std::make_tuple(lin_ver.X(), lin_ver.Y(), lin_ver.Z()),
+        std::make_tuple(ang_ver.X(), ang_ver.Y(), ang_ver.Z()));
   }
 };
 
@@ -269,6 +278,12 @@ class World {
     world_->InsertModelFile(fileName);
   }
 
+  void ModelListInfo() {
+    for (auto model : world_->Models()) {
+      std::cout << "Model: " << model->GetName() << std::endl;
+    }
+  }
+
   void Info() const {
     std::cout << " ==== world info ==== " << std::endl;
     gazebo::physics::WorldState world_state(world_);
@@ -388,6 +403,7 @@ PYBIND11_MODULE(pygazebo, m) {
       .def(
           "get_model", &World::GetModel, "Get a model by name", py::arg("name"))
       .def("reset", &World::Reset, "Reset the world")
+      .def("model_list_info", &World::ModelListInfo, "print model list")
       .def("info", &World::Info, "show debug info for the world");
 
   py::class_<Model>(m, "Model")
@@ -396,8 +412,13 @@ PYBIND11_MODULE(pygazebo, m) {
            "Get ((x,y,z), (roll, pitch, yaw)) of the agent")
       .def("set_pose",
            &Model::SetPose,
-           "Set ((x,y,z), (roll, pitch, yaw)) of the agent");
-
+           "Set ((x,y,z), (roll, pitch, yaw)) of the agent")
+      .def("get_velocities",
+           &Model::GetVelocities,
+           "Get ((Linear velocity x, Linear velocity y, Linear velocity z),"
+           "(Angular velocity x, Angular velocity y, Angular velocity z))" 
+           "of the model");
+  
   py::class_<JointState>(m, "JointState")
       .def(py::init<unsigned int>())
       .def("get_positions", &JointState::GetPositions, "get joint positions")

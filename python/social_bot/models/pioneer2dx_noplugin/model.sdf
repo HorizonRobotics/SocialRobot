@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
-  <model name="pioneer2dx">
+  <model name="pioneer2dx_noplugin">
     <link name="chassis">
       <pose>0 0 0.16 0 0 0</pose>
       <inertial>
