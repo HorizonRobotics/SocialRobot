@@ -487,6 +487,7 @@ PYBIND11_MODULE(pygazebo, m) {
       .def("get_link_pose", &Agent::GetLinkPose, py::arg("link_name"))
       .def("get_collisions",
            &Agent::GetCollisions,
+           "return a set of tuples of collided links detected by the contact sensor",
            py::arg("contact_sensor_name"))
       .def("set_joint_state",
            &Agent::SetJointState,
