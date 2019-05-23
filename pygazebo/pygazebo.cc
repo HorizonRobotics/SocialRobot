@@ -196,8 +196,6 @@ class Agent : public Model {
     auto it = contacts_.find(contact_sensor_name);
 
     if (it == contacts_.end()) {
-      gazebo::sensors::SensorManager* mgr =
-          gazebo::sensors::SensorManager::Instance();
 
       gazebo::sensors::ContactSensorPtr sensor =
           std::dynamic_pointer_cast<gazebo::sensors::ContactSensor>(
@@ -228,8 +226,6 @@ class Agent : public Model {
     auto it = cameras_.find(sensor_scope_name);
 
     if (it == cameras_.end()) {
-      gazebo::sensors::SensorManager* mgr =
-          gazebo::sensors::SensorManager::Instance();
 
       gazebo::sensors::CameraSensorPtr sensor =
           std::dynamic_pointer_cast<gazebo::sensors::CameraSensor>(
