@@ -196,12 +196,10 @@ class Agent : public Model {
     auto it = contacts_.find(contact_sensor_name);
 
     if (it == contacts_.end()) {
-      gazebo::sensors::SensorManager* mgr =
-          gazebo::sensors::SensorManager::Instance();
 
       gazebo::sensors::ContactSensorPtr sensor =
           std::dynamic_pointer_cast<gazebo::sensors::ContactSensor>(
-              mgr->GetSensor(contact_sensor_name));
+              gazebo::sensors::get_sensor(contact_sensor_name));
 
       if (!sensor) {
         std::cerr << "unable to find sensor: " << contact_sensor_name
@@ -228,12 +226,10 @@ class Agent : public Model {
     auto it = cameras_.find(sensor_scope_name);
 
     if (it == cameras_.end()) {
-      gazebo::sensors::SensorManager* mgr =
-          gazebo::sensors::SensorManager::Instance();
 
       gazebo::sensors::CameraSensorPtr sensor =
           std::dynamic_pointer_cast<gazebo::sensors::CameraSensor>(
-              mgr->GetSensor(sensor_scope_name));
+              gazebo::sensors::get_sensor(sensor_scope_name));
 
       if (!sensor) {
         std::cerr << "unable to find sensor: " << sensor_scope_name
