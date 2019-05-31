@@ -678,8 +678,8 @@
           <camera name='__default__'>
             <horizontal_fov>1.5708</horizontal_fov>
             <image>
-              <width>640</width>
-              <height>480</height>
+              <width>256</width>
+              <height>256</height>
               <format>R8G8B8</format>
             </image>
             <clip>
@@ -695,8 +695,8 @@
           <camera name='__default__'>
             <horizontal_fov>1.5708</horizontal_fov>
             <image>
-              <width>640</width>
-              <height>480</height>
+              <width>256</width>
+              <height>256</height>
               <format>R8G8B8</format>
             </image>
             <clip>
