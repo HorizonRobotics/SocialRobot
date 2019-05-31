@@ -38,4 +38,16 @@ GAZEBO_MODEL_PATH=`pwd`/../python/social_bot/models gzclient
 ```
 
 ## Trouble shooting
+
+### python
 You need to make sure the python you use matches the python found by cmake. You can check this by looking at REPO_ROOT/build/CMakeCache.txt
+
+### display
+
+You need to make sure your `DISPLAY` environment variable points to a valid display, otherwise camera sensor cannot be created and there will be the following error:
+```
+[Err] [CameraSensor.cc:112] Unable to create CameraSensor. Rendering is disabled.
+...
+gazebo::rendering::Camera*]: Assertion `px != 0' failed.
+```
+You can find out the correct value for `DISPLAY` envorinment variable by running `echo $DISPLAY` in a terminal opened from the desktop. You can verify whether the `DISPLAY` is set correctly by running `gazebo`
