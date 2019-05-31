@@ -22,7 +22,7 @@
       </include>
 
       <model name="camera">
-        <pose>0.2 0 0.35 0 0 0</pose>
+        <pose>0.2 0 0.295 0 0 0</pose>
 	<link name="link">
 	  <inertial>
             <mass>0.1</mass>
@@ -66,7 +66,7 @@
       </model>
 
       <joint name="camera_joint" type="revolute">
-        <parent>pioneer2dx::pioneer2dx::chassis</parent>
+        <parent>pioneer2dx::pioneer2dx_noplugin::chassis</parent>
         <child>pioneer2dx::camera::link</child>
         <axis>
           <xyz>0 0 1</xyz>

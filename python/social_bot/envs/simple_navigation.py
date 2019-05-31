@@ -11,16 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-A simple enviroment for navigation.
-"""
+"""A simple enviroment for navigation."""
+
 from collections import OrderedDict
-import gym
-import gym.spaces
 import logging
 import numpy as np
 import os
 import random
+
+import gym
+import gym.spaces
+import gin
+import PIL.Image
 
 import social_bot
 from social_bot import teacher
@@ -32,6 +34,7 @@ import social_bot.pygazebo as gazebo
 logger = logging.getLogger(__name__)
 
 
+@gin.configurable
 class SimpleNavigation(gym.Env):
     """
     In this environment, the agent will receive reward 1 when it is close enough to the goal.
@@ -39,7 +42,25 @@ class SimpleNavigation(gym.Env):
     it will get reward -1.
     """
 
-    def __init__(self, with_language=True, port=None):
+    def __init__(self,
+                 with_language=True,
+                 port=None,
+                 resized_image_size=None,
+                 data_format='channels_last'):
+        """Create SimpleNavigation environment.
+
+        Args:
+            with_language (bool): whether to generate language for observation
+            port (int): TCP/IP port for the simulation server
+            resized_image_size (None|tuple): If None, use the original image size
+                from the camera. Otherwise, the original image will be resized
+                to (width, height)
+            data_format (str):  one of `channels_last` or `channels_first`.
+                The ordering of the dimensions in the images.
+                `channels_last` corresponds to images with shape
+                `(height, width, channels)` while `channels_first` corresponds
+                to images with shape `(channels, height, width)`.
+        """
         if port is None:
             port = 0
         gazebo.initialize(port=port)
@@ -55,14 +76,16 @@ class SimpleNavigation(gym.Env):
         task_group.add_task(GoalTask())
         self._teacher.add_task_group(task_group)
         self._with_language = with_language
+        self._resized_image_size = resized_image_size
+        assert data_format in ('channels_first', 'channels_last')
+        self._data_format = data_format
 
         # get observation dimension
-        image = self._agent.get_camera_observation("camera")
-        image = np.array(image, copy=False)
+        image = self.get_camera_observation()
         if with_language:
             self._observation_space = gym.spaces.Dict(
                 image=gym.spaces.Box(
-                    low=0, high=1, shape=image.shape, dtype=np.uint8),
+                    low=0, high=255, shape=image.shape, dtype=np.uint8),
                 sentence=DiscreteSequence(256, 20))
 
             self._action_space = gym.spaces.Dict(
@@ -74,7 +97,7 @@ class SimpleNavigation(gym.Env):
                 sentence=DiscreteSequence(256, 20))
         else:
             self._observation_space = gym.spaces.Box(
-                low=0, high=1, shape=image.shape, dtype=np.uint8)
+                low=0, high=255, shape=image.shape, dtype=np.uint8)
             self._action_space = gym.spaces.Box(
                 low=-0.2,
                 high=0.2,
@@ -114,8 +137,7 @@ class SimpleNavigation(gym.Env):
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(100)
-        image = self._agent.get_camera_observation("camera")
-        image = np.array(image, copy=False)
+        image = self.get_camera_observation()
         if self._with_language:
             obs = OrderedDict(image=image, sentence=teacher_action.sentence)
         else:
@@ -125,13 +147,23 @@ class SimpleNavigation(gym.Env):
     def reset(self):
         self._teacher.reset(self._agent, self._world)
         teacher_action = self._teacher.teach("")
-        image = self._agent.get_camera_observation("camera")
-        image = np.array(image, copy=False)
+        image = self.get_camera_observation()
         if self._with_language:
             obs = OrderedDict(image=image, sentence=teacher_action.sentence)
         else:
             obs = image
         return obs
+
+    def get_camera_observation(self):
+        image = self._agent.get_camera_observation("camera")
+        image = np.array(image, copy=False)
+        if self._resized_image_size:
+            image = PIL.Image.fromarray(image).resize(self._resized_image_size,
+                                                      PIL.Image.ANTIALIAS)
+            image = np.array(image, copy=False)
+        if self._data_format == "channels_first":
+            image = np.transpose(image, [2, 0, 1])
+        return image
 
 
 class SimpleNavigationNoLanguage(SimpleNavigation):
