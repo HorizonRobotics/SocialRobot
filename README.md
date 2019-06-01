@@ -11,7 +11,6 @@ If you already have a gazebo in your system, please make sure its version is gre
 
 You also need to install the following packages:
 ```bash
-pip3 install numpy matplotlib gym psutil
 apt install python3-tk
 ```
 
