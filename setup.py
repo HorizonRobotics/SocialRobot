@@ -11,7 +11,7 @@ for f in glob.glob("build/pygazebo/pygazebo*.so"):
 setup(
     name='social_bot',
     version='0.0.1',
-    install_requires=['gin-config', 'gym', 'numpy', 'matplotlib'],
+    install_requires=['gin-config', 'gym', 'numpy', 'matplotlib', 'psutil'],
     package_dir={'': 'python'},
     packages=find_packages('python'),
     package_data={'social_bot': ['models', 'worlds', 'pygazebo*.so']},
