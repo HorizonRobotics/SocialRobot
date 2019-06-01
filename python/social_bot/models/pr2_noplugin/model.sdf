@@ -655,7 +655,8 @@
         </camera>
       </sensor>
       <sensor name="head_mount_prosilica_link_sensor" type="camera">
-        <update_rate>1.000000</update_rate>
+        <always_on>0</always_on>
+        <update_rate>30</update_rate>
         <pose>-0.161257 0.012500 0.244421 0.000000 -0.000000 0.000000</pose>
         <camera>
           <horizontal_fov>1.120501</horizontal_fov>
@@ -670,6 +671,40 @@
           </clip>
         </camera>
       </sensor>
+      <sensor name='wide_stereo_gazebo_l_stereo_camera_sensor' type='camera'>
+          <always_on>1</always_on>
+          <update_rate>25</update_rate>
+          <pose frame=''>0.0682 0.03 0.1146 0 -0 0</pose>
+          <camera name='__default__'>
+            <horizontal_fov>1.5708</horizontal_fov>
+            <image>
+              <width>256</width>
+              <height>256</height>
+              <format>R8G8B8</format>
+            </image>
+            <clip>
+              <near>0.1</near>
+              <far>100</far>
+            </clip>
+          </camera>
+        </sensor>
+        <sensor name='wide_stereo_gazebo_r_stereo_camera_sensor' type='camera'>
+          <always_on>1</always_on>
+          <update_rate>25</update_rate>
+          <pose frame=''>0.0682 -0.06 0.1146 0 -0 0</pose>
+          <camera name='__default__'>
+            <horizontal_fov>1.5708</horizontal_fov>
+            <image>
+              <width>256</width>
+              <height>256</height>
+              <format>R8G8B8</format>
+            </image>
+            <clip>
+              <near>0.1</near>
+              <far>100</far>
+            </clip>
+          </camera>
+        </sensor>
       <velocity_decay />
     </link>
     <link name="l_shoulder_pan_link">

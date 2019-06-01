@@ -13,11 +13,8 @@ from social_bot import teacher
 from social_bot.teacher import TeacherAction
 import social_bot.pygazebo as gazebo
 import matplotlib.pyplot as plt
+
 logger = logging.getLogger(__name__)
-
-def rgb2gray(rgb):
-    return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
-
 
 class Pr2Gripper(gym.Env):
     """
@@ -29,6 +26,14 @@ class Pr2Gripper(gym.Env):
 
     The goal position will be randomly placed in front of the agent at start of each
     episode.
+
+    Observations for agent:
+    * when use_internal_states_only is True, observation will be a single ndarray with
+      internal joint states, object pose, finger tip pose, finger tip touch sensor output,
+      and finger tip distances to the target object.
+    * when use_internal_states_only is False, observation will be a tuple. The first element is
+      6 channel image concatenate of reshaped images from two cameras at head of PR2,
+      the second element includes only internal joint states and finger tip sensor output.
 
     In the version:
     * agent will receive small reward to get close to the goal if reward_shaping is True
@@ -91,8 +96,6 @@ class Pr2Gripper(gym.Env):
         # to avoid different parallel simulation has the same randomness
         random.seed(port)
 
-        #self._world.info()
-
         # passive joints are joints that could move but have no actuators, are only indirectly
         # controled by the motion of active joints.
         # Though in the simulation, we could "control" through API, we chose to be more realistic.
@@ -146,7 +149,8 @@ class Pr2Gripper(gym.Env):
         self._gripper_lower_limit = 0.01
 
         # whether to move head cameras and gripper when episode starts.
-        self._adjust_position_at_start = False
+        # for image based observation, we have to tilt the head down first to look at table
+        self._adjust_position_at_start = not use_internal_states_only
 
         obs = self._get_observation()
         self._prev_dist = self._get_finger_tip_distance()
@@ -156,8 +160,11 @@ class Pr2Gripper(gym.Env):
             self.observation_space = gym.spaces.Box(
                 low=-np.inf, high=np.inf, shape=obs.shape, dtype=np.float32)
         else:
-            self.observation_space = gym.spaces.Box(
-                low=0, high=256.0, shape=obs.shape, dtype=np.float32)
+            self.observation_space = gym.spaces.Tuple([
+                gym.spaces.Box(
+                    low=0, high=1.0, shape=obs[0].shape, dtype=np.float32),
+                gym.spaces.Box(
+                    low=-np.inf, high=np.inf, shape=obs[1].shape, dtype=np.float32)])
         self.action_space = gym.spaces.Box(
             low=-1, high=1, shape=[len(self._r_arm_joints)], dtype=np.float32)
 
@@ -168,13 +175,13 @@ class Pr2Gripper(gym.Env):
         if self._adjust_position_at_start:
             # move camera to focus on ground. it is hacky
             joint_state = gazebo.JointState(1)
-            joint_state.set_positions([1.4])
+            joint_state.set_positions([1.2])
             joint_state.set_velocities([0.0])
             self._agent.set_joint_state("pr2::pr2::head_tilt_joint", joint_state)
 
             self._agent.take_action(dict({"pr2::pr2::r_gripper_joint":5}))
 
-        self._world.step(200)
+        self._world.step(40)
         self._goal = self._world.get_agent(self._goal_name)
 
         obs = self._get_observation()
@@ -195,18 +202,27 @@ class Pr2Gripper(gym.Env):
         self._goal.set_pose((loc, (0, 0, 0)))
 
     def _get_observation(self):
+        def get_camera_observation(camera_name):
+            img = np.array(self._agent.get_camera_observation(camera_name),
+                           copy=False)
+            img = PIL.Image.fromarray(img).resize(
+                self._resized_image_size, PIL.Image.ANTIALIAS) #.convert('L') if only grey images
+
+            return np.array(img).astype(np.float32) / 255.
+
         self._l_touch = self._finger_tip_contact("r_gripper_l_finger_tip_contact_sensor",
-                                           "beer::link::box_collision")
+                                                 "beer::link::box_collision")
         self._r_touch = self._finger_tip_contact("r_gripper_r_finger_tip_contact_sensor",
-                                           "beer::link::box_collision")
+                                                 "beer::link::box_collision")
         self._goal_pose = self._goal.get_pose()
         self._l_finger_pose = self._agent.get_link_pose("pr2::pr2::r_gripper_l_finger_tip_link")
         self._r_finger_pose = self._agent.get_link_pose("pr2::pr2::r_gripper_r_finger_tip_link")
 
+        joint_states = [self._agent.get_joint_state(joint) for joint in self._r_arm_joints]
+        joint_positions = [s.get_positions()[0] for s in joint_states]
+        joint_velocities = [s.get_velocities()[0] for s in joint_states]
+
         if self._use_internal_states_only:
-            joint_states = [self._agent.get_joint_state(joint) for joint in self._r_arm_joints]
-            joint_positions = [s.get_positions()[0] for s in joint_states]
-            joint_velocities = [s.get_velocities()[0] for s in joint_states]
             loc, loc_a = self._goal_pose
             l_finger_tip_loc, l_finger_tip_loc_a = self._l_finger_pose
             r_finger_tip_loc, r_finger_tip_loc_a = self._r_finger_pose
@@ -220,16 +236,15 @@ class Pr2Gripper(gym.Env):
                 np.array([l_dist, r_dist]),
                 np.array([self._l_touch, self._r_touch]).astype(np.float32)), 0)
         else:
-            obs = np.array(
-                self._agent.get_camera_observation(
-                    "default::pr2::pr2::head_tilt_link::head_mount_prosilica_link_sensor"
-                ),
-                copy=False)
-            obs = PIL.Image.fromarray(rgb2gray(obs)).resize(
-                self._resized_image_size, PIL.Image.ANTIALIAS)
+            states = np.concatenate((
+                np.array(joint_positions), np.array(joint_velocities),
+                np.array([self._l_touch, self._r_touch]).astype(np.float32)), 0)
 
-            obs = np.reshape(np.array(obs),
-                              [self._resized_image_size[0], self._resized_image_size[1], 1])
+            img = get_camera_observation(
+                "default::pr2::pr2::head_tilt_link::wide_stereo_gazebo_l_stereo_camera_sensor")
+            img2 = get_camera_observation(
+                "default::pr2::pr2::head_tilt_link::wide_stereo_gazebo_r_stereo_camera_sensor")
+            obs = (np.concatenate((img,img2), axis=-1), states)
 
         return obs
 
@@ -272,7 +287,7 @@ class Pr2Gripper(gym.Env):
         controls = dict(zip(self._r_arm_joints, actions))
 
         self._agent.take_action(controls)
-        self._world.step(100)
+        self._world.step(20)
 
         obs = self._get_observation()
 
@@ -345,6 +360,8 @@ class Pr2Gripper(gym.Env):
 
     def run(self):
         self.reset()
+        self._world.info()
+        self._max_steps = 1  # To dbg initial setup only
         r_gripper_index = -1
         for i in range(len(self._r_arm_joints)):
             if self._r_arm_joints[i].find("pr2::pr2::r_gripper_joint") != -1:
@@ -357,11 +374,16 @@ class Pr2Gripper(gym.Env):
             #actions[r_gripper_index] = np.random.uniform() - 0.5
             obs, r, done, _ = self.step(actions * self._gripper_reward_dir)
             reward += r
+
             if not self._use_internal_states_only:
-                plt.imshow(obs[:, :, 0], cmap='gray')
-                plt.pause(0.001)
+                fig = plt.figure()
+                fig.add_subplot(1, 2, 1)
+                plt.imshow(obs[0][:, :, :3])
+                fig.add_subplot(1, 2, 2)
+                plt.imshow(obs[0][:,:, 3:])
+                plt.show()
             if done:
-                logger.debug("episode reward:" + str(reward))
+                logger.info("episode reward:" + str(reward))
                 self.reset()
                 reward = 0.0
 
@@ -372,7 +394,7 @@ class Pr2Gripper(gym.Env):
 
 
 def main():
-    env = Pr2Gripper(max_steps=150)
+    env = Pr2Gripper(max_steps=100, use_internal_states_only=False)
     env.run()
 
 
