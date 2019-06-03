@@ -155,7 +155,8 @@ class SimpleNavigation(gym.Env):
         return obs
 
     def get_camera_observation(self):
-        image = self._agent.get_camera_observation("camera")
+        image = self._agent.get_camera_observation(
+            "default::pioneer2dx_noplugin::camera::camera")
         image = np.array(image, copy=False)
         if self._resized_image_size:
             image = PIL.Image.fromarray(image).resize(self._resized_image_size,
