@@ -70,7 +70,9 @@ class SimpleNavigation(gym.Env):
         self._agent = self._world.get_agent()
         assert self._agent is not None
         logger.info("joint names: %s" % self._agent.get_joint_names())
-        self._joint_names = self._agent.get_joint_names()
+        self._all_joints = self._agent.get_joint_names()
+        self._joint_names = list(
+            filter(lambda s: s.find('pr2::r_') != -1, self._all_joints))
         self._teacher = teacher.Teacher(False)
         task_group = teacher.TaskGroup()
         task_group.add_task(GoalTask())
