@@ -136,7 +136,7 @@ class SimpleNavigation(gym.Env):
         controls = dict(zip(self._joint_names, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
-        self._world.step(100)
+        self._world.step(20)
         image = self.get_camera_observation()
         if self._with_language:
             obs = OrderedDict(image=image, sentence=teacher_action.sentence)
@@ -156,7 +156,7 @@ class SimpleNavigation(gym.Env):
 
     def get_camera_observation(self):
         image = self._agent.get_camera_observation(
-            "default::pioneer2dx_noplugin::camera::camera")
+            "default::pioneer2dx::pioneer2dx_noplugin::camera_link::camera")
         image = np.array(image, copy=False)
         if self._resized_image_size:
             image = PIL.Image.fromarray(image).resize(self._resized_image_size,

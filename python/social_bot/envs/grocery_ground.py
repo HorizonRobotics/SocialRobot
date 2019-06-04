@@ -169,7 +169,7 @@ class GroceryGround(gym.Env):
         }
         camera_sensor = {
             'pr2_differential': 'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
-            'pioneer2dx_noplugin': ' ',
+            'pioneer2dx_noplugin': 'default::pioneer2dx_noplugin::camera_link::camera',
             'turtlebot': 'default::turtlebot::kinect::link::camera',
             'create': ' ',
         }
