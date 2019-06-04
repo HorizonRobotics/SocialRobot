@@ -16,6 +16,7 @@
 #include <gazebo/sensors/Sensor.hh>
 #include <gazebo/sensors/SensorManager.hh>
 #include <gazebo/sensors/SensorsIface.hh>
+#include <gazebo/common/PID.hh>
 #include <gazebo/util/LogRecord.hh>
 #include <mutex>  // NOLINT
 
@@ -264,6 +265,24 @@ class Agent : public Model {
     }
   }
 
+  bool TakeActionPDController(const std::map<std::string, double>& ctrl_target) {
+    // Create a PID controller
+    // The parameters suits for revolute/continuous joint, from error of radian to force
+    auto pid = gazebo::common::PID(0.02, 0, 0.01);
+    pid.SetCmdMax(10.0);
+    pid.SetCmdMin(-10.0);
+    auto controller = model_->GetJointController();
+    for (const auto& name2target : ctrl_target) {
+      controller->SetVelocityPID(name2target.first, pid);
+      bool ret = controller->SetVelocityTarget(name2target.first, name2target.second);
+      if (!ret) {
+        std::cout << "Cannot find joint '" << name2target.first << "'"
+                  << " in  Agent '" << model_->GetName() << "'" << std::endl;
+        return false;
+      }
+    }
+  }
+
   void Reset() { model_->Reset(); }
 };
 
@@ -476,6 +495,12 @@ PYBIND11_MODULE(pygazebo, m) {
            "to force."
            " Return false if some joint name cannot be found",
            py::arg("forces"))
+      .def("take_action_pd_controller",
+           &Agent::TakeActionPDController,
+           "Take action for this agent, ctrl_targets is a dictionary from joint name "
+           "to target velocity."
+           " Return false if some joint name cannot be found",
+           py::arg("ctrl_targets"))
       .def("get_camera_observation",
            &Agent::GetCameraObservation,
            py::arg("sensor_scope_name"))
