@@ -180,7 +180,7 @@
         </material>
       </visual>
     </link>
-    <joint type="revolute" name="camera_joint">
+    <joint type="fixed" name="camera_joint">
       <pose>0 0 0 0 0 0</pose>
       <child>camera_link</child>
       <parent>chassis</parent>
@@ -189,8 +189,6 @@
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
       <dynamics damping="0.01" friction="0.1"/>
-      <limit effort="10.0" lower="-1.5707" upper="1.5707" velocity="10"/>
-      <safety_controller k_velocity="10" k_position="15" soft_lower_limit="-1.5707" soft_upper_limit="1.5707" />
     </joint>
     <joint type="revolute" name="left_wheel_hinge">
       <pose>0 0 -0.03 0 0 0</pose>

@@ -17,7 +17,7 @@ def main():
     logging.info(" mem=%dM" % (proc.memory_info().rss // 1e6))
     for _ in range(10000000):
         obs = env.reset()
-        control = [random.random() * 0.2, random.random() * 0.2, 0]
+        control = [random.random() * 0.2, random.random() * 0.2]
         while True:
             obs, reward, done, info = env.step(
                 dict(control=control, sentence="hello"))

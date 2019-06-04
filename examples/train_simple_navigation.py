@@ -131,7 +131,7 @@ def main(options):
                                               PIL.Image.ANTIALIAS)
         obs = np.transpose(obs, [2, 0, 1])
         action, q = agent.act(obs, reward)
-        control = options.f_action_to_control(action) + (0., )
+        control = options.f_action_to_control(action)
         new_obs, reward, done, _ = env.step(control)
         agent.learn(obs, action, reward, done)
         obs = new_obs

@@ -180,7 +180,7 @@ class SimpleNavigationNoLanguageDiscreteAction(SimpleNavigationNoLanguage):
         self._action_space = gym.spaces.Discrete(25)
 
     def step(self, action):
-        control = [0.05 * (action // 5) - 0.1, 0.05 * (action % 5) - 0.1, 0.]
+        control = [0.05 * (action // 5) - 0.1, 0.05 * (action % 5) - 0.1]
         return super(SimpleNavigationNoLanguageDiscreteAction,
                      self).step(control)
 
@@ -192,7 +192,7 @@ def main():
     env = SimpleNavigation()
     for _ in range(10000000):
         obs = env.reset()
-        control = [random.random() * 0.2, random.random() * 0.2, 0]
+        control = [random.random() * 0.2, random.random() * 0.2]
         while True:
             obs, reward, done, info = env.step(
                 dict(control=control, sentence="hello"))
