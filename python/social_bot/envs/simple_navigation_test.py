@@ -21,7 +21,7 @@ class Agent(Process):
         for _ in range(1000):
             control = [
                 random.random() * 0.2 - 0.1,
-                random.random() * 0.2 - 0.1, 0
+                random.random() * 0.2 - 0.1
             ]
             obs, reward, done, info = env.step(
                 dict(control=control, sentence="hello"))

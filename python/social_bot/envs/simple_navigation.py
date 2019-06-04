@@ -70,7 +70,9 @@ class SimpleNavigation(gym.Env):
         self._agent = self._world.get_agent()
         assert self._agent is not None
         logger.info("joint names: %s" % self._agent.get_joint_names())
-        self._joint_names = self._agent.get_joint_names()
+        self._all_joints = self._agent.get_joint_names()
+        self._joint_names = list(
+            filter(lambda s: s.find('wheel') != -1, self._all_joints))
         self._teacher = teacher.Teacher(False)
         task_group = teacher.TaskGroup()
         task_group.add_task(GoalTask())
@@ -136,7 +138,7 @@ class SimpleNavigation(gym.Env):
         controls = dict(zip(self._joint_names, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
-        self._world.step(100)
+        self._world.step(20)
         image = self.get_camera_observation()
         if self._with_language:
             obs = OrderedDict(image=image, sentence=teacher_action.sentence)
@@ -155,7 +157,8 @@ class SimpleNavigation(gym.Env):
         return obs
 
     def get_camera_observation(self):
-        image = self._agent.get_camera_observation("camera")
+        image = self._agent.get_camera_observation(
+            "default::pioneer2dx::pioneer2dx_noplugin::camera_link::camera")
         image = np.array(image, copy=False)
         if self._resized_image_size:
             image = PIL.Image.fromarray(image).resize(self._resized_image_size,
@@ -179,7 +182,7 @@ class SimpleNavigationNoLanguageDiscreteAction(SimpleNavigationNoLanguage):
         self._action_space = gym.spaces.Discrete(25)
 
     def step(self, action):
-        control = [0.05 * (action // 5) - 0.1, 0.05 * (action % 5) - 0.1, 0.]
+        control = [0.05 * (action // 5) - 0.1, 0.05 * (action % 5) - 0.1]
         return super(SimpleNavigationNoLanguageDiscreteAction,
                      self).step(control)
 
@@ -191,7 +194,7 @@ def main():
     env = SimpleNavigation()
     for _ in range(10000000):
         obs = env.reset()
-        control = [random.random() * 0.2, random.random() * 0.2, 0]
+        control = [random.random() * 0.2, random.random() * 0.2]
         while True:
             obs, reward, done, info = env.step(
                 dict(control=control, sentence="hello"))
