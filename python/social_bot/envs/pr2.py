@@ -10,13 +10,15 @@ import PIL
 from gym import spaces
 import social_bot
 from social_bot import teacher
+from social_bot.envs.base import EnvBase
 from social_bot.teacher import TeacherAction
 import social_bot.pygazebo as gazebo
 import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
-class Pr2Gripper(gym.Env):
+
+class Pr2Gripper(EnvBase):
     """
     The goal of this task is to train the agent to use its arm and fingers.
 
@@ -64,6 +66,7 @@ class Pr2Gripper(gym.Env):
     camera sensor:
            head_mount_prosilica_link_sensor
     """
+
     def __init__(self,
                  goal_name='beer',
                  max_steps=100,
@@ -82,10 +85,7 @@ class Pr2Gripper(gym.Env):
                   and velocities) and goal positions, and not use camera sensors.
             port: Gazebo port, need to specify when run multiple environment in parallel
         """
-
-        if port is None:
-            port = 0
-        gazebo.initialize(port=port)
+        super(Pr2Gripper, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "pr2.world"))
         self._agent = self._world.get_agent()
@@ -100,45 +100,47 @@ class Pr2Gripper(gym.Env):
         # controled by the motion of active joints.
         # Though in the simulation, we could "control" through API, we chose to be more realistic.
         # from https://github.com/PR2/pr2_mechanism/blob/melodic-devel/pr2_mechanism_model/pr2.urdf
-        passive_joints = set(["r_gripper_l_finger_joint",
-                              "r_gripper_r_finger_joint",
-                              "r_gripper_r_finger_tip_joint",
-                              "r_gripper_l_finger_tip_joint",
-                              "r_gripper_r_parallel_root_joint",
-                              "r_gripper_l_parallel_root_joint"])
+        passive_joints = set([
+            "r_gripper_l_finger_joint", "r_gripper_r_finger_joint",
+            "r_gripper_r_finger_tip_joint", "r_gripper_l_finger_tip_joint",
+            "r_gripper_r_parallel_root_joint",
+            "r_gripper_l_parallel_root_joint"
+        ])
 
         # PR2 right arm has 7 DOF, gripper has 1 DoF, as specified on p18/p26 on PR2 manual
         # https://www.clearpathrobotics.com/wp-content/uploads/2014/08/pr2_manual_r321.pdf
         # we exclude rest of the joints
         unused_joints = set([
-            "r_gripper_motor_slider_joint",
-            "r_gripper_motor_screw_joint",
-            "r_gripper_r_screw_screw_joint",
-            "r_gripper_l_screw_screw_joint",
-            "r_gripper_r_parallel_tip_joint",
-            "r_gripper_l_parallel_tip_joint"])
+            "r_gripper_motor_slider_joint", "r_gripper_motor_screw_joint",
+            "r_gripper_r_screw_screw_joint", "r_gripper_l_screw_screw_joint",
+            "r_gripper_r_parallel_tip_joint", "r_gripper_l_parallel_tip_joint"
+        ])
 
         unused_joints = passive_joints.union(unused_joints)
 
         self._r_arm_joints = list(
-            filter(lambda s: s.find('pr2::r_') != -1
-                   and s.split("::")[-1] not in unused_joints, self._all_joints))
-        logger.info("joints in the right arm to control: %s" % self._r_arm_joints)
+            filter(
+                lambda s: s.find('pr2::r_') != -1 and s.split("::")[-1] not in unused_joints,
+                self._all_joints))
+        logger.info(
+            "joints in the right arm to control: %s" % self._r_arm_joints)
 
-        joint_states = list(map(lambda s: self._agent.get_joint_state(s), self._r_arm_joints))
+        joint_states = list(
+            map(lambda s: self._agent.get_joint_state(s), self._r_arm_joints))
 
-        self._r_arm_joints_limits = list(map(lambda s: s.get_effort_limits()[0],
-                                        joint_states));
+        self._r_arm_joints_limits = list(
+            map(lambda s: s.get_effort_limits()[0], joint_states))
 
-        logger.info('\n'.join(map(lambda s: str(s[0]) + ":" + str(s[1]), zip(
-            self._r_arm_joints, self._r_arm_joints_limits))))
+        logger.info('\n'.join(
+            map(lambda s: str(s[0]) + ":" + str(s[1]),
+                zip(self._r_arm_joints, self._r_arm_joints_limits))))
 
         self._goal_name = goal_name
         self._goal = self._world.get_agent(self._goal_name)
         self._max_steps = max_steps
         self._steps_in_this_episode = 0
         self._reward_shaping = reward_shaping
-        self._resized_image_size = (128, 128) #(84, 84)
+        self._resized_image_size = (128, 128)  #(84, 84)
         self._use_internal_states_only = use_internal_states_only
         self._cum_reward = 0.0
         self._motion_loss = motion_loss
@@ -164,7 +166,11 @@ class Pr2Gripper(gym.Env):
                 gym.spaces.Box(
                     low=0, high=1.0, shape=obs[0].shape, dtype=np.float32),
                 gym.spaces.Box(
-                    low=-np.inf, high=np.inf, shape=obs[1].shape, dtype=np.float32)])
+                    low=-np.inf,
+                    high=np.inf,
+                    shape=obs[1].shape,
+                    dtype=np.float32)
+            ])
         self.action_space = gym.spaces.Box(
             low=-1, high=1, shape=[len(self._r_arm_joints)], dtype=np.float32)
 
@@ -177,9 +183,10 @@ class Pr2Gripper(gym.Env):
             joint_state = gazebo.JointState(1)
             joint_state.set_positions([1.2])
             joint_state.set_velocities([0.0])
-            self._agent.set_joint_state("pr2::pr2::head_tilt_joint", joint_state)
+            self._agent.set_joint_state("pr2::pr2::head_tilt_joint",
+                                        joint_state)
 
-            self._agent.take_action(dict({"pr2::pr2::r_gripper_joint":5}))
+            self._agent.take_action(dict({"pr2::pr2::r_gripper_joint": 5}))
 
         self._world.step(40)
         self._goal = self._world.get_agent(self._goal_name)
@@ -197,28 +204,35 @@ class Pr2Gripper(gym.Env):
         return obs
 
     def _move_goal(self):
-        loc = (0.76 + 0.14 * (random.random() - 1),  0.1 * (random.random() - 1.0),
-               0.43)
+        loc = (0.76 + 0.14 * (random.random() - 1),
+               0.1 * (random.random() - 1.0), 0.43)
         self._goal.set_pose((loc, (0, 0, 0)))
 
     def _get_observation(self):
         def get_camera_observation(camera_name):
-            img = np.array(self._agent.get_camera_observation(camera_name),
-                           copy=False)
+            img = np.array(
+                self._agent.get_camera_observation(camera_name), copy=False)
             img = PIL.Image.fromarray(img).resize(
-                self._resized_image_size, PIL.Image.ANTIALIAS) #.convert('L') if only grey images
+                self._resized_image_size,
+                PIL.Image.ANTIALIAS)  #.convert('L') if only grey images
 
             return np.array(img).astype(np.float32) / 255.
 
-        self._l_touch = self._finger_tip_contact("r_gripper_l_finger_tip_contact_sensor",
-                                                 "beer::link::box_collision")
-        self._r_touch = self._finger_tip_contact("r_gripper_r_finger_tip_contact_sensor",
-                                                 "beer::link::box_collision")
+        self._l_touch = self._finger_tip_contact(
+            "r_gripper_l_finger_tip_contact_sensor",
+            "beer::link::box_collision")
+        self._r_touch = self._finger_tip_contact(
+            "r_gripper_r_finger_tip_contact_sensor",
+            "beer::link::box_collision")
         self._goal_pose = self._goal.get_pose()
-        self._l_finger_pose = self._agent.get_link_pose("pr2::pr2::r_gripper_l_finger_tip_link")
-        self._r_finger_pose = self._agent.get_link_pose("pr2::pr2::r_gripper_r_finger_tip_link")
+        self._l_finger_pose = self._agent.get_link_pose(
+            "pr2::pr2::r_gripper_l_finger_tip_link")
+        self._r_finger_pose = self._agent.get_link_pose(
+            "pr2::pr2::r_gripper_r_finger_tip_link")
 
-        joint_states = [self._agent.get_joint_state(joint) for joint in self._r_arm_joints]
+        joint_states = [
+            self._agent.get_joint_state(joint) for joint in self._r_arm_joints
+        ]
         joint_positions = [s.get_positions()[0] for s in joint_states]
         joint_velocities = [s.get_velocities()[0] for s in joint_states]
 
@@ -229,22 +243,26 @@ class Pr2Gripper(gym.Env):
 
             l_dist = np.linalg.norm(np.array(l_finger_tip_loc) - np.array(loc))
             r_dist = np.linalg.norm(np.array(r_finger_tip_loc) - np.array(loc))
-            obs = np.concatenate((
-                np.array(joint_positions), np.array(joint_velocities), np.array(loc),
-                np.array(loc_a), np.array(l_finger_tip_loc), np.array(l_finger_tip_loc_a),
-                np.array(r_finger_tip_loc), np.array(r_finger_tip_loc_a),
-                np.array([l_dist, r_dist]),
-                np.array([self._l_touch, self._r_touch]).astype(np.float32)), 0)
+            obs = np.concatenate(
+                (np.array(joint_positions), np.array(joint_velocities),
+                 np.array(loc), np.array(loc_a), np.array(l_finger_tip_loc),
+                 np.array(l_finger_tip_loc_a), np.array(r_finger_tip_loc),
+                 np.array(r_finger_tip_loc_a), np.array([l_dist, r_dist]),
+                 np.array([self._l_touch, self._r_touch]).astype(np.float32)),
+                0)
         else:
-            states = np.concatenate((
-                np.array(joint_positions), np.array(joint_velocities),
-                np.array([self._l_touch, self._r_touch]).astype(np.float32)), 0)
+            states = np.concatenate(
+                (np.array(joint_positions), np.array(joint_velocities),
+                 np.array([self._l_touch, self._r_touch]).astype(np.float32)),
+                0)
 
             img = get_camera_observation(
-                "default::pr2::pr2::head_tilt_link::wide_stereo_gazebo_l_stereo_camera_sensor")
+                "default::pr2::pr2::head_tilt_link::wide_stereo_gazebo_l_stereo_camera_sensor"
+            )
             img2 = get_camera_observation(
-                "default::pr2::pr2::head_tilt_link::wide_stereo_gazebo_r_stereo_camera_sensor")
-            obs = (np.concatenate((img,img2), axis=-1), states)
+                "default::pr2::pr2::head_tilt_link::wide_stereo_gazebo_r_stereo_camera_sensor"
+            )
+            obs = (np.concatenate((img, img2), axis=-1), states)
 
         return obs
 
@@ -306,7 +324,8 @@ class Pr2Gripper(gym.Env):
         # to open the gripper.
         # if the gripper is wide open (> _gripper_upper_limit), agent will receive small
         # reward to close the gripper.
-        pos_reward = self._gripper_reward_dir * (gripper_pos - self._prev_gripper_pos)
+        pos_reward = self._gripper_reward_dir * (
+            gripper_pos - self._prev_gripper_pos)
 
         if self._reward_shaping:
             reward += dist_reward + pos_reward
@@ -336,19 +355,20 @@ class Pr2Gripper(gym.Env):
         if delta_reward > 0:
             reward += delta_reward
         else:
-            reward += -0.01     #if no positive reward, penalize it a bit to speed up
+            reward += -0.01  #if no positive reward, penalize it a bit to speed up
 
         if self._motion_loss > 0.0:
             v2s = 0.0
             for joint in self._r_arm_joints:
                 v = self._agent.get_joint_state(joint).get_velocities()[0]
-                v2s += v*v
+                v2s += v * v
             reward += -1.0 * self._motion_loss * v2s
 
         self._cum_reward += reward
         if done:
-            logger.info("episode ends at dist: " + str(dist) + "|" + str(gripper_pos) +
-                         " with cum reward:" + str(self._cum_reward))
+            logger.info("episode ends at dist: " + str(dist) + "|" +
+                        str(gripper_pos) + " with cum reward:" +
+                        str(self._cum_reward))
 
         if self._gripper_reward_dir == 1 and gripper_pos > self._gripper_upper_limit:
             self._gripper_reward_dir = -1
@@ -369,7 +389,7 @@ class Pr2Gripper(gym.Env):
                 break
         reward = 0.0
         while True:
-            actions =  np.random.randn(len(self._r_arm_joints))
+            actions = np.random.randn(len(self._r_arm_joints))
             #actions = np.zeros(len(self._r_arm_joints))
             #actions[r_gripper_index] = np.random.uniform() - 0.5
             obs, r, done, _ = self.step(actions * self._gripper_reward_dir)
@@ -380,14 +400,12 @@ class Pr2Gripper(gym.Env):
                 fig.add_subplot(1, 2, 1)
                 plt.imshow(obs[0][:, :, :3])
                 fig.add_subplot(1, 2, 2)
-                plt.imshow(obs[0][:,:, 3:])
+                plt.imshow(obs[0][:, :, 3:])
                 plt.show()
             if done:
                 logger.info("episode reward:" + str(reward))
                 self.reset()
                 reward = 0.0
-
-
 
     def render(self, mode='human'):
         return
