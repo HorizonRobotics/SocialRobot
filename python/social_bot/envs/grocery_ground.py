@@ -168,10 +168,14 @@ class GroceryGround(gym.Env):
             'create': 0.5,
         }
         camera_sensor = {
-            'pr2_differential': 'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
-            'pioneer2dx_noplugin': 'default::pioneer2dx_noplugin::camera_link::camera',
-            'turtlebot': 'default::turtlebot::kinect::link::camera',
-            'create': ' ',
+            'pr2_differential':
+            'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
+            'pioneer2dx_noplugin':
+            'default::pioneer2dx_noplugin::camera_link::camera',
+            'turtlebot':
+            'default::turtlebot::kinect::link::camera',
+            'create':
+            ' ',
         }
 
         self._agent = self._world.get_agent(agent_type)
@@ -198,13 +202,14 @@ class GroceryGround(gym.Env):
         self._with_language = with_language
         self._use_image_obs = use_image_obs
 
-        obs = self.reset()
+        self.reset()
+        obs_data = self._get_observation()
         if self._use_image_obs:
             obs_data_space = gym.spaces.Box(
-                low=0, high=255, shape=obs.shape, dtype=np.uint8)
+                low=0, high=255, shape=obs_data.shape, dtype=np.uint8)
         else:
             obs_data_space = gym.spaces.Box(
-                low=-50, high=50, shape=obs.shape, dtype=np.float32)
+                low=-50, high=50, shape=obs_data.shape, dtype=np.float32)
 
         control_space = gym.spaces.Box(
             low=-self._agent_control_force,
@@ -215,7 +220,7 @@ class GroceryGround(gym.Env):
         if self._with_language:
             self.observation_space = gym.spaces.Dict(
                 data=obs_data_space, sentence=DiscreteSequence(128, 24))
-            self._action_space = gym.spaces.Dict(
+            self.action_space = gym.spaces.Dict(
                 control=control_space, sentence=DiscreteSequence(128, 24))
         else:
             self.observation_space = obs_data_space
@@ -323,11 +328,18 @@ def main():
     """
     Simple testing of this environment.
     """
-    env = GroceryGround()
+    import matplotlib.pyplot as plt
+    fig = None
+    env = GroceryGround(use_image_obs=True)
     while True:
         actions = env._agent_control_force * np.random.randn(
             env.action_space.shape[0])
         obs, _, done, _ = env.step(actions)
+        if fig is None:
+            fig = plt.imshow(obs)
+        else:
+            fig.set_data(obs)
+        plt.pause(0.00001)
         if done:
             env.reset()
 

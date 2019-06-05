@@ -191,13 +191,20 @@ def main():
     """
     Simple testing of this enviroenment.
     """
+    import matplotlib.pyplot as plt
+    fig = None
     env = SimpleNavigation()
     for _ in range(10000000):
         obs = env.reset()
         control = [random.random() * 0.2, random.random() * 0.2]
         while True:
-            obs, reward, done, info = env.step(
+            obs, reward, done, _ = env.step(
                 dict(control=control, sentence="hello"))
+            if fig is None:
+                fig = plt.imshow(obs['image'])
+            else:
+                fig.set_data(obs['image'])
+            plt.pause(0.00001)
             if done:
                 logger.info("reward: " + str(reward) + "sent: " +
                             str(obs["sentence"]))
