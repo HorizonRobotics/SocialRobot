@@ -10,7 +10,7 @@ import PIL
 from gym import spaces
 import social_bot
 from social_bot import teacher
-from social_bot.envs.base import EnvBase
+from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 import social_bot.pygazebo as gazebo
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 
-class Pr2Gripper(EnvBase):
+class Pr2Gripper(GazeboEnvBase):
     """
     The goal of this task is to train the agent to use its arm and fingers.
 

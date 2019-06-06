@@ -9,14 +9,14 @@ import math
 from gym import spaces
 import social_bot
 from social_bot import teacher
-from social_bot.envs.base import EnvBase
+from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 import social_bot.pygazebo as gazebo
 
 logger = logging.getLogger(__name__)
 
 
-class CartPole(EnvBase):
+class CartPole(GazeboEnvBase):
     """
     This environment simulates the classic cartpole in the pygazebo environment.
 

@@ -19,7 +19,7 @@ import gym
 import social_bot.pygazebo as gazebo
 
 
-class EnvBase(gym.Env):
+class GazeboEnvBase(gym.Env):
     def __init__(self, port=None):
         if port is None:
             port = 0

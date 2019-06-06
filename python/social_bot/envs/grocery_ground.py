@@ -28,7 +28,7 @@ from collections import OrderedDict
 
 import social_bot
 from social_bot import teacher
-from social_bot.envs.base import EnvBase
+from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
 from social_bot import teacher_tasks
@@ -91,7 +91,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         yield TeacherAction(reward=-10.0, sentence="Failed", done=True)
 
 
-class GroceryGround(EnvBase):
+class GroceryGround(GazeboEnvBase):
     """
     The goal of this task is to train the agent to navigate to a fixed type of 
     object. The name of the object is provided in the constructor. In each 
@@ -117,7 +117,7 @@ class GroceryGround(EnvBase):
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
                  goal_name='table',
-                 max_steps=160,     
+                 max_steps=160,
                  port=None):
         """
         Args:
@@ -132,10 +132,11 @@ class GroceryGround(EnvBase):
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
         self._object_types = [
-            'coke_can', 'cube_20k', 'car_wheel', 'plastic_cup', 'beer', 'hammer'
+            'coke_can', 'cube_20k', 'car_wheel', 'plastic_cup', 'beer',
+            'hammer'
         ]
-        self._pos_list=list(itertools.product(range(-5, 5), range(-5, 5)))
-        self._pos_list.remove((0,0))
+        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._pos_list.remove((0, 0))
         self._world.info()
         self._world.insertModelFile('model://' + agent_type)
         self._world.step(20)
@@ -167,10 +168,14 @@ class GroceryGround(EnvBase):
             'create': 0.5,
         }
         camera_sensor = {
-            'pr2_differential': 'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
-            'pioneer2dx_noplugin': 'default::pioneer2dx_noplugin::camera_link::camera',
-            'turtlebot': 'default::turtlebot::kinect::link::camera',
-            'create': ' ',
+            'pr2_differential':
+            'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
+            'pioneer2dx_noplugin':
+            'default::pioneer2dx_noplugin::camera_link::camera',
+            'turtlebot':
+            'default::turtlebot::kinect::link::camera',
+            'create':
+            ' ',
         }
 
         self._agent = self._world.get_agent(agent_type)
