@@ -175,7 +175,7 @@ class GroceryGround(gym.Env):
         self._agent = self._world.get_agent(agent_type)
         self._agent_joints = control_joints[agent_type]
         for _joint in self._agent_joints:
-            self._agent.set_pid_controller(_joint)
+            self._agent.set_pid_controller(_joint, 'velocity')
         self._agent_control_range = control_limit[agent_type]
         self._agent_camera = camera_sensor[agent_type]
         self._goal_name = goal_name
@@ -284,7 +284,7 @@ class GroceryGround(gym.Env):
             controls = action
         controls = dict(zip(self._agent_joints, controls))
         teacher_action = self._teacher.teach(sentence)
-        self._agent.take_action(controls=controls, enable_pid_controller = True)
+        self._agent.take_action(controls)
         self._world.step(10)
         if self._with_language:
             obs_data = self._get_observation()

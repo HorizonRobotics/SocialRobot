@@ -115,7 +115,13 @@ class Model {
 class Agent : public Model {
  private:
   std::map<std::string, gazebo::sensors::CameraSensorPtr> cameras_;
-  std::map<std::string, gazebo::sensors::ContactSensorPtr> contacts_;
+  std::map<std::string, gazebo::sensors::ContactSensorPtr> contacts_; 
+  std::map<std::string, int> joints_control_type_;
+  enum joints_control_type_def_ {
+    control_type_force_ = 0,  //value in std::map<std::string, int> is 0 by default
+    control_type_velocity_ = 1,
+    control_type_position_ = 2
+  };
 
  public:
   explicit Agent(gazebo::physics::ModelPtr model) : Model(model) {}
@@ -253,16 +259,25 @@ class Agent : public Model {
             reinterpret_cast<const uint8_t*>(sensor->ImageData())));
   }
 
-  bool TakeAction(const std::map<std::string, double>& controls,
-                  bool enable_pid_controller = false) {
+  bool TakeAction(const std::map<std::string, double>& controls) {
     auto controller = model_->GetJointController();
     for (const auto& name2control : controls) {
       bool ret;
-      if (!enable_pid_controller) {
-        ret = controller->SetForce(name2control.first, name2control.second);
-      }
-      else {
+      int control_type = joints_control_type_[name2control.first];
+      switch(control_type) {
+        case control_type_force_:
+          ret = controller->SetForce(name2control.first, name2control.second);
+          break;
+        case control_type_velocity_:
           ret = controller->SetVelocityTarget(name2control.first, name2control.second);
+          break;
+        case control_type_position_:
+          ret = controller->SetPositionTarget(name2control.first, name2control.second);
+          break;
+        default :
+          std::cout << "Unknown control type '" << control_type << "'"
+                  << " in joint '" << name2control.first << "'" << std::endl;
+          return false;
       }
       if (!ret) {
         std::cout << "Cannot find joint '" << name2control.first << "'"
@@ -273,15 +288,29 @@ class Agent : public Model {
   }
 
   void SetPIDController(const std::string& joint_name,
-                        double p = 0.02,
-                        double i = 0,
-                        double d = 0.01,
-                        double max_force = 10.0) {
+                        const std::string& pid_control_type,
+                        double p,
+                        double i,
+                        double d,
+                        double max_force) {
     auto pid = gazebo::common::PID(p, i, d);
     pid.SetCmdMax(max_force);
     pid.SetCmdMin(-max_force);
     auto controller = model_->GetJointController();
-    controller->SetVelocityPID(joint_name, pid);
+    if(pid_control_type == "force") {
+      joints_control_type_[joint_name] = control_type_force_;
+    }
+    else if(pid_control_type == "velocity") {
+      joints_control_type_[joint_name] = control_type_velocity_;
+      controller->SetVelocityPID(joint_name, pid);
+    }
+    else if(pid_control_type == "position") {
+      joints_control_type_[joint_name] = control_type_position_;
+      controller->SetPositionPID(joint_name, pid);
+    }
+    else {
+      std::cout << "Unknown PID type '" << pid_control_type << "'" << std::endl;
+    }
   }
 
   void Reset() { model_->Reset(); }
@@ -492,18 +521,18 @@ PYBIND11_MODULE(pygazebo, m) {
            &Agent::TakeAction,
            "Take action for this agent"
            "controls is a dictionary from joint name to control variables"
-           "enable_pid_controller is a bool to enable the velocity PID controller"
-           "You should call set_pid_controller first before enable pid controller"
-           "Return false if some joint name cannot be found",
-           py::arg("controls"),
-           py::arg("enable_pid_controller") = false)
+           "Action type is force by default. If pid controller is needed, you should call set_pid_controller first"
+           "Return false if some joint name or control type cannot be found",
+           py::arg("controls"))
       .def("set_pid_controller",
            &Agent::SetPIDController,
            "Set PID parameters for a joint if PID controleer are used"
            "joint_name is the name for the joint"
+           "pid_control_type is the type of pid controller, either 'velocity', or 'position' "
            "p, i, and d are the parameters for the controller"
            "max_force is the limit of PID contorller output",
            py::arg("joint_name"),
+           py::arg("pid_control_type") = "velocity",
            py::arg("p") = 0.02,
            py::arg("i") = 0.00,
            py::arg("d") = 0.01,
