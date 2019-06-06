@@ -3,6 +3,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <stdlib.h>
+#include <gazebo/common/PID.hh>
 #include <gazebo/gazebo.hh>
 #include <gazebo/physics/Joint.hh>
 #include <gazebo/physics/JointController.hh>
@@ -16,7 +17,6 @@
 #include <gazebo/sensors/Sensor.hh>
 #include <gazebo/sensors/SensorManager.hh>
 #include <gazebo/sensors/SensorsIface.hh>
-#include <gazebo/common/PID.hh>
 #include <gazebo/util/LogRecord.hh>
 #include <mutex>  // NOLINT
 
@@ -47,9 +47,7 @@ class JointState {
   unsigned int GetDOF() const { return dof_; }
   const std::vector<double>& GetPositions() const { return positions_; }
   const std::vector<double>& GetVelocities() const { return velocities_; }
-  const std::vector<double>& GetEffortLimits() const {
-    return effort_limits_;
-  }
+  const std::vector<double>& GetEffortLimits() const { return effort_limits_; }
 
   explicit JointState(unsigned int dof) : dof_(dof) {}
   void SetVelocities(const std::vector<double>& v) {
@@ -115,10 +113,11 @@ class Model {
 class Agent : public Model {
  private:
   std::map<std::string, gazebo::sensors::CameraSensorPtr> cameras_;
-  std::map<std::string, gazebo::sensors::ContactSensorPtr> contacts_; 
+  std::map<std::string, gazebo::sensors::ContactSensorPtr> contacts_;
   std::map<std::string, int> joints_control_type_;
   enum joints_control_type_def_ {
-    control_type_force_ = 0,  //value in std::map<std::string, int> is 0 by default
+    control_type_force_ =
+        0,  // value in std::map<std::string, int> is 0 by default
     control_type_velocity_ = 1,
     control_type_position_ = 2
   };
@@ -148,7 +147,6 @@ class Agent : public Model {
     positions.reserve(dof);
     velocities.reserve(dof);
     limits.reserve(dof);
-
 
     for (unsigned int i = 0; i < dof; i++) {
       positions.push_back(joint->Position(i));
@@ -196,14 +194,12 @@ class Agent : public Model {
   // given a sensor names, it will return all pairs of link names
   // which are in collisions detected by the touch sensor at that instant.
   std::set<std::tuple<std::string, std::string>> GetCollisions(
-    const std::string& contact_sensor_name) {
-
+      const std::string& contact_sensor_name) {
     std::set<std::tuple<std::string, std::string>> collisions;
 
     auto it = contacts_.find(contact_sensor_name);
 
     if (it == contacts_.end()) {
-
       gazebo::sensors::ContactSensorPtr sensor =
           std::dynamic_pointer_cast<gazebo::sensors::ContactSensor>(
               gazebo::sensors::get_sensor(contact_sensor_name));
@@ -223,7 +219,7 @@ class Agent : public Model {
       auto contact = contacts.contact(i);
 
       collisions.insert(
-        std::make_tuple(contact.collision1(), contact.collision2()));
+          std::make_tuple(contact.collision1(), contact.collision2()));
     }
 
     return collisions;
@@ -233,7 +229,6 @@ class Agent : public Model {
     auto it = cameras_.find(sensor_scope_name);
 
     if (it == cameras_.end()) {
-
       gazebo::sensors::CameraSensorPtr sensor =
           std::dynamic_pointer_cast<gazebo::sensors::CameraSensor>(
               gazebo::sensors::get_sensor(sensor_scope_name));
@@ -264,19 +259,21 @@ class Agent : public Model {
     for (const auto& name2control : controls) {
       bool ret;
       int control_type = joints_control_type_[name2control.first];
-      switch(control_type) {
+      switch (control_type) {
         case control_type_force_:
           ret = controller->SetForce(name2control.first, name2control.second);
           break;
         case control_type_velocity_:
-          ret = controller->SetVelocityTarget(name2control.first, name2control.second);
+          ret = controller->SetVelocityTarget(name2control.first,
+                                              name2control.second);
           break;
         case control_type_position_:
-          ret = controller->SetPositionTarget(name2control.first, name2control.second);
+          ret = controller->SetPositionTarget(name2control.first,
+                                              name2control.second);
           break;
-        default :
+        default:
           std::cout << "Unknown control type '" << control_type << "'"
-                  << " in joint '" << name2control.first << "'" << std::endl;
+                    << " in joint '" << name2control.first << "'" << std::endl;
           return false;
       }
       if (!ret) {
@@ -297,18 +294,15 @@ class Agent : public Model {
     pid.SetCmdMax(max_force);
     pid.SetCmdMin(-max_force);
     auto controller = model_->GetJointController();
-    if(pid_control_type == "force") {
+    if (pid_control_type == "force") {
       joints_control_type_[joint_name] = control_type_force_;
-    }
-    else if(pid_control_type == "velocity") {
+    } else if (pid_control_type == "velocity") {
       joints_control_type_[joint_name] = control_type_velocity_;
       controller->SetVelocityPID(joint_name, pid);
-    }
-    else if(pid_control_type == "position") {
+    } else if (pid_control_type == "position") {
       joints_control_type_[joint_name] = control_type_position_;
       controller->SetPositionPID(joint_name, pid);
-    }
-    else {
+    } else {
       std::cout << "Unknown PID type '" << pid_control_type << "'" << std::endl;
     }
   }
@@ -407,7 +401,7 @@ void Initialize(const std::vector<std::string>& args, int port = 0) {
     gazebo::setupServer(args);
     // gazebo::runWorld uses World::RunLoop(). RunLoop() starts LogWorker()
     // every time. LogWorker will always store something in the buffer when
-    // it is started. But we don't have a running LogRecord to collect all 
+    // it is started. But we don't have a running LogRecord to collect all
     // these data. This cause memory usage keep increasing.
     // So we need to start LogRecord to collect data generated by RunLoop()
     // via LogWorker
@@ -482,14 +476,16 @@ PYBIND11_MODULE(pygazebo, m) {
       .def("get_velocities",
            &Model::GetVelocities,
            "Get ((Linear velocity x, Linear velocity y, Linear velocity z),"
-           "(Angular velocity x, Angular velocity y, Angular velocity z))" 
+           "(Angular velocity x, Angular velocity y, Angular velocity z))"
            "of the model");
-  
+
   py::class_<JointState>(m, "JointState")
       .def(py::init<unsigned int>())
       .def("get_positions", &JointState::GetPositions, "get joint positions")
       .def("get_velocities", &JointState::GetVelocities, "get joint velocities")
-      .def("get_effort_limits", &JointState::GetEffortLimits, "get joint effort limits")
+      .def("get_effort_limits",
+           &JointState::GetEffortLimits,
+           "get joint effort limits")
       .def("set_positions",
            &JointState::SetPositions,
            "set joint positions",
@@ -521,14 +517,16 @@ PYBIND11_MODULE(pygazebo, m) {
            &Agent::TakeAction,
            "Take action for this agent"
            "controls is a dictionary from joint name to control variables"
-           "Action type is force by default. If pid controller is needed, you should call set_pid_controller first"
+           "Action type is force by default. If pid controller is needed, you "
+           "should call set_pid_controller first"
            "Return false if some joint name or control type cannot be found",
            py::arg("controls"))
       .def("set_pid_controller",
            &Agent::SetPIDController,
            "Set PID parameters for a joint if PID controleer are used"
            "joint_name is the name for the joint"
-           "pid_control_type is the type of pid controller, either 'velocity', or 'position' "
+           "pid_control_type is the type of pid controller, either 'velocity', "
+           "or 'position' "
            "p, i, and d are the parameters for the controller"
            "max_force is the limit of PID contorller output",
            py::arg("joint_name"),
@@ -544,7 +542,8 @@ PYBIND11_MODULE(pygazebo, m) {
       .def("get_link_pose", &Agent::GetLinkPose, py::arg("link_name"))
       .def("get_collisions",
            &Agent::GetCollisions,
-           "return a set of tuples of collided links detected by the contact sensor",
+           "return a set of tuples of collided links detected by the contact "
+           "sensor",
            py::arg("contact_sensor_name"))
       .def("set_joint_state",
            &Agent::SetJointState,

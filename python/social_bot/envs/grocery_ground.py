@@ -113,7 +113,7 @@ class GroceryGround(gym.Env):
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
                  goal_name='bookshelf',
-                 max_steps=200,     
+                 max_steps=200,
                  port=None):
         """
         Args:
@@ -130,11 +130,11 @@ class GroceryGround(gym.Env):
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
         self._object_types = [
-            'coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel', 'plastic_cup',
-            'beer', 'hammer'
+            'coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
+            'plastic_cup', 'beer', 'hammer'
         ]
-        self._pos_list=list(itertools.product(range(-5, 5), range(-5, 5)))
-        self._pos_list.remove((0,0))
+        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._pos_list.remove((0, 0))
         self._world.info()
         self._world.insertModelFile('model://' + agent_type)
         self._world.step(20)
@@ -166,10 +166,14 @@ class GroceryGround(gym.Env):
             'create': 0.5,
         }
         camera_sensor = {
-            'pr2_differential': 'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
-            'pioneer2dx_noplugin': 'default::pioneer2dx_noplugin::camera_link::camera',
-            'turtlebot': 'default::turtlebot::kinect::link::camera',
-            'create': ' ',
+            'pr2_differential':
+            'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
+            'pioneer2dx_noplugin':
+            'default::pioneer2dx_noplugin::camera_link::camera',
+            'turtlebot':
+            'default::turtlebot::kinect::link::camera',
+            'create':
+            ' ',
         }
 
         self._agent = self._world.get_agent(agent_type)
