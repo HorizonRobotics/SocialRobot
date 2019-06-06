@@ -28,6 +28,7 @@ from collections import OrderedDict
 
 import social_bot
 from social_bot import teacher
+from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
 from social_bot import teacher_tasks
@@ -90,7 +91,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         yield TeacherAction(reward=-10.0, sentence="Failed", done=True)
 
 
-class GroceryGround(gym.Env):
+class GroceryGround(GazeboEnvBase):
     """
     The goal of this task is to train the agent to navigate to a fixed type of 
     object. The name of the object is provided in the constructor. In each 
@@ -116,7 +117,7 @@ class GroceryGround(gym.Env):
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
                  goal_name='table',
-                 max_steps=160,     
+                 max_steps=160,
                  port=None):
         """
         Args:
@@ -127,16 +128,15 @@ class GroceryGround(gym.Env):
                 pioneer2dx_noplugin, turtlebot, and irobot create for now
             port: Gazebo port, need to specify when run multiple environment in parallel
         """
-        if port is None:
-            port = 0
-        gazebo.initialize(port=port)
+        super(GroceryGround, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
         self._object_types = [
-            'coke_can', 'cube_20k', 'car_wheel', 'plastic_cup', 'beer', 'hammer'
+            'coke_can', 'cube_20k', 'car_wheel', 'plastic_cup', 'beer',
+            'hammer'
         ]
-        self._pos_list=list(itertools.product(range(-5, 5), range(-5, 5)))
-        self._pos_list.remove((0,0))
+        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._pos_list.remove((0, 0))
         self._world.info()
         self._world.insertModelFile('model://' + agent_type)
         self._world.step(20)

@@ -26,6 +26,7 @@ import PIL.Image
 
 import social_bot
 from social_bot import teacher
+from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
 from social_bot.teacher_tasks import GoalTask
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 @gin.configurable
-class SimpleNavigation(gym.Env):
+class SimpleNavigation(GazeboEnvBase):
     """
     In this environment, the agent will receive reward 1 when it is close enough to the goal.
     If it is moving away from the goal too much or still not close to the goal after max_steps,
@@ -61,9 +62,7 @@ class SimpleNavigation(gym.Env):
                 `(height, width, channels)` while `channels_first` corresponds
                 to images with shape `(channels, height, width)`.
         """
-        if port is None:
-            port = 0
-        gazebo.initialize(port=port)
+        super(SimpleNavigation, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(),
                          "pioneer2dx_camera.world"))
