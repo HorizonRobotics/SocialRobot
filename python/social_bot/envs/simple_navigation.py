@@ -18,6 +18,7 @@ import logging
 import numpy as np
 import os
 import random
+import time
 
 import gym
 import gym.spaces
@@ -42,6 +43,11 @@ class SimpleNavigation(GazeboEnvBase):
     If it is moving away from the goal too much or still not close to the goal after max_steps,
     it will get reward -1.
     """
+
+    # number of physics simulation steps per step(). Each step() corresponds to
+    # a real time of NUM_SIMULATION_STEPS * max_step_size, where `max_step_size`
+    # is defined in file pioneer2dx_camera.world
+    NUM_SIMULATION_STEPS = 20
 
     def __init__(self,
                  with_language=True,
@@ -81,6 +87,8 @@ class SimpleNavigation(GazeboEnvBase):
         assert data_format in ('channels_first', 'channels_last')
         self._data_format = data_format
 
+        time.sleep(0.1)  # Allow Gazebo threads to be fully ready
+        self.reset()
         # get observation dimension
         image = self.get_camera_observation()
         if with_language:
@@ -137,7 +145,7 @@ class SimpleNavigation(GazeboEnvBase):
         controls = dict(zip(self._joint_names, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
-        self._world.step(20)
+        self._world.step(self.NUM_SIMULATION_STEPS)
         image = self.get_camera_observation()
         if self._with_language:
             obs = OrderedDict(image=image, sentence=teacher_action.sentence)
@@ -148,6 +156,7 @@ class SimpleNavigation(GazeboEnvBase):
     def reset(self):
         self._teacher.reset(self._agent, self._world)
         teacher_action = self._teacher.teach("")
+        self._world.step(self.NUM_SIMULATION_STEPS)
         image = self.get_camera_observation()
         if self._with_language:
             obs = OrderedDict(image=image, sentence=teacher_action.sentence)
@@ -191,11 +200,14 @@ def main():
     Simple testing of this enviroenment.
     """
     import matplotlib.pyplot as plt
-    fig = None
     env = SimpleNavigation()
     for _ in range(10000000):
         obs = env.reset()
         control = [random.random() * 0.2, random.random() * 0.2]
+        plt.imshow(obs['image'])
+        logging.info("Close the figure to continue")
+        plt.show()
+        fig = None
         while True:
             obs, reward, done, _ = env.step(
                 dict(control=control, sentence="hello"))
@@ -211,5 +223,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     main()
