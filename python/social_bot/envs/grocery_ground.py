@@ -28,6 +28,7 @@ from collections import OrderedDict
 
 import social_bot
 from social_bot import teacher
+from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
 from social_bot import teacher_tasks
@@ -87,7 +88,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         yield TeacherAction(reward=-10.0, sentence="Failed", done=True)
 
 
-class GroceryGround(gym.Env):
+class GroceryGround(GazeboEnvBase):
     """
     The goal of this task is to train the agent to navigate to a fixed type of 
     object. The name of the object is provided in the constructor. In each 
@@ -124,9 +125,7 @@ class GroceryGround(gym.Env):
                 pioneer2dx_noplugin, turtlebot, and irobot create for now
             port: Gazebo port, need to specify when run multiple environment in parallel
         """
-        if port is None:
-            port = 0
-        gazebo.initialize(port=port)
+        super(GroceryGround, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
         self._object_types = [
@@ -202,13 +201,14 @@ class GroceryGround(gym.Env):
         self._with_language = with_language
         self._use_image_obs = use_image_obs
 
-        obs = self.reset()
+        self.reset()
+        obs_data = self._get_observation()
         if self._use_image_obs:
             obs_data_space = gym.spaces.Box(
-                low=0, high=255, shape=obs.shape, dtype=np.uint8)
+                low=0, high=255, shape=obs_data.shape, dtype=np.uint8)
         else:
             obs_data_space = gym.spaces.Box(
-                low=-50, high=50, shape=obs.shape, dtype=np.float32)
+                low=-50, high=50, shape=obs_data.shape, dtype=np.float32)
 
         control_space = gym.spaces.Box(
             low=-self._agent_control_range,
@@ -219,7 +219,7 @@ class GroceryGround(gym.Env):
         if self._with_language:
             self.observation_space = gym.spaces.Dict(
                 data=obs_data_space, sentence=DiscreteSequence(128, 24))
-            self._action_space = gym.spaces.Dict(
+            self.action_space = gym.spaces.Dict(
                 control=control_space, sentence=DiscreteSequence(128, 24))
         else:
             self.observation_space = obs_data_space
@@ -327,11 +327,18 @@ def main():
     """
     Simple testing of this environment.
     """
-    env = GroceryGround()
+    import matplotlib.pyplot as plt
+    fig = None
+    env = GroceryGround(use_image_obs=True)
     while True:
         actions = env._agent_control_range * np.random.randn(
             env.action_space.shape[0])
         obs, _, done, _ = env.step(actions)
+        if fig is None:
+            fig = plt.imshow(obs)
+        else:
+            fig.set_data(obs)
+        plt.pause(0.00001)
         if done:
             env.reset()
 

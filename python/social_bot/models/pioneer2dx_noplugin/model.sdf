@@ -62,6 +62,32 @@
         </material>
       </visual>
     </link>
+    <link name="camera_link">
+      <pose>0.25 0 0.25 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.02 0.02 0.02</size>
+          </box>
+        </geometry>
+      </visual>
+      <sensor name="camera" type="camera">
+        <camera>
+          <horizontal_fov>2.0944</horizontal_fov>
+          <image>
+            <width>128</width>
+            <height>128</height>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>100</far>
+          </clip>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>20</update_rate>
+        <visualize>true</visualize>
+      </sensor>
+    </link>
     <link name="right_wheel">
       <pose>0.1 -.17 0.11 0 1.5707 1.5707</pose>
       <inertial>
@@ -154,6 +180,16 @@
         </material>
       </visual>
     </link>
+    <joint type="fixed" name="camera_joint">
+      <pose>0 0 0 0 0 0</pose>
+      <child>camera_link</child>
+      <parent>chassis</parent>
+      <axis>
+        <xyz>0 0 1</xyz>
+        <use_parent_model_frame>true</use_parent_model_frame>
+      </axis>
+      <dynamics damping="0.01" friction="0.1"/>
+    </joint>
     <joint type="revolute" name="left_wheel_hinge">
       <pose>0 0 -0.03 0 0 0</pose>
       <child>left_wheel</child>

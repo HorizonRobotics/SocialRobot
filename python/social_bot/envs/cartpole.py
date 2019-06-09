@@ -9,13 +9,14 @@ import math
 from gym import spaces
 import social_bot
 from social_bot import teacher
+from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 import social_bot.pygazebo as gazebo
 
 logger = logging.getLogger(__name__)
 
 
-class CartPole(gym.Env):
+class CartPole(GazeboEnvBase):
     """
     This environment simulates the classic cartpole in the pygazebo environment.
 
@@ -49,10 +50,12 @@ class CartPole(gym.Env):
 
     """
 
-    def __init__(self, x_threshold=5, theta_threshold=0.314, noise=0.01, port=None):
-        if port is None:
-            port = 0
-        gazebo.initialize(port=port)
+    def __init__(self,
+                 x_threshold=5,
+                 theta_threshold=0.314,
+                 noise=0.01,
+                 port=None):
+        super(CartPole, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "cartpole.world"))
 
@@ -111,14 +114,15 @@ class CartPole(gym.Env):
 
 def main():
     env = CartPole()
+    env.reset()
+    env._world.info()
     for _ in range(100):
-        print("reset")
         env.reset()
-        env._world.info()
         total_rewards = 0
         while True:
             obs, reward, done, info = env.step((random.random() - 0.5) * 0.5)
             total_rewards += reward
+            env.render()
             if done:
                 print("total reward " + str(total_rewards))
                 break

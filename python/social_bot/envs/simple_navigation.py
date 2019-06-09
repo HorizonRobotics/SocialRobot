@@ -18,6 +18,7 @@ import logging
 import numpy as np
 import os
 import random
+import time
 
 import gym
 import gym.spaces
@@ -26,6 +27,7 @@ import PIL.Image
 
 import social_bot
 from social_bot import teacher
+from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
 from social_bot.teacher_tasks import GoalTask
@@ -35,12 +37,17 @@ logger = logging.getLogger(__name__)
 
 
 @gin.configurable
-class SimpleNavigation(gym.Env):
+class SimpleNavigation(GazeboEnvBase):
     """
     In this environment, the agent will receive reward 1 when it is close enough to the goal.
     If it is moving away from the goal too much or still not close to the goal after max_steps,
     it will get reward -1.
     """
+
+    # number of physics simulation steps per step(). Each step() corresponds to
+    # a real time of NUM_SIMULATION_STEPS * max_step_size, where `max_step_size`
+    # is defined in file pioneer2dx_camera.world
+    NUM_SIMULATION_STEPS = 20
 
     def __init__(self,
                  with_language=True,
@@ -61,16 +68,16 @@ class SimpleNavigation(gym.Env):
                 `(height, width, channels)` while `channels_first` corresponds
                 to images with shape `(channels, height, width)`.
         """
-        if port is None:
-            port = 0
-        gazebo.initialize(port=port)
+        super(SimpleNavigation, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(),
                          "pioneer2dx_camera.world"))
         self._agent = self._world.get_agent()
         assert self._agent is not None
         logger.info("joint names: %s" % self._agent.get_joint_names())
-        self._joint_names = self._agent.get_joint_names()
+        self._all_joints = self._agent.get_joint_names()
+        self._joint_names = list(
+            filter(lambda s: s.find('wheel') != -1, self._all_joints))
         self._teacher = teacher.Teacher(False)
         task_group = teacher.TaskGroup()
         task_group.add_task(GoalTask())
@@ -80,6 +87,8 @@ class SimpleNavigation(gym.Env):
         assert data_format in ('channels_first', 'channels_last')
         self._data_format = data_format
 
+        time.sleep(0.1)  # Allow Gazebo threads to be fully ready
+        self.reset()
         # get observation dimension
         image = self.get_camera_observation()
         if with_language:
@@ -136,7 +145,7 @@ class SimpleNavigation(gym.Env):
         controls = dict(zip(self._joint_names, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
-        self._world.step(100)
+        self._world.step(self.NUM_SIMULATION_STEPS)
         image = self.get_camera_observation()
         if self._with_language:
             obs = OrderedDict(image=image, sentence=teacher_action.sentence)
@@ -147,6 +156,7 @@ class SimpleNavigation(gym.Env):
     def reset(self):
         self._teacher.reset(self._agent, self._world)
         teacher_action = self._teacher.teach("")
+        self._world.step(self.NUM_SIMULATION_STEPS)
         image = self.get_camera_observation()
         if self._with_language:
             obs = OrderedDict(image=image, sentence=teacher_action.sentence)
@@ -155,7 +165,8 @@ class SimpleNavigation(gym.Env):
         return obs
 
     def get_camera_observation(self):
-        image = self._agent.get_camera_observation("camera")
+        image = self._agent.get_camera_observation(
+            "default::pioneer2dx::pioneer2dx_noplugin::camera_link::camera")
         image = np.array(image, copy=False)
         if self._resized_image_size:
             image = PIL.Image.fromarray(image).resize(self._resized_image_size,
@@ -179,7 +190,7 @@ class SimpleNavigationNoLanguageDiscreteAction(SimpleNavigationNoLanguage):
         self._action_space = gym.spaces.Discrete(25)
 
     def step(self, action):
-        control = [0.05 * (action // 5) - 0.1, 0.05 * (action % 5) - 0.1, 0.]
+        control = [0.05 * (action // 5) - 0.1, 0.05 * (action % 5) - 0.1]
         return super(SimpleNavigationNoLanguageDiscreteAction,
                      self).step(control)
 
@@ -188,13 +199,23 @@ def main():
     """
     Simple testing of this enviroenment.
     """
+    import matplotlib.pyplot as plt
     env = SimpleNavigation()
     for _ in range(10000000):
         obs = env.reset()
-        control = [random.random() * 0.2, random.random() * 0.2, 0]
+        control = [random.random() * 0.2, random.random() * 0.2]
+        plt.imshow(obs['image'])
+        logging.info("Close the figure to continue")
+        plt.show()
+        fig = None
         while True:
-            obs, reward, done, info = env.step(
+            obs, reward, done, _ = env.step(
                 dict(control=control, sentence="hello"))
+            if fig is None:
+                fig = plt.imshow(obs['image'])
+            else:
+                fig.set_data(obs['image'])
+            plt.pause(0.00001)
             if done:
                 logger.info("reward: " + str(reward) + "sent: " +
                             str(obs["sentence"]))
@@ -202,5 +223,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.INFO)
     main()
