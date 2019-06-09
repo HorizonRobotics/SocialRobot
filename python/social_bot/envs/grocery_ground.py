@@ -77,7 +77,6 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
                 agent_sentence = yield TeacherAction(
                     reward=10.0, sentence="Well done!", done=True)
                 steps_since_last_reward = 0
-                self._move_goal(goal, loc)
             else:
                 if self._reward_shaping:
                     agent_sentence = yield TeacherAction(
@@ -86,8 +85,6 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
                         done=False)
                 else:
                     agent_sentence = yield TeacherAction()
-        logger.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
-                     "dist: " + str(dist))
         yield TeacherAction(reward=-10.0, sentence="Failed", done=True)
 
 
@@ -116,8 +113,8 @@ class GroceryGround(GazeboEnvBase):
                  with_language=False,
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
-                 goal_name='table',
-                 max_steps=160,
+                 goal_name='bookshelf',
+                 max_steps=200,
                  port=None):
         """
         Args:
@@ -132,8 +129,8 @@ class GroceryGround(GazeboEnvBase):
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
         self._object_types = [
-            'coke_can', 'cube_20k', 'car_wheel', 'plastic_cup', 'beer',
-            'hammer'
+            'coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
+            'plastic_cup', 'beer', 'hammer'
         ]
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
@@ -161,9 +158,9 @@ class GroceryGround(GazeboEnvBase):
             ],
             'create': ['create::left_wheel', 'create::right_wheel'],
         }
-        control_force = {
+        control_limit = {
             'pr2_differential': 20,
-            'pioneer2dx_noplugin': 0.5,
+            'pioneer2dx_noplugin': 20.0,
             'turtlebot': 0.5,
             'create': 0.5,
         }
@@ -180,7 +177,9 @@ class GroceryGround(GazeboEnvBase):
 
         self._agent = self._world.get_agent(agent_type)
         self._agent_joints = control_joints[agent_type]
-        self._agent_control_force = control_force[agent_type]
+        for _joint in self._agent_joints:
+            self._agent.set_pid_controller(_joint, 'velocity')
+        self._agent_control_range = control_limit[agent_type]
         self._agent_camera = camera_sensor[agent_type]
         self._goal_name = goal_name
         self._goal = self._world.get_model(goal_name)
@@ -212,8 +211,8 @@ class GroceryGround(GazeboEnvBase):
                 low=-50, high=50, shape=obs_data.shape, dtype=np.float32)
 
         control_space = gym.spaces.Box(
-            low=-self._agent_control_force,
-            high=self._agent_control_force,
+            low=-self._agent_control_range,
+            high=self._agent_control_range,
             shape=[len(self._agent_joints)],
             dtype=np.float32)
 
@@ -321,7 +320,7 @@ class GroceryGround(GazeboEnvBase):
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
-            self._world.step(10)
+            self._world.step(5)
 
 
 def main():
@@ -332,7 +331,7 @@ def main():
     fig = None
     env = GroceryGround(use_image_obs=True)
     while True:
-        actions = env._agent_control_force * np.random.randn(
+        actions = env._agent_control_range * np.random.randn(
             env.action_space.shape[0])
         obs, _, done, _ = env.step(actions)
         if fig is None:
