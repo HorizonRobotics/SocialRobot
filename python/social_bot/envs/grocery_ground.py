@@ -113,9 +113,10 @@ class GroceryGround(GazeboEnvBase):
                  with_language=False,
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
-                 goal_name='bookshelf',
+                 goal_name='cube_20k',
                  max_steps=200,
-                 port=None):
+                 port=None,
+                 data_format='channels_last'):
         """
         Args:
             with_language (bool): the observation will be a dict with an extra sentence
@@ -124,6 +125,11 @@ class GroceryGround(GazeboEnvBase):
             agent_type (string): select the agent robot, supporting pr2_differential, 
                 pioneer2dx_noplugin, turtlebot, and irobot create for now
             port: Gazebo port, need to specify when run multiple environment in parallel
+            data_format (str):  one of `channels_last` or `channels_first`.
+                The ordering of the dimensions in the images.
+                `channels_last` corresponds to images with shape
+                `(height, width, channels)` while `channels_first` corresponds
+                to images with shape `(channels, height, width)`.
         """
         super(GroceryGround, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
@@ -178,7 +184,7 @@ class GroceryGround(GazeboEnvBase):
         self._agent = self._world.get_agent(agent_type)
         self._agent_joints = control_joints[agent_type]
         for _joint in self._agent_joints:
-            self._agent.set_pid_controller(_joint, 'velocity')
+            self._agent.set_pid_controller(_joint, 'velocity', d=0.005)
         self._agent_control_range = control_limit[agent_type]
         self._agent_camera = camera_sensor[agent_type]
         self._goal_name = goal_name
@@ -200,6 +206,8 @@ class GroceryGround(GazeboEnvBase):
 
         self._with_language = with_language
         self._use_image_obs = use_image_obs
+        assert data_format in ('channels_first', 'channels_last')
+        self._data_format = data_format
 
         self.reset()
         obs_data = self._get_observation()
@@ -211,8 +219,8 @@ class GroceryGround(GazeboEnvBase):
                 low=-50, high=50, shape=obs_data.shape, dtype=np.float32)
 
         control_space = gym.spaces.Box(
-            low=-self._agent_control_range,
-            high=self._agent_control_range,
+            low=-1.0,
+            high=1.0,
             shape=[len(self._agent_joints)],
             dtype=np.float32)
 
@@ -253,6 +261,8 @@ class GroceryGround(GazeboEnvBase):
                 self._agent.get_camera_observation(self._agent_camera),
                 copy=False)
             obs_data = np.array(obs_data)
+            if self._data_format == "channels_first":
+                obs_data = np.transpose(obs_data, [2, 0, 1])
         else:
             goal_pose = np.array(self._goal.get_pose()).flatten()
             agent_pose = np.array(self._agent.get_pose()).flatten()
@@ -282,10 +292,10 @@ class GroceryGround(GazeboEnvBase):
         """
         if self._with_language:
             sentence = action.get('sentence', None)
-            controls = action['control']
+            controls = action['control'] * self._agent_control_range
         else:
             sentence = ''
-            controls = action
+            controls = action * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
@@ -330,9 +340,9 @@ def main():
     import matplotlib.pyplot as plt
     fig = None
     env = GroceryGround(use_image_obs=True)
+    env.render()
     while True:
-        actions = env._agent_control_range * np.random.randn(
-            env.action_space.shape[0])
+        actions = np.array(np.random.randn(env.action_space.shape[0]))
         obs, _, done, _ = env.step(actions)
         if fig is None:
             fig = plt.imshow(obs)
