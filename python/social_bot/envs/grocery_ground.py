@@ -24,6 +24,7 @@ import itertools
 
 import gym
 from gym import spaces
+import gin
 from collections import OrderedDict
 
 import social_bot
@@ -88,6 +89,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         yield TeacherAction(reward=-10.0, sentence="Failed", done=True)
 
 
+@gin.configurable
 class GroceryGround(GazeboEnvBase):
     """
     The goal of this task is to train the agent to navigate to a fixed type of 
