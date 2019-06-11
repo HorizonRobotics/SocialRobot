@@ -263,6 +263,9 @@ class GroceryGround(GazeboEnvBase):
                 self._agent.get_camera_observation(self._agent_camera),
                 copy=False)
             obs_data = np.array(obs_data)
+            obs_data = PIL.Image.fromarray(obs_data).resize(
+                (64, 64), PIL.Image.ANTIALIAS)
+            obs_data = np.array(obs_data, copy=False)
             if self._data_format == "channels_first":
                 obs_data = np.transpose(obs_data, [2, 0, 1])
         else:
