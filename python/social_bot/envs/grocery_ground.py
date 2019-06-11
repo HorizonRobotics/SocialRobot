@@ -81,12 +81,12 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
             else:
                 if self._reward_shaping:
                     agent_sentence = yield TeacherAction(
-                        reward=-0.1 * dist / self._random_range,
+                        reward=-dist / self._random_range,
                         sentence="Failed",
                         done=False)
                 else:
                     agent_sentence = yield TeacherAction()
-        yield TeacherAction(reward=-10.0, sentence="Failed", done=True)
+        yield TeacherAction(reward=0.0, sentence="Failed", done=True)
 
 
 @gin.configurable
@@ -118,6 +118,7 @@ class GroceryGround(GazeboEnvBase):
                  goal_name='cube_20k',
                  max_steps=200,
                  port=None,
+                 resized_image_size=(64, 64),
                  data_format='channels_last'):
         """
         Args:
@@ -127,6 +128,9 @@ class GroceryGround(GazeboEnvBase):
             agent_type (string): select the agent robot, supporting pr2_differential, 
                 pioneer2dx_noplugin, turtlebot, and irobot create for now
             port: Gazebo port, need to specify when run multiple environment in parallel
+            resized_image_size (None|tuple): If None, use the original image size
+                from the camera. Otherwise, the original image will be resized
+                to (width, height)
             data_format (str):  one of `channels_last` or `channels_first`.
                 The ordering of the dimensions in the images.
                 `channels_last` corresponds to images with shape
@@ -210,6 +214,7 @@ class GroceryGround(GazeboEnvBase):
         self._use_image_obs = use_image_obs
         assert data_format in ('channels_first', 'channels_last')
         self._data_format = data_format
+        self._resized_image_size = resized_image_size
 
         self.reset()
         obs_data = self._get_observation()
@@ -263,12 +268,16 @@ class GroceryGround(GazeboEnvBase):
                 self._agent.get_camera_observation(self._agent_camera),
                 copy=False)
             obs_data = np.array(obs_data)
+            if self._resized_image_size:
+                obs_data = PIL.Image.fromarray(obs_data).resize(
+                    self._resized_image_size, PIL.Image.ANTIALIAS)
+                obs_data = np.array(obs_data, copy=False)
             if self._data_format == "channels_first":
                 obs_data = np.transpose(obs_data, [2, 0, 1])
         else:
-            goal_pose = np.array(self._goal.get_pose()).flatten()
+            goal_pos = np.array(self._goal.get_pose()[0]).flatten()
             agent_pose = np.array(self._agent.get_pose()).flatten()
-            agent_vel = np.array(self._agent.get_velocities()).flatten()
+            agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
             joint_vel = []
             for joint_id in range(len(self._agent_joints)):
                 joint_name = self._agent_joints[joint_id]
@@ -276,7 +285,7 @@ class GroceryGround(GazeboEnvBase):
                 joint_vel.append(joint_state.get_velocities())
             joint_vel = np.array(joint_vel).flatten()
             obs_data = np.concatenate(
-                (goal_pose, agent_pose, agent_vel, joint_vel), axis=0)
+                (goal_pos, agent_pose, agent_vel, joint_vel), axis=0)
             obs_data = np.array(obs_data).reshape(-1)
         return obs_data
 
