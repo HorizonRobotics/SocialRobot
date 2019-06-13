@@ -135,6 +135,13 @@ class Pr2Gripper(GazeboEnvBase):
             map(lambda s: str(s[0]) + ":" + str(s[1]),
                 zip(self._r_arm_joints, self._r_arm_joints_limits))))
 
+        for _i in range(len(self._r_arm_joints)):
+            self._agent.set_pid_controller(
+                self._r_arm_joints[_i],
+                'velocity',
+                p=0.02,
+                d=0.01,
+                max_force=self._r_arm_joints_limits[_i])
         self._goal_name = goal_name
         self._goal = self._world.get_agent(self._goal_name)
         self._max_steps = max_steps
@@ -292,17 +299,7 @@ class Pr2Gripper(GazeboEnvBase):
         return state.get_positions()[0]
 
     def step(self, actions):
-        def trunc_scale(a, limit):
-            return min(max(a, -1.0), 1.0) * limit
-
-        scaled_actions = [trunc_scale(x, self._r_arm_joints_limits[i]) \
-                          for i,x in enumerate(actions)]
-
-        # final actions used to control each joints are:
-        # joint_limit_{i} *  \pi (state)_{i}
-        actions = scaled_actions
-
-        controls = dict(zip(self._r_arm_joints, actions))
+        controls = dict(zip(self._r_arm_joints, 10.0 * actions))
 
         self._agent.take_action(controls)
         self._world.step(20)
@@ -381,7 +378,7 @@ class Pr2Gripper(GazeboEnvBase):
     def run(self):
         self.reset()
         self._world.info()
-        self._max_steps = 1  # To dbg initial setup only
+        self._max_steps = 100
         r_gripper_index = -1
         for i in range(len(self._r_arm_joints)):
             if self._r_arm_joints[i].find("pr2::pr2::r_gripper_joint") != -1:
@@ -412,7 +409,7 @@ class Pr2Gripper(GazeboEnvBase):
 
 
 def main():
-    env = Pr2Gripper(max_steps=100, use_internal_states_only=False)
+    env = Pr2Gripper(max_steps=100, use_internal_states_only=True)
     env.run()
 
 
