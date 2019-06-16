@@ -6,3 +6,4 @@ from .simple_navigation import SimpleNavigationNoLanguageDiscreteAction
 from .cartpole import CartPole
 from .pr2 import Pr2Gripper
 from .grocery_ground import GroceryGround
+from .icub import ICub

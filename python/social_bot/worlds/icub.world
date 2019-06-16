@@ -1,0 +1,50 @@
+<?xml version="1.0" ?>
+<!-- =================================================================================== -->
+<!--
+    Copyright (c) 2019 Horizon Robotics. All Rights Reserved.                            -->
+<!-- =================================================================================== -->
+<sdf version="1.5">
+  <world name="default">
+    <physics type="ode">
+      <max_step_size>0.0025</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>0</real_time_update_rate>
+    </physics>
+    <!-- Ground -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+    <!-- A global light source -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <!-- Agent -->
+    <model name='icub'>
+      <include>
+        <uri>model://icub</uri>
+      </include>
+    </model>
+    <!-- Static Objects -->
+    <model name='placing_table'>
+      <static>1</static>
+      <include>
+        <uri>model://table</uri>
+      </include>
+      <pose frame=''>-4.20 4.92 0 0 -0 0</pose>
+    </model>
+    <model name='coke_can_on_table'>
+      <static>1</static>
+      <include>
+        <uri>model://coke_can</uri>
+      </include>
+      <pose frame=''>-4.20 4.90 1.00   0 -0 0</pose>
+    </model>
+    <model name='jersey_barrier'>
+      <static>1</static>
+      <include>
+        <uri>model://jersey_barrier</uri>
+      </include>
+      <pose frame=''>5.7 0 0 0 -0 1.5708</pose>
+    </model>
+  </world>
+</sdf>

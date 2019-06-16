@@ -33,6 +33,10 @@ register(
     entry_point='social_bot.envs:GroceryGround',
 )
 
+register(
+    id='SocialBot-ICub-v0',
+    entry_point='social_bot.envs:ICub',
+)
 
 def get_world_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'worlds')
