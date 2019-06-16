@@ -114,7 +114,7 @@ class GroceryGround(GazeboEnvBase):
     def __init__(self,
                  with_language=False,
                  use_image_obs=False,
-                 agent_type='icub',
+                 agent_type='pioneer2dx_noplugin',
                  goal_name='cube_20k',
                  max_steps=200,
                  port=None,
@@ -125,7 +125,7 @@ class GroceryGround(GazeboEnvBase):
             use_image_obs (bool): use image, or use internal states as observation
                 poses in internal states observation are in world coordinate
             agent_type (string): select the agent robot, supporting pr2_differential, 
-                pioneer2dx_noplugin, turtlebot, irobot create and icub for now
+                pioneer2dx_noplugin, turtlebot, and irobot create for now
             port: Gazebo port, need to specify when run multiple environment in parallel
             data_format (str):  one of `channels_last` or `channels_first`.
                 The ordering of the dimensions in the images.
@@ -143,7 +143,7 @@ class GroceryGround(GazeboEnvBase):
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self._world.info()
-        # self._world.insertModelFile('model://' + agent_type)
+        self._world.insertModelFile('model://' + agent_type)
         self._world.step(20)
         time.sleep(0.1)  # Avoid 'px!=0' error
         self._random_insert_objects()
@@ -165,56 +165,12 @@ class GroceryGround(GazeboEnvBase):
                 'turtlebot::create::right_wheel'
             ],
             'create': ['create::left_wheel', 'create::right_wheel'],
-            'icub': [
-                'icub::iCub::l_hip_pitch',
-                'icub::iCub::l_hip_roll', 
-                'icub::iCub::l_leg_joint',
-                'icub::iCub::l_hip_yaw',
-                'icub::iCub::l_knee',
-                'icub::iCub::l_ankle_pitch',
-                'icub::iCub::l_ankle_roll',
-                'icub::iCub::l_foot_joint',
-                'icub::iCub::r_hip_pitch',
-                'icub::iCub::r_hip_roll',
-                'icub::iCub::r_leg_joint',
-                'icub::iCub::r_hip_yaw',
-                'icub::iCub::r_knee',
-                'icub::iCub::r_ankle_pitch',
-                'icub::iCub::r_ankle_roll',
-                'icub::iCub::r_foot_joint',
-                'icub::iCub::torso_pitch',
-                'icub::iCub::torso_roll',
-                'icub::iCub::torso_yaw',
-                'icub::iCub::l_shoulder_pitch',
-                'icub::iCub::l_shoulder_roll',
-                'icub::iCub::l_shoulder_yaw',
-                'icub::iCub::l_arm_joint',
-                'icub::iCub::l_elbow',
-                'icub::iCub::l_wrist_prosup',
-                'icub::iCub::l_wrist_pitch',
-                'icub::iCub::l_wrist_yaw',
-                'icub::iCub::neck_pitch',
-                'icub::iCub::neck_roll',
-                'icub::iCub::neck_yaw',
-                'icub::iCub::eyes_tilt',
-                'icub::iCub::left_eye',
-                'icub::iCub::right_eye',
-                'icub::iCub::r_shoulder_pitch',
-                'icub::iCub::r_shoulder_roll',
-                'icub::iCub::r_shoulder_yaw',
-                'icub::iCub::r_arm_joint',
-                'icub::iCub::r_elbow',
-                'icub::iCub::r_wrist_prosup',
-                'icub::iCub::r_wrist_pitch',
-                'icub::iCub::r_wrist_yaw',
-            ],
         }
         control_limit = {
             'pr2_differential': 20,
             'pioneer2dx_noplugin': 20.0,
             'turtlebot': 0.5,
             'create': 0.5,
-            'icub': 20,
         }
         camera_sensor = {
             'pr2_differential':
@@ -225,22 +181,14 @@ class GroceryGround(GazeboEnvBase):
             'default::turtlebot::kinect::link::camera',
             'create':
             ' ',
-            'icub':
-            ' ',
         }
 
-        self._with_language = with_language
-        self._use_image_obs = use_image_obs
-        assert data_format in ('channels_first', 'channels_last')
-        self._data_format = data_format
-        
         self._agent = self._world.get_agent(agent_type)
         self._agent_joints = control_joints[agent_type]
         for _joint in self._agent_joints:
-            self._agent.set_pid_controller(_joint, 'velocity', p=0.1, d=0.03, max_force=100.0)
+            self._agent.set_pid_controller(_joint, 'velocity', d=0.005)
         self._agent_control_range = control_limit[agent_type]
-        if use_image_obs:
-            self._agent_camera = camera_sensor[agent_type]
+        self._agent_camera = camera_sensor[agent_type]
         self._goal_name = goal_name
         self._goal = self._world.get_model(goal_name)
 
@@ -257,6 +205,11 @@ class GroceryGround(GazeboEnvBase):
             random_range=10.0)
         task_group.add_task(self._teacher_task)
         self._teacher.add_task_group(task_group)
+
+        self._with_language = with_language
+        self._use_image_obs = use_image_obs
+        assert data_format in ('channels_first', 'channels_last')
+        self._data_format = data_format
 
         self.reset()
         obs_data = self._get_observation()
@@ -388,17 +341,16 @@ def main():
     """
     import matplotlib.pyplot as plt
     fig = None
-    env = GroceryGround(use_image_obs=False)
+    env = GroceryGround(use_image_obs=True)
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))
         obs, _, done, _ = env.step(actions)
-        if env._use_image_obs:
-            if fig is None:
-                fig = plt.imshow(obs)
-            else:
-                fig.set_data(obs)
-            plt.pause(0.00001)
+        if fig is None:
+            fig = plt.imshow(obs)
+        else:
+            fig.set_data(obs)
+        plt.pause(0.00001)
         if done:
             env.reset()
 

@@ -18,12 +18,6 @@
     <include>
       <uri>model://sun</uri>
     </include>
-    <!-- Agent -->
-    <model name='icub'>
-      <include>
-        <uri>model://icub</uri>
-      </include>
-    </model>
     <!-- Static Objects -->
     <model name='placing_table'>
       <static>1</static>
