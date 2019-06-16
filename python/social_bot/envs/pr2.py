@@ -197,7 +197,7 @@ class Pr2Gripper(GazeboEnvBase):
 
             self._agent.take_action(dict({"pr2::pr2::r_gripper_joint": 5}))
 
-        self._world.step(40)
+        self._world.step(100)
         self._goal = self._world.get_agent(self._goal_name)
 
         obs = self._get_observation()
@@ -304,7 +304,7 @@ class Pr2Gripper(GazeboEnvBase):
         controls = dict(zip(self._r_arm_joints, 10.0 * actions))
 
         self._agent.take_action(controls)
-        self._world.step(20)
+        self._world.step(100)
 
         obs = self._get_observation()
 
