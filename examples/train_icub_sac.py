@@ -67,7 +67,6 @@ flags.DEFINE_multi_string('gin_param', None, 'Gin binding to pass through.')
 
 FLAGS = flags.FLAGS
 
-
 @gin.configurable
 def normal_projection_net(action_spec,
                           init_action_stddev=0.35,
@@ -81,9 +80,6 @@ def normal_projection_net(action_spec,
         std_transform=sac_agent.std_clip_transform,
         scale_distribution=True)
 
-
-parallel_num = 8
-
 @gin.configurable
 def train_eval(
         root_dir,
@@ -94,10 +90,10 @@ def train_eval(
         critic_action_fc_layers=None,
         critic_joint_fc_layers=(256, 256),
         # Params for collect
-        initial_collect_steps=10000,
+        initial_collect_steps=2000,
         collect_steps_per_iteration=1,
         replay_buffer_capacity=1000000,
-        num_parallel_environments=parallel_num,
+        num_parallel_environments=4,
         # Params for target update
         target_update_tau=0.005,
         target_update_period=1,
@@ -113,7 +109,7 @@ def train_eval(
         gradient_clipping=None,
         use_tf_functions=True,
         # Params for eval
-        num_eval_episodes=20,
+        num_eval_episodes=10,
         eval_interval=10000,
         # Params for summaries and logging
         train_checkpoint_interval=10000,
@@ -330,7 +326,6 @@ def main(_):
     logging.set_verbosity(logging.INFO)
     gin.parse_config_files_and_bindings(FLAGS.gin_file, FLAGS.gin_param)
     train_eval(FLAGS.root_dir)
-
 
 if __name__ == '__main__':
     app.run(main)

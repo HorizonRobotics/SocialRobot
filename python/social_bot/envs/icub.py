@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A simple icub robot walking enviroment
+A simple enviroment to train icub robot standing and walking
 """
 import gym
 import os
@@ -32,23 +32,16 @@ logger = logging.getLogger(__name__)
 
 class ICub(GazeboEnvBase):
     """
-    The goal of this task is to walk the agent icub.
+    The goal of this task is to make the agent icub standing and walking.
 
-    All the joints are controllable by pid.
+    All the joints are controllable by pid or force.
 
-    The initial position of joints will be randomly placed at start of each
-    episode.
+    observation is a single ndarray with internal joint states, and agent pose.
 
-    Observations for agent:
-      observation is a single ndarray with
-      internal joint states, object pose, finger tip pose, finger tip touch sensor output,
-      and finger tip distances to the target object.
+    reward = not_fall_bonus (use torso height changes) + walk_distance - ctrl_cost
 
-    reward = walk_distance + not_fall_bonus (use torso height changes) - ctrl_cost
-
-    This task could be considered solved if agent could achieve average reward > zzz
-    per episode. Using TF_Agents/PPO, we could reach that after ~5M environment steps with
-    use_internal_states_only
+    This task is not solved yet. But examples/tain_icub_sac.py can help the agent
+        stand much longer.
     """
 
     def __init__(self,
@@ -73,7 +66,6 @@ class ICub(GazeboEnvBase):
         self._world.info()
 
         self._max_steps = max_steps
-        self._agent_control_range = 100.0
         self._agent_control_range = 100.0
         self._agent_joints = [
             'icub::iCub::l_hip_pitch',
@@ -100,53 +92,41 @@ class ICub(GazeboEnvBase):
             'icub::iCub::l_shoulder_yaw',
             'icub::iCub::l_arm_joint',
             'icub::iCub::l_elbow',
-            'icub::iCub::l_wrist_prosup',
-            'icub::iCub::l_wrist_pitch',
-            'icub::iCub::l_wrist_yaw',
             'icub::iCub::neck_pitch',
             'icub::iCub::neck_roll',
-            'icub::iCub::neck_yaw',
             'icub::iCub::r_shoulder_pitch',
             'icub::iCub::r_shoulder_roll',
             'icub::iCub::r_shoulder_yaw',
             'icub::iCub::r_arm_joint',
             'icub::iCub::r_elbow',
-            'icub::iCub::r_wrist_prosup',
-            'icub::iCub::r_wrist_pitch',
-            'icub::iCub::r_wrist_yaw',
         ]
         logger.info("joints to control: %s" % self._agent_joints)
         if use_pid:
             for _joint in self._agent_joints:
                 self._agent.set_pid_controller(_joint, 'velocity', p=20.0, d=2.5, max_force=100.0)
-        self.reset()
-        obs_data = self._get_observation()
-        self.observation_space = gym.spaces.Box(
-            low=-100, high=100, shape=obs_data.shape, dtype=np.float32)
 
         self.action_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
             shape=[len(self._agent_joints)],
             dtype=np.float32)
+        
+        self.reset()
+        obs = self._get_observation()
+        self.observation_space = gym.spaces.Box(
+            low=-100, high=100, shape=obs.shape, dtype=np.float32)
 
     def reset(self):
         self._world.reset()
-        adjust_position_at_start = False
-        if adjust_position_at_start:
-            # move camera to focus on ground. it is hacky
-            joint_state = gazebo.JointState(1)
-            joint_state.set_positions([1.2])
-            joint_state.set_velocities([0.0])
-            self._agent.set_joint_state("pr2::pr2::head_tilt_joint",
-                                        joint_state)
-            self._agent.take_action(dict({"pr2::pr2::r_gripper_joint": 5}))
-
         self._world.step(20)
         self._steps_in_this_episode = 0
         self._cum_reward = 0.0
-        obs = self._get_observation()
-        return obs
+        # Give an intilal random pose offset by take an random action
+        actions = np.array(np.random.randn(self.action_space.shape[0]))
+        controls = actions * self._agent_control_range
+        controls = dict(zip(self._agent_joints, controls))
+        self._agent.take_action(controls)
+        self._world.step(20)
 
     def _get_observation(self):
         agent_pose = np.array(self._agent.get_pose()).flatten()
@@ -162,10 +142,10 @@ class ICub(GazeboEnvBase):
             joint_vel.append(joint_state.get_velocities())
         joint_pos = np.array(joint_pos).flatten()
         joint_vel = np.array(joint_vel).flatten()
-        obs_data = np.concatenate(
+        obs = np.concatenate(
             (agent_pose, agent_vel, torso_pose, joint_pos, joint_vel), axis=0)
-        obs_data = np.array(obs_data).reshape(-1)
-        return obs_data
+        obs = np.array(obs).reshape(-1)
+        return obs
 
     def step(self, action):
         """
@@ -173,7 +153,7 @@ class ICub(GazeboEnvBase):
             action (float):  action is a vector whose dimention is
                     len(_joint_names).
         Returns:
-            A numpy.array or image for observation
+            A numpy.array for observation
         """
         controls = action * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
@@ -190,7 +170,7 @@ class ICub(GazeboEnvBase):
         if done:
             logger.debug("episode ends at cum reward:" + str(self._cum_reward))
         return obs, reward, done, {}
-        
+
 
 def main():
     env = ICub(max_steps=120)
@@ -198,10 +178,8 @@ def main():
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))
         obs, _, done, _ = env.step(actions)
-        # print(obs)
         if done:
             env.reset()
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
