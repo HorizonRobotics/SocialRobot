@@ -173,8 +173,14 @@ class ICub(GazeboEnvBase):
         return obs, reward, done, {}
 
 
+class ICubPID(ICub):
+    def __init__(self, max_steps=120, port=None):
+        super(ICubPID, self).__init__(
+            use_pid=True, max_steps=max_steps, port=port)
+
+
 def main():
-    env = ICub(max_steps=120)
+    env = ICubPID(max_steps=120)
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))

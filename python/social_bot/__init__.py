@@ -38,6 +38,11 @@ register(
     entry_point='social_bot.envs:ICub',
 )
 
+register(
+    id='SocialBot-ICubPID-v0',
+    entry_point='social_bot.envs:ICubPID',
+)
+
 def get_world_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'worlds')
 
