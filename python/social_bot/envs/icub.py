@@ -123,10 +123,11 @@ class ICub(GazeboEnvBase):
         self._cum_reward = 0.0
         # Give an intilal random pose offset by take an random action
         actions = np.array(np.random.randn(self.action_space.shape[0]))
-        controls = actions * self._agent_control_range
-        controls = dict(zip(self._agent_joints, controls))
+        controls = dict(zip(self._agent_joints, self._agent_control_range * actions))
         self._agent.take_action(controls)
         self._world.step(20)
+        obs = self._get_observation()
+        return obs
 
     def _get_observation(self):
         agent_pose = np.array(self._agent.get_pose()).flatten()

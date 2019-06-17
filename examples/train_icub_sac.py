@@ -93,7 +93,7 @@ def train_eval(
         initial_collect_steps=2000,
         collect_steps_per_iteration=1,
         replay_buffer_capacity=1000000,
-        num_parallel_environments=4,
+        num_parallel_environments=8,
         # Params for target update
         target_update_tau=0.005,
         target_update_period=1,
