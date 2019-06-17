@@ -19,18 +19,16 @@ import os
 import logging
 import numpy as np
 import random
-import math
 
 from gym import spaces
 import social_bot
 from social_bot.envs.gazebo_base import GazeboEnvBase
 import social_bot.pygazebo as gazebo
-import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
 
-class ICub(GazeboEnvBase):
+class ICubWalk(GazeboEnvBase):
     """
     The goal of this task is to make the agent icub standing and walking.
 
@@ -54,7 +52,7 @@ class ICub(GazeboEnvBase):
             use_pid (bool): use pid or direct force to control
             port: Gazebo port, need to specify when run multiple environment in parallel
         """
-        super(ICub, self).__init__(port=port)
+        super(ICubWalk, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "icub.world"))
         self._agent = self._world.get_agent('icub')
@@ -173,14 +171,14 @@ class ICub(GazeboEnvBase):
         return obs, reward, done, {}
 
 
-class ICubPID(ICub):
+class ICubWalkPID(ICubWalk):
     def __init__(self, max_steps=120, port=None):
-        super(ICubPID, self).__init__(
+        super(ICubWalkPID, self).__init__(
             use_pid=True, max_steps=max_steps, port=port)
 
 
 def main():
-    env = ICubPID(max_steps=120)
+    env = ICubWalkPID(max_steps=120)
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))

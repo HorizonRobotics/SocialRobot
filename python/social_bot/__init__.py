@@ -34,13 +34,13 @@ register(
 )
 
 register(
-    id='SocialBot-ICub-v0',
-    entry_point='social_bot.envs:ICub',
+    id='SocialBot-ICubWalk-v0',
+    entry_point='social_bot.envs:ICubWalk',
 )
 
 register(
-    id='SocialBot-ICubPID-v0',
-    entry_point='social_bot.envs:ICubPID',
+    id='SocialBot-ICubWalkPID-v0',
+    entry_point='social_bot.envs:ICubWalkPID',
 )
 
 def get_world_dir():
