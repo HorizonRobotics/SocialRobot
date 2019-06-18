@@ -31,13 +31,10 @@ logger = logging.getLogger(__name__)
 class ICubWalk(GazeboEnvBase):
     """
     The goal of this task is to make the agent icub standing and walking.
-
     All the joints are controllable by pid or force.
-
-    observation is a single ndarray with internal joint states, and agent pose.
-
-    reward = not_fall_bonus (use torso height changes) + walk_distance - ctrl_cost
-
+    Observation is a single ndarray with internal joint states, and agent pose.
+    Reward shaping:
+        reward = not_fall_bonus + walk_distance - ctrl_cost
     This task is not solved yet. But examples/tain_icub_sac.py can help the agent
         stand much longer.
     """
@@ -160,8 +157,9 @@ class ICubWalk(GazeboEnvBase):
         self._world.step(20)
         obs = self._get_observation()
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::torso_2')).flatten()
-        ctrl_cost = np.sum(action)/action.shape[0]
-        reward = 1.0 + 1e-1*torso_pose[0] - ctrl_cost
+        ctrl_cost = np.sum(np.square(action))/action.shape[0]
+        walk_distance = torso_pose[0]
+        reward = 1.0 + 1e-1 * walk_distance - ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
         fail = torso_pose[2] < 0.4

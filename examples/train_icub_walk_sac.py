@@ -15,14 +15,15 @@
 r"""Train and Eval ICub.
 
 A simple test for SocialBot-ICub env use TF-Agents
-The original file is from the PPO example of TF-Agents:
+The original file is from the SAC example of TF-Agents:
     https://github.com/tensorflow/agents
-Some parameters are modifed suite the environment.
+Add parallel environment support and some parameters
+are modifed suite the environment.
 
 To run:
 ```bash
-tensorboard --logdir ~/tmp/ICubExample &
-python ./examples/train_icub.py --logtostderr
+tensorboard --logdir ~/tmp/ICubWalkPIDExample &
+python ./examples/train_icub_walk_sac.py --logtostderr
 ```
 
 """
