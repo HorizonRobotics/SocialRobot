@@ -65,40 +65,32 @@ class ICubWalk(GazeboEnvBase):
         self._agent_joints = [
             'icub::iCub::l_hip_pitch',
             'icub::iCub::l_hip_roll', 
-            'icub::iCub::l_leg_joint',
             'icub::iCub::l_hip_yaw',
             'icub::iCub::l_knee',
             'icub::iCub::l_ankle_pitch',
             'icub::iCub::l_ankle_roll',
-            'icub::iCub::l_foot_joint',
             'icub::iCub::r_hip_pitch',
             'icub::iCub::r_hip_roll',
-            'icub::iCub::r_leg_joint',
             'icub::iCub::r_hip_yaw',
             'icub::iCub::r_knee',
             'icub::iCub::r_ankle_pitch',
             'icub::iCub::r_ankle_roll',
-            'icub::iCub::r_foot_joint',
-            'icub::iCub::torso_pitch',
-            'icub::iCub::torso_roll',
             'icub::iCub::torso_yaw',
             'icub::iCub::l_shoulder_pitch',
             'icub::iCub::l_shoulder_roll',
             'icub::iCub::l_shoulder_yaw',
-            'icub::iCub::l_arm_joint',
             'icub::iCub::l_elbow',
             'icub::iCub::neck_pitch',
             'icub::iCub::neck_roll',
             'icub::iCub::r_shoulder_pitch',
             'icub::iCub::r_shoulder_roll',
             'icub::iCub::r_shoulder_yaw',
-            'icub::iCub::r_arm_joint',
             'icub::iCub::r_elbow',
         ]
         logger.info("joints to control: %s" % self._agent_joints)
         if use_pid:
             for _joint in self._agent_joints:
-                self._agent.set_pid_controller(_joint, 'velocity', p=20.0, d=2.5, max_force=100.0)
+                self._agent.set_pid_controller(_joint, 'velocity', p=60.0, d=5.0, max_force=100.0)
 
         self.action_space = gym.spaces.Box(
             low=-1.0,
@@ -128,7 +120,7 @@ class ICubWalk(GazeboEnvBase):
         agent_pose = np.array(self._agent.get_pose()).flatten()
         agent_vel = np.array(self._agent.get_velocities()).flatten()
         torso_pose = np.array(
-            self._agent.get_link_pose('icub::iCub::torso_2')).flatten()
+            self._agent.get_link_pose('icub::iCub::chest')).flatten()
         joint_pos = []
         joint_vel = []
         for joint_id in range(len(self._agent_joints)):
@@ -156,13 +148,13 @@ class ICubWalk(GazeboEnvBase):
         self._agent.take_action(controls)
         self._world.step(20)
         obs = self._get_observation()
-        torso_pose = np.array(self._agent.get_link_pose('icub::iCub::torso_2')).flatten()
+        torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
         ctrl_cost = np.sum(np.square(action))/action.shape[0]
         walk_distance = torso_pose[0]
         reward = 1.0 + 1e-1 * walk_distance - ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
-        fail = torso_pose[2] < 0.4
+        fail = torso_pose[2] < 0.58
         done = self._steps_in_this_episode > self._max_steps or fail
         if done:
             logger.debug("episode ends at cum reward:" + str(self._cum_reward))

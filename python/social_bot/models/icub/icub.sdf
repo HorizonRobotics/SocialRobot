@@ -156,7 +156,7 @@
         </inertia>
       </inertial>
     </link>
-    <joint name='l_leg_joint' type='revolute'>
+    <joint name='l_leg_fixed_joint' type='fixed'>
       <child>l_hip_3</child>
       <parent>l_hip_2</parent>
       <axis>
@@ -429,7 +429,7 @@
         </geometry>
       </visual>
     </link>
-    <joint name='l_foot_joint' type='revolute'>
+    <joint name='l_foot_fixed_joint' type='fixed'>
       <child>l_foot</child>
       <parent>l_ankle_2</parent>
       <axis>
@@ -568,7 +568,7 @@
         </inertia>
       </inertial>
     </link>
-    <joint name='r_leg_joint' type='revolute'>
+    <joint name='r_leg_fixed_joint' type='fixed'>
       <child>r_hip_3</child>
       <parent>r_hip_2</parent>
       <axis>
@@ -841,7 +841,7 @@
         </geometry>
       </visual>
     </link>
-    <joint name='r_foot_joint' type='revolute'>
+    <joint name='r_foot_fixed_joint' type='fixed'>
       <child>r_foot</child>
       <parent>r_ankle_2</parent>
       <axis>
@@ -892,7 +892,7 @@
         </geometry>
       </visual>
     </link>
-    <joint name='torso_pitch' type='revolute'>
+    <joint name='torso_pitch' type='fixed'>
       <child>torso_1</child>
       <parent>root_link</parent>
       <axis>
@@ -900,42 +900,7 @@
         <limit>
           <lower>-0.383972</lower>
           <upper>1.46608</upper>
-          <effort>36</effort>
-          <velocity>100</velocity>
-        </limit>
-        <dynamics>
-          <damping>1</damping>
-          <friction>0</friction>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
-        <use_parent_model_frame>1</use_parent_model_frame>
-      </axis>
-    </joint>
-    <link name='torso_2'>
-      <pose>1.17543e-07 -3.1191e-13 0.032 -3.14159 3.67321e-06 1.57079</pose>
-      <inertial>
-        <pose>0 0 0 0 -0 0</pose>
-        <mass>0.1</mass>
-        <inertia>
-          <ixx>0.01</ixx>
-          <ixy>-1.923e-06</ixy>
-          <ixz>5.095e-05</ixz>
-          <iyy>0.01</iyy>
-          <iyz>-3.849e-07</iyz>
-          <izz>0.01</izz>
-        </inertia>
-      </inertial>
-    </link>
-    <joint name='torso_roll' type='revolute'>
-      <child>torso_2</child>
-      <parent>torso_1</parent>
-      <axis>
-        <xyz>1 -2.6536e-06 -7.34641e-06</xyz>
-        <limit>
-          <lower>-0.680678</lower>
-          <upper>0.680678</upper>
-          <effort>80</effort>
+          <effort>100</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -982,7 +947,7 @@
     </link>
     <joint name='torso_yaw' type='revolute'>
       <child>chest</child>
-      <parent>torso_2</parent>
+      <parent>torso_1</parent>
       <axis>
         <xyz>-7.34642e-06 1.94942e-11 -1</xyz>
         <limit>
@@ -1174,7 +1139,7 @@
         </geometry>
       </visual>
     </link>
-    <joint name='l_arm_joint' type='revolute'>
+    <joint name='l_arm_fixed_joint' type='fixed'>
       <child>l_upper_arm</child>
       <parent>l_shoulder_3</parent>
       <axis>
@@ -1901,7 +1866,7 @@
         </geometry>
       </visual>
     </link>
-    <joint name='r_arm_joint' type='revolute'>
+    <joint name='r_arm_fixed_joint' type='fixed'>
       <child>r_upper_arm</child>
       <parent>r_shoulder_3</parent>
       <axis>
