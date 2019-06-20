@@ -60,7 +60,7 @@ from tf_agents.utils import common
 import social_bot
 from alf.environments import suite_socialbot
 
-flags.DEFINE_string('root_dir', '~/tmp/ICubWalkPIDExample',
+flags.DEFINE_string('root_dir', '~/tmp/ICubWalkExample',
                     'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_multi_string('gin_file', None,
                           'Path to the trainer config files.')
@@ -84,7 +84,7 @@ def normal_projection_net(action_spec,
 @gin.configurable
 def train_eval(
         root_dir,
-        env_name='SocialBot-ICubWalkPID-v0',
+        env_name='SocialBot-ICubWalk-v0',
         num_iterations=10000000,
         actor_fc_layers=(256, 256),
         critic_obs_fc_layers=None,
@@ -94,16 +94,16 @@ def train_eval(
         initial_collect_steps=2000,
         collect_steps_per_iteration=1,
         replay_buffer_capacity=1000000,
-        num_parallel_environments=8,
+        num_parallel_environments=12,
         # Params for target update
         target_update_tau=0.005,
         target_update_period=1,
         # Params for train
         train_steps_per_iteration=1,
         batch_size=256,
-        actor_learning_rate=1e-4,
-        critic_learning_rate=1e-4,
-        alpha_learning_rate=1e-4,
+        actor_learning_rate=2e-4,
+        critic_learning_rate=2e-4,
+        alpha_learning_rate=2e-4,
         td_errors_loss_fn=tf.compat.v1.losses.mean_squared_error,
         gamma=0.99,
         reward_scale_factor=1.0,
@@ -120,7 +120,7 @@ def train_eval(
         summary_interval=1000,
         summaries_flush_secs=10,
         debug_summaries=False,
-        summarize_grads_and_vars=False,
+        summarize_grads_and_vars=True,
         eval_metrics_callback=None):
     """A simple train and eval for SAC."""
     root_dir = os.path.expanduser(root_dir)

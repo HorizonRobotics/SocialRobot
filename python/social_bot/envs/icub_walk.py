@@ -90,7 +90,7 @@ class ICubWalk(GazeboEnvBase):
         logger.info("joints to control: %s" % self._agent_joints)
         if use_pid:
             for _joint in self._agent_joints:
-                self._agent.set_pid_controller(_joint, 'velocity', p=60.0, d=5.0, max_force=100.0)
+                self._agent.set_pid_controller(_joint, 'velocity', p=30.0, d=5.0, max_force=100.0)
 
         self.action_space = gym.spaces.Box(
             low=-1.0,
@@ -151,13 +151,14 @@ class ICubWalk(GazeboEnvBase):
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
         ctrl_cost = np.sum(np.square(action))/action.shape[0]
         walk_distance = torso_pose[0]
-        reward = 1.0 + 1e-1 * walk_distance - ctrl_cost
+        reward = 1.0 + 1e-1 * walk_distance - 2e-1 * ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
         fail = torso_pose[2] < 0.58
         done = self._steps_in_this_episode > self._max_steps or fail
         if done:
-            logger.debug("episode ends at cum reward:" + str(self._cum_reward))
+            logger.debug("episode ends at cum reward:" + str(self._cum_reward)
+                + ", step:" + str(self._steps_in_this_episode))
         return obs, reward, done, {}
 
 
