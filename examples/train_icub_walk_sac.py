@@ -120,7 +120,7 @@ def train_eval(
         summary_interval=1000,
         summaries_flush_secs=10,
         debug_summaries=False,
-        summarize_grads_and_vars=True,
+        summarize_grads_and_vars=False,
         eval_metrics_callback=None):
     """A simple train and eval for SAC."""
     root_dir = os.path.expanduser(root_dir)
