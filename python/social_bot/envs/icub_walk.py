@@ -50,17 +50,15 @@ class ICubWalk(GazeboEnvBase):
             port: Gazebo port, need to specify when run multiple environment in parallel
         """
         super(ICubWalk, self).__init__(port=port)
+        self._max_steps = max_steps
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "icub.world"))
         self._agent = self._world.get_agent('icub')
         # to avoid different parallel simulation has the same randomness
         random.seed(port)
-
-        self._all_joints = self._agent.get_joint_names()
-        #logger.info("joint names: %s" % self._all_joints)
         self._world.info()
+        #logger.info("joint names: %s" % self._all_joints)
 
-        self._max_steps = max_steps
         self._agent_control_range = 100.0
         self._agent_joints = [
             'icub::iCub::l_hip_pitch',
@@ -104,6 +102,12 @@ class ICubWalk(GazeboEnvBase):
             low=-100, high=100, shape=obs.shape, dtype=np.float32)
 
     def reset(self):
+        """
+        Args:
+            None
+        Returns:
+            Observaion of the first step
+        """
         self._world.reset()
         self._world.step(20)
         self._steps_in_this_episode = 0
@@ -169,6 +173,9 @@ class ICubWalkPID(ICubWalk):
 
 
 def main():
+    """
+    Simple testing of this environment.
+    """
     env = ICubWalkPID(max_steps=120)
     env.render()
     while True:
