@@ -21,6 +21,7 @@ import numpy as np
 import random
 import PIL
 import itertools
+import hashlib
 
 import gym
 from gym import spaces
@@ -37,19 +38,46 @@ import social_bot.pygazebo as gazebo
 
 logger = logging.getLogger(__name__)
 
+def gro2_encode_goal_name(name):
+    return int(hashlib.md5(name.encode('utf-8')).hexdigest(),16)/(2 ** 127) - 1.0
+
 
 class GroceryGroundGoalTask(teacher_tasks.GoalTask):
     """
     A simple teacher task to find a goal for env GroceryGround.
     """
 
-    def __init__(self, reward_shaping=False, **kwargs):
+    def __init__(self, reward_shaping=False, random_goal=False, **kwargs):
         """
         Args:
-            eward_shaping (bool): if ture, use shaped reward accroding to distance rather than -1 and 1
+            reward_shaping (bool): if ture, use shaped reward accroding to distance rather than -1 and 1
+            random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
         """
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
         self._reward_shaping = reward_shaping
+        self._random_goal = random_goal
+        self._goal_name = 'cube_20k'
+        self._object_list = ['coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
+            'plastic_cup', 'beer', 'hammer'
+        ]
+
+    def get_object_list(self):
+        """
+        Args:
+            None
+        Returns:
+            Object list defined by teacher task
+        """
+        return self._object_list
+
+    def get_goal_name(self):
+        """
+        Args:
+            None
+        Returns:
+            Goal's name at this episode
+        """
+        return self._goal_name
 
     def run(self, agent, world):
         """
@@ -60,6 +88,9 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         """
         agent_sentence = yield
         agent.reset()
+        if self._random_goal:
+            random_id = random.randrange(len(self._object_list))
+            self._goal_name = self._object_list[random_id]
         goal = world.get_agent(self._goal_name)
         loc, dir = agent.get_pose()
         loc = np.array(loc)
@@ -115,7 +146,7 @@ class GroceryGround(GazeboEnvBase):
                  with_language=False,
                  use_image_obs=False,
                  agent_type='pioneer2dx_noplugin',
-                 goal_name='cube_20k',
+                 random_goal=False,
                  max_steps=200,
                  port=None,
                  resized_image_size=(64, 64),
@@ -140,10 +171,20 @@ class GroceryGround(GazeboEnvBase):
         super(GroceryGround, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
-        self._object_types = [
-            'coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
-            'plastic_cup', 'beer', 'hammer'
-        ]
+
+        self._teacher = teacher.Teacher(False)
+        task_group = teacher.TaskGroup()
+        self._teacher_task = GroceryGroundGoalTask(
+            max_steps=max_steps,
+            success_distance_thresh=0.5,
+            fail_distance_thresh=3.0,
+            reward_shaping=True,
+            random_goal=random_goal,
+            random_range=10.0)
+        task_group.add_task(self._teacher_task)
+        self._teacher.add_task_group(task_group)
+
+        self._object_list = self._teacher_task.get_object_list()
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self._world.info()
@@ -193,22 +234,8 @@ class GroceryGround(GazeboEnvBase):
             self._agent.set_pid_controller(_joint, 'velocity', d=0.005)
         self._agent_control_range = control_limit[agent_type]
         self._agent_camera = camera_sensor[agent_type]
-        self._goal_name = goal_name
-        self._goal = self._world.get_model(goal_name)
 
         logger.info("joints to control: %s" % self._agent_joints)
-
-        self._teacher = teacher.Teacher(False)
-        task_group = teacher.TaskGroup()
-        self._teacher_task = GroceryGroundGoalTask(
-            max_steps=max_steps,
-            goal_name=self._goal_name,
-            success_distance_thresh=0.5,
-            fail_distance_thresh=3.0,
-            reward_shaping=True,
-            random_range=10.0)
-        task_group.add_task(self._teacher_task)
-        self._teacher.add_task_group(task_group)
 
         self._with_language = with_language
         self._use_image_obs = use_image_obs
@@ -275,7 +302,9 @@ class GroceryGround(GazeboEnvBase):
             if self._data_format == "channels_first":
                 obs_data = np.transpose(obs_data, [2, 0, 1])
         else:
-            goal_pos = np.array(self._goal.get_pose()[0]).flatten()
+            goal_name = self._teacher_task.get_goal_name()
+            goal = self._world.get_model(goal_name)
+            goal_pos = np.array(goal.get_pose()[0]).flatten()
             agent_pose = np.array(self._agent.get_pose()).flatten()
             agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
             joint_vel = []
@@ -284,8 +313,11 @@ class GroceryGround(GazeboEnvBase):
                 joint_state = self._agent.get_joint_state(joint_name)
                 joint_vel.append(joint_state.get_velocities())
             joint_vel = np.array(joint_vel).flatten()
+            encoded_goal_name = gro2_encode_goal_name(goal_name)
+            encoded_goal_name = np.array(encoded_goal_name).reshape(-1)
             obs_data = np.concatenate(
-                (goal_pos, agent_pose, agent_vel, joint_vel), axis=0)
+                (goal_pos, agent_pose, agent_vel, joint_vel, encoded_goal_name),
+                axis=0)
             obs_data = np.array(obs_data).reshape(-1)
         return obs_data
 
@@ -323,8 +355,8 @@ class GroceryGround(GazeboEnvBase):
         return obs, teacher_action.reward, teacher_action.done, {}
 
     def _random_insert_objects(self):
-        for obj_id in range(len(self._object_types)):
-            model_name = self._object_types[obj_id]
+        for obj_id in range(len(self._object_list)):
+            model_name = self._object_list[obj_id]
             self._world.insertModelFile('model://' + model_name)
             logger.debug('model ' + model_name + ' inserted')
             self._world.step(10)
@@ -334,10 +366,10 @@ class GroceryGround(GazeboEnvBase):
             time.sleep(0.1)
 
     def _random_move_objects(self, random_range=10.0):
-        obj_num = len(self._object_types)
+        obj_num = len(self._object_list)
         obj_pos_list = random.sample(self._pos_list, obj_num)
         for obj_id in range(obj_num):
-            model_name = self._object_types[obj_id]
+            model_name = self._object_list[obj_id]
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
@@ -349,18 +381,26 @@ def main():
     Simple testing of this environment.
     """
     import matplotlib.pyplot as plt
+    use_image_obs = False
+    random_goal = True
     fig = None
-    env = GroceryGround(use_image_obs=True)
+    env = GroceryGround(use_image_obs=use_image_obs, random_goal=random_goal)
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))
         obs, _, done, _ = env.step(actions)
-        if fig is None:
-            fig = plt.imshow(obs)
-        else:
-            fig.set_data(obs)
-        plt.pause(0.00001)
+        if use_image_obs:
+            if fig is None:
+                fig = plt.imshow(obs)
+            else:
+                fig.set_data(obs)
+            plt.pause(0.00001)
         if done:
+            if random_goal:
+                goalname = env._teacher_task.get_goal_name()
+                logger.debug("goalname:" + goalname + 
+                    ", encode to: " + str(gro2_encode_goal_name(goalname)))
+                assert gro2_encode_goal_name(goalname) == obs[-1]
             env.reset()
 
 
