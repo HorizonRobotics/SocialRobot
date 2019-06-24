@@ -19,6 +19,7 @@ import time
 import logging
 import numpy as np
 import random
+import json
 import PIL
 import itertools
 
@@ -153,46 +154,15 @@ class GroceryGround(GazeboEnvBase):
         self._random_insert_objects()
         self._world.model_list_info()
         self._world.info()
-
-        # Specify joints and sensors for the robots
-        control_joints = {
-            'pr2_differential': [
-                'pr2_differential::fl_caster_r_wheel_joint',
-                'pr2_differential::fr_caster_l_wheel_joint'
-            ],
-            'pioneer2dx_noplugin': [
-                'pioneer2dx_noplugin::left_wheel_hinge',
-                'pioneer2dx_noplugin::right_wheel_hinge'
-            ],
-            'turtlebot': [
-                'turtlebot::create::left_wheel',
-                'turtlebot::create::right_wheel'
-            ],
-            'create': ['create::left_wheel', 'create::right_wheel'],
-        }
-        control_limit = {
-            'pr2_differential': 20,
-            'pioneer2dx_noplugin': 20.0,
-            'turtlebot': 0.5,
-            'create': 0.5,
-        }
-        camera_sensor = {
-            'pr2_differential':
-            'default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor',
-            'pioneer2dx_noplugin':
-            'default::pioneer2dx_noplugin::camera_link::camera',
-            'turtlebot':
-            'default::turtlebot::kinect::link::camera',
-            'create':
-            ' ',
-        }
-
+        agent_cfgs = json.load(
+            open(os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),'r'))
+        agent_cfg = agent_cfgs[agent_type]
         self._agent = self._world.get_agent(agent_type)
-        self._agent_joints = control_joints[agent_type]
+        self._agent_joints = agent_cfg['control_joints']
         for _joint in self._agent_joints:
             self._agent.set_pid_controller(_joint, 'velocity', d=0.005)
-        self._agent_control_range = control_limit[agent_type]
-        self._agent_camera = camera_sensor[agent_type]
+        self._agent_control_range = agent_cfg['control_limit']
+        self._agent_camera = agent_cfg['camera_sensor']
         self._goal_name = goal_name
         self._goal = self._world.get_model(goal_name)
 
