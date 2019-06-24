@@ -74,6 +74,7 @@ class ICubWalk(GazeboEnvBase):
             'icub::iCub::r_ankle_pitch',
             'icub::iCub::r_ankle_roll',
             'icub::iCub::torso_yaw',
+            'icub::iCub::torso_pitch',
             'icub::iCub::l_shoulder_pitch',
             'icub::iCub::l_shoulder_roll',
             'icub::iCub::l_shoulder_yaw',

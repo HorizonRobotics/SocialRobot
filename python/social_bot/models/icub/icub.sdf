@@ -892,7 +892,7 @@
         </geometry>
       </visual>
     </link>
-    <joint name='torso_pitch' type='fixed'>
+    <joint name='torso_pitch' type='revolute'>
       <child>torso_1</child>
       <parent>root_link</parent>
       <axis>
