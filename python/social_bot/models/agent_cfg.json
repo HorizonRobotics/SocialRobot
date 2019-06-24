@@ -1,0 +1,22 @@
+{
+    "pr2_differential": {
+        "control_joints": ["pr2_differential::fl_caster_r_wheel_joint", "pr2_differential::fr_caster_l_wheel_joint"], 
+        "control_limit": 20.0,
+        "camera_sensor": "default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor"
+    }, 
+    "pioneer2dx_noplugin": {
+        "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
+        "control_limit": 20.0, 
+        "camera_sensor": "default::pioneer2dx_noplugin::camera_link::camera"
+    },
+    "turtlebot": {
+        "control_joints": ["turtlebot::create::left_wheel", "turtlebot::create::right_wheel"], 
+        "control_limit": 0.5, 
+        "camera_sensor": "default::turtlebot::kinect::link::camera"
+    },
+    "create": {
+        "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
+        "control_limit": 0.5, 
+        "camera_sensor": " "
+    }
+}
