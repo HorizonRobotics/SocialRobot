@@ -95,7 +95,7 @@ class SimpleNavigation(GazeboEnvBase):
             self._observation_space = gym.spaces.Dict(
                 image=gym.spaces.Box(
                     low=0, high=255, shape=image.shape, dtype=np.uint8),
-                sentence=DiscreteSequence(256, 20))
+                sentence=DiscreteSequence(1000, 20))
 
             self._action_space = gym.spaces.Dict(
                 control=gym.spaces.Box(
@@ -103,7 +103,7 @@ class SimpleNavigation(GazeboEnvBase):
                     high=0.2,
                     shape=[len(self._joint_names)],
                     dtype=np.float32),
-                sentence=DiscreteSequence(256, 20))
+                sentence=DiscreteSequence(1000, 20))
         else:
             self._observation_space = gym.spaces.Box(
                 low=0, high=255, shape=image.shape, dtype=np.uint8)

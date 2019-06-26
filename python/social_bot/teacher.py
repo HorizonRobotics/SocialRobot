@@ -21,20 +21,57 @@ from gym import spaces
 
 class DiscreteSequence(gym.Space):
     """
-    gym.Space object for language sequence
+    Gym.Space object for encoded language sequence
+    This class also provid helper functions to convert sequence and sentence
+        to each other by BPEmb: https://nlp.h-its.org/bpemb/
     """
-
-    def __init__(self, vocab_size, max_length):
+    def __init__(self, vocab_size=1000, max_length=20):
         """
         Args:
             vocab_size (int): number of different tokens
+                support 1000, 3000, 5000, 10000, 25000 for now
             max_length (int): maximal length of the sequence
         """
+        from bpemb import BPEmb
         super()
         self._vocab_size = vocab_size
         self._max_length = max_length
         self.dtype = np.int32
         self.shape = (max_length)
+        self._bpemb_en = BPEmb(lang="en", vs=vocab_size)
+
+    def from_sentence(self, sentence):
+        """
+        Get subword discrete sequence from a string.
+        Args:
+            sentence (string): the sentence 
+        Returns:
+            sequence (numpy array): the discrete sequence
+        """
+        sequence = np.array(self._bpemb_en.encode_ids(sentence))
+        return np.pad(sequence,
+                      (0, self._max_length - sequence.shape[0]),
+                      'constant')
+
+    def to_sentence(self, sequence):
+        """
+        Get sentence from discrete sequence.
+        Args:
+            sequence (numpy array): the discrete sequence 
+        Returns:
+            sentence (string): the sentence 
+        """
+        return self._bpemb_en.decode_ids(sequence)
+
+    def to_bpemb_embedding(self, sequence):
+        """
+        Get pre-trained subword embeddings by bpemb.
+        Args:
+            sequence (numpy array): the discrete sequence 
+        Returns:
+            pre-trained embedding by bpemb (numpy array) 
+        """
+        return self._bpemb_en.vectors(sequence)
 
 
 class TeacherAction(object):

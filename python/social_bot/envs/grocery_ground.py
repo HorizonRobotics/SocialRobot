@@ -218,7 +218,6 @@ class GroceryGround(GazeboEnvBase):
         self._data_format = data_format
         self._resized_image_size = resized_image_size
 
-        self.reset()
         obs_data = self._get_observation()
         if self._use_image_obs:
             obs_data_space = gym.spaces.Box(
@@ -226,21 +225,21 @@ class GroceryGround(GazeboEnvBase):
         else:
             obs_data_space = gym.spaces.Box(
                 low=-50, high=50, shape=obs_data.shape, dtype=np.float32)
-
         self._control_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
             shape=[len(self._agent_joints)],
             dtype=np.float32)
-
         if self._with_language:
+            self._sequence_space = DiscreteSequence(1000, 20)
             self.observation_space = gym.spaces.Dict(
-                data=obs_data_space, sentence=DiscreteSequence(256, 24))
+                data=obs_data_space, sequence=self._sequence_space)
             self.action_space = gym.spaces.Dict(
-                control=self._control_space, sentence=DiscreteSequence(256, 24))
+                control=self._control_space, sequence=self._sequence_space)
         else:
             self.observation_space = obs_data_space
             self.action_space = self._control_space
+        self.reset()
 
     def reset(self):
         """
@@ -259,7 +258,8 @@ class GroceryGround(GazeboEnvBase):
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
-            obs = OrderedDict(data=obs_data, sentence=teacher_action)
+            discrete_seq = self._sequence_space.from_sentence(teacher_action.sentence)
+            obs = OrderedDict(data=obs_data, sequence=discrete_seq)
         else:
             obs = self._get_observation()
         return obs
@@ -296,16 +296,17 @@ class GroceryGround(GazeboEnvBase):
         """
         Args:
             action (dict|int): If with_language, action is a dictionary 
-                    with key "control" and "sentence".
+                    with key "control" and "sequence".
                     action['control'] is a vector whose dimention is
-                    len(_joint_names). action['sentence'] is a string.
+                    len(_joint_names). action['sequence'] is a sentence.
                     If not with_language, it is an int for the action id.
         Returns:
-            If with_language, it is a dictionary with key 'data' and 'sentence'
+            If with_language, it is a dictionary with key 'data' and 'sequence'
             If not with_language, it is a numpy.array or image for observation
         """
         if self._with_language:
-            sentence = action.get('sentence', None)
+            sequence = action.get('sequence', None)
+            sentence = self._sequence_space.to_sentence(sequence)
             controls = action['control'] * self._agent_control_range
         else:
             sentence = ''
@@ -316,7 +317,8 @@ class GroceryGround(GazeboEnvBase):
         self._world.step(10)
         if self._with_language:
             obs_data = self._get_observation()
-            obs = OrderedDict(data=obs_data, sentence=teacher_action.sentence)
+            discrete_seq = self._sequence_space.from_sentence(teacher_action.sentence)
+            obs = OrderedDict(data=obs_data, sequence=discrete_seq)
         else:
             obs = self._get_observation()
         self._steps_in_this_episode += 1
@@ -363,8 +365,13 @@ def main():
     while True:
         actions = np.array(np.random.randn(env._control_space.shape[0]))
         if with_language:
-            actions = dict(control=actions, sentence="hello")
+            seq = env._sequence_space.from_sentence("hello")
+            actions = dict(control=actions, sequence=seq)
         obs, _, done, _ = env.step(actions)
+        if env._steps_in_this_episode == 1:
+            seq = obs["sequence"]
+            logger.info("sequence: " + str(seq))
+            logger.info("sentence: " + env._sequence_space.to_sentence(seq))
         if use_image_obs:
             if fig is None:
                 fig = plt.imshow(obs)
@@ -372,10 +379,7 @@ def main():
                 fig.set_data(obs)
             plt.pause(0.00001)
         if done:
-            if with_language:
-                logger.info("sentence: " + str(obs["sentence"]))
             env.reset()
-
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
