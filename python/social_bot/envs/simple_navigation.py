@@ -78,7 +78,7 @@ class SimpleNavigation(GazeboEnvBase):
         self._all_joints = self._agent.get_joint_names()
         self._joint_names = list(
             filter(lambda s: s.find('wheel') != -1, self._all_joints))
-        self._teacher = teacher.Teacher(False)
+        self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
         task_group.add_task(GoalTask())
         self._teacher.add_task_group(task_group)

@@ -48,7 +48,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         """
         Args:
             reward_shaping (bool): if ture, use shaped reward accroding to distance rather than -1 and 1
-	        random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
+            random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
         """
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
         self._reward_shaping = reward_shaping
@@ -113,7 +113,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
                     reward=0.0
                 agent_sentence = yield TeacherAction(
                     reward=reward,
-                    sentence="Please go to "+self._goal_name,
+                    sentence=self._goal_name,  # "Please go to "+self._goal_name,
                     done=False)
         yield TeacherAction(reward=0.0, sentence="Failed", done=True)
 
@@ -143,7 +143,7 @@ class GroceryGround(GazeboEnvBase):
     def __init__(self,
                  with_language=False,
                  use_image_obs=False,
-	             random_goal=False,
+                 random_goal=False,
                  use_pid=False,
                  agent_type='pioneer2dx_noplugin',
                  max_steps=160,
@@ -152,16 +152,20 @@ class GroceryGround(GazeboEnvBase):
                  data_format='channels_last'):
         """
         Args:
-            with_language (bool): the observation will be a dict with an extra sentence
-            use_image_obs (bool): use image, or use internal states as observation
+            with_language (bool): The observation will be a dict with an extra sentence
+            use_image_obs (bool): Use image, or use internal states as observation
                 poses in internal states observation are in world coordinate
-            agent_type (string): select the agent robot, supporting pr2_differential, 
+            random_goal (bool): If ture, teacher will randomly select goal from the 
+                object list each episode
+            use_pid (bool): If ture, joints will be equipped with PID controller, action 
+                is the target velocity. Otherwise joints are directly controlled by force.
+            agent_type (string): Select the agent robot, supporting pr2_differential, 
                 pioneer2dx_noplugin, turtlebot, and irobot create for now
             port: Gazebo port, need to specify when run multiple environment in parallel
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
                 to (width, height)
-            data_format (str):  one of `channels_last` or `channels_first`.
+            data_format (str):  One of `channels_last` or `channels_first`.
                 The ordering of the dimensions in the images.
                 `channels_last` corresponds to images with shape
                 `(height, width, channels)` while `channels_first` corresponds
@@ -171,7 +175,7 @@ class GroceryGround(GazeboEnvBase):
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
 
-        self._teacher = teacher.Teacher(False)
+        self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
         self._teacher_task = GroceryGroundGoalTask(
             max_steps=max_steps,
