@@ -137,6 +137,7 @@ class Teacher(object):
     _task_groups = []
     _weights = []
     _task_groups_exclusive = True
+    vocab_size = 0
 
     def __init__(self, task_groups_exclusive=True):
         self._task_groups_exclusive = task_groups_exclusive
@@ -144,6 +145,25 @@ class Teacher(object):
     def add_task_group(self, task_group, weight=1):
         self._task_groups.append(task_group)
         self._weights.append(weight)
+
+    def build_vocab_from_tasks(self):
+        vovab_list = []
+        for g in self._task_groups:
+            for t in g._tasks:
+                vovab_list = vovab_list + t.task_vocab
+        # remove repeated words and convert to dict
+        self._vovab_list = sorted(set(vovab_list),key=vovab_list.index)
+        self.vocab_size = len(self._vovab_list)
+        self._vovab_dict = dict(zip(self._vovab_list,list(range(0,self.vocab_size))))
+
+    def sentence_to_sequence(self, sentence):
+        word_list = sentence.split()
+        sequence = list(map(lambda x : self._vovab_dict[x], word_list))
+        return np.array(sequence)
+
+    def sequence_to_sentence(self, sequence):
+        word_list = list(map(lambda x : self._vovab_list[x], sequence))
+        return " ".join(word_list)
 
     def reset(self, agent, world):
         for g in self._task_groups:

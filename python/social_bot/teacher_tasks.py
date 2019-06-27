@@ -56,6 +56,7 @@ class GoalTask(teacher.Task):
         self._fail_distance_thresh = fail_distance_thresh
         self._max_steps = max_steps
         self._random_range = random_range
+        self.task_vocab = ['hello', 'goal', 'Well', 'done!', 'Failed', 'to']
 
     def run(self, agent, world):
         """
