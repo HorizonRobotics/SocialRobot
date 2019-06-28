@@ -42,7 +42,7 @@
                 <limit>
                     <lower>-0.767945</lower>
                     <upper>2.30383</upper>
-                    <effort>40</effort>
+                    <effort>320</effort>
                     <velocity>100</velocity>
                 </limit>
                 <dynamics>
@@ -122,31 +122,9 @@
                 </inertia>
             </inertial>
         </link>
-        <joint name='l_leg_ft_sensor' type='revolute'>
+        <joint name='l_leg_ft_sensor' type='fixed'>
             <child>l_hip_3</child>
             <parent>l_hip_2</parent>
-            <axis>
-                <xyz>0 0 0</xyz>
-                <limit>
-                    <lower>0</lower>
-                    <upper>0</upper>
-                    <effort>0</effort>
-                    <velocity>0</velocity>
-                </limit>
-                <dynamics>
-                    <spring_reference>0</spring_reference>
-                    <spring_stiffness>0</spring_stiffness>
-                </dynamics>
-                <use_parent_model_frame>1</use_parent_model_frame>
-            </axis>
-            <sensor name='left_leg_ft' type='force_torque'>
-                <always_on>1</always_on>
-                <update_rate>100</update_rate>
-                <pose>0 0 0 0 0 0</pose>
-                <plugin name='left_leg_ft_plugin' filename='libgazebo_yarp_forcetorque.so'>
-                    <yarpConfigurationFile>model://icub/conf/FT/gazebo_icub_left_leg_ft.ini</yarpConfigurationFile>
-                </plugin>
-            </sensor>
         </joint>
         <link name='l_upper_leg'>
             <pose>0 -0.0681 -0.1199 1.57079 -7.34641e-06 3.14159</pose>
@@ -403,35 +381,9 @@
                 </geometry>
             </visual>
         </link>
-        <joint name='l_foot_ft_sensor' type='revolute'>
+        <joint name='l_foot_ft_sensor' type='fixed'>
             <child>l_foot</child>
             <parent>l_ankle_2</parent>
-            <axis>
-                <xyz>0 0 0</xyz>
-                <limit>
-                    <lower>0</lower>
-                    <upper>0</upper>
-                    <effort>0</effort>
-                    <velocity>0</velocity>
-                </limit>
-                <dynamics>
-                    <spring_reference>0</spring_reference>
-                    <spring_stiffness>0</spring_stiffness>
-                </dynamics>
-                <use_parent_model_frame>1</use_parent_model_frame>
-            </axis>
-            <sensor name='left_foot_ft' type='force_torque'>
-                <always_on>1</always_on>
-                <update_rate>100</update_rate>
-                <pose>0 0 0 0 0 0</pose>
-                <plugin name='left_foot_ft_plugin' filename='libgazebo_yarp_forcetorque.so'>
-                    <yarpConfigurationFile>model://icub/conf/FT/gazebo_icub_left_foot_ft.ini</yarpConfigurationFile>
-                </plugin>
-            </sensor>
         </joint>
-
-        <plugin name='controlboard_left_leg' filename='libgazebo_yarp_controlboard.so'>
-            <yarpConfigurationFile>model://icub/conf/gazebo_icub_left_leg.ini</yarpConfigurationFile>
-        </plugin>
     </model>
 </sdf>

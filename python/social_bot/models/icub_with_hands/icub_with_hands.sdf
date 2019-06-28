@@ -1,12 +1,12 @@
 <?xml version='1.0'?>
-<sdf version='1.5'>
+<sdf version='1.6'>
   <model name='iCub'>
     <pose>0 0 0.6 0 0 3.14</pose>
     <link name='root_link'>
       <pose>0 0 0 0 -0 0</pose>
       <inertial>
         <pose>0 0 0 0 -0 0</pose>
-        <mass>1.0</mass>
+        <mass>4.72</mass>
         <inertia>
           <ixx>0.01</ixx>
           <ixy>0</ixy>
@@ -35,7 +35,7 @@
         </geometry>
       </visual>
     </link>
-    
+
     <link name='torso_1'>
       <pose>0 0 0 3.14159 -1.57079 -2.65359e-06</pose>
       <inertial>
@@ -77,7 +77,7 @@
         <limit>
           <lower>-0.383972</lower>
           <upper>1.46608</upper>
-          <effort>320</effort>
+          <effort>40</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -112,7 +112,7 @@
         <limit>
           <lower>-0.680678</lower>
           <upper>0.680678</upper>
-          <effort>160</effort>
+          <effort>40</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -128,7 +128,7 @@
       <pose>-0.00549988 1.45945e-08 0.032 1.5708 -7.34642e-06 -3.14159</pose>
       <inertial>
         <pose>0.00222898 0.075 -1.18362e-17 0 -0 0</pose>
-        <mass>1.2</mass>
+        <mass>4.81</mass>
         <inertia>
           <ixx>0.07472</ixx>
           <ixy>-3.6e-06</ixy>
@@ -165,7 +165,7 @@
         <limit>
           <lower>-1.02974</lower>
           <upper>1.02974</upper>
-          <effort>80</effort>
+          <effort>40</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -306,7 +306,7 @@
         <limit>
           <lower>-0.645772</lower>
           <upper>1.74533</upper>
-          <effort>34</effort>
+          <effort>40</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -351,9 +351,23 @@
         </geometry>
       </visual>
     </link>
-    <joint name='l_arm_fixed_joint' type='fixed'>
+    <joint name='l_arm_ft_sensor' type='fixed'>
       <child>l_upper_arm</child>
       <parent>l_shoulder_3</parent>
+      <axis>
+        <xyz>-0 0 0</xyz>
+        <limit>
+          <lower>0</lower>
+          <upper>0</upper>
+          <effort>0</effort>
+          <velocity>0</velocity>
+        </limit>
+        <dynamics>
+          <spring_reference>0</spring_reference>
+          <spring_stiffness>0</spring_stiffness>
+        </dynamics>
+        <use_parent_model_frame>1</use_parent_model_frame>
+      </axis>
     </joint>
     <link name='l_elbow_1'>
       <pose>-0.0257497 -0.11026 0.0230202 3.14159 -6.5209e-06 -3.14159</pose>
@@ -378,7 +392,7 @@
         <limit>
           <lower>0.0959931</lower>
           <upper>1.85005</upper>
-          <effort>20</effort>
+          <effort>40</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -431,7 +445,7 @@
         <limit>
           <lower>-0.872665</lower>
           <upper>0.872665</upper>
-          <effort>0.45</effort>
+          <effort>20</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -447,14 +461,14 @@
       <pose>-0.0107501 -0.110259 -0.11428 -2.7153 1.57079 1.99709</pose>
       <inertial>
         <pose>0 0 0 0 -0 0</pose>
-        <mass>0.1</mass>
+        <mass>0.05</mass>
         <inertia>
-          <ixx>0.01</ixx>
+          <ixx>0.0001</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.01</iyy>
+          <iyy>0.0001</iyy>
           <iyz>0</iyz>
-          <izz>0.01</izz>
+          <izz>0.0001</izz>
         </inertia>
       </inertial>
     </link>
@@ -466,7 +480,7 @@
         <limit>
           <lower>-1.13446</lower>
           <upper>0.174533</upper>
-          <effort>0.65</effort>
+          <effort>5</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -478,48 +492,16 @@
         <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
-    <link name='l_hand'>
-      <pose>-0.0107501 -0.110259 -0.11428 -2.7153 1.57079 1.99709</pose>
-      <inertial>
-        <pose>0.07023 -0.00805 -0.007 0 -0 0</pose>
-        <mass>0.213</mass>
-        <inertia>
-          <ixx>0.01</ixx>
-          <ixy>1.278e-05</ixy>
-          <ixz>4.823e-06</ixz>
-          <iyy>0.01</iyy>
-          <iyz>-1.8188e-05</iyz>
-          <izz>0.01</izz>
-        </inertia>
-      </inertial>
-      <collision name='l_hand_collision'>
-        <pose>-1.25973e-12 0.0204334 -0.000143922 5.10271e-12 -2.64186e-12 1.49622e-11</pose>
-        <geometry>
-          <mesh>
-            <scale>1 1 1</scale>
-            <uri>model://icub/meshes/collision/icub_simple_collision_l_hand.dae</uri>
-          </mesh>
-        </geometry>
-      </collision>
-      <visual name='l_hand_visual'>
-        <pose>-1.25973e-12 0.0204334 -0.000143922 5.10271e-12 -2.64186e-12 1.49622e-11</pose>
-        <geometry>
-          <mesh>
-            <scale>1 1 1</scale>
-            <uri>model://icub/meshes/visual/icub_l_hand.dae</uri>
-          </mesh>
-        </geometry>
-      </visual>
-    </link>
+
     <joint name='l_wrist_yaw' type='revolute'>
-      <child>l_hand</child>
+      <child>l_hand::l_hand_base_link</child>
       <parent>l_wrist_1</parent>
       <axis>
         <xyz>1.01956e-06 -1 -6.27061e-06</xyz>
         <limit>
           <lower>-0.436332</lower>
           <upper>0.436332</upper>
-          <effort>0.65</effort>
+          <effort>5</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -661,7 +643,7 @@
       <pose>-0.00780836 1.22353e-08 0.2348 -1.5708 1.46928e-05 8.36603e-06</pose>
       <inertial>
         <pose>0.0185 -0.1108 6.78454e-18 0 -0 0</pose>
-        <mass>0.5</mass>
+        <mass>3</mass>
         <inertia>
           <ixx>0.01</ixx>
           <ixy>0</ixy>
@@ -740,7 +722,7 @@
   <!--     <visual name='eyes_tilt_visual'>
         <pose>0.0 0.0 0.0 0 0 0</pose>
         <geometry>
-          <cylinder><radius>0.01</radius><length>0.05</length></cylinder> 
+          <cylinder><radius>0.01</radius><length>0.05</length></cylinder>
         </geometry>
       </visual> -->
     </link>
@@ -760,15 +742,32 @@
         </inertia>
       </inertial>
        <visual name='left_eye_visual'>
-         <pose>0.055 0.033 -0.14 0 0 0</pose> 
+         <pose>0.055 0.033 -0.14 0 0 0</pose>
         <geometry>
              <mesh>
             <scale>1 1 1</scale>
             <uri>model://icub/meshes/visual/icub_eye.dae</uri>
-          </mesh> 
+          </mesh>
    <!-- <cylinder><radius>0.01</radius><length>0.05</length></cylinder> -->
         </geometry>
       </visual>
+      <sensor name="left_camera" type="camera">
+        <pose>0 0 0 0 -3.14159 0</pose>
+        <camera>
+          <horizontal_fov>1.5708</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>100</far>
+          </clip>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>true</visualize>
+      </sensor>
     </link>
 
     <link name='right_eye_link'>
@@ -786,15 +785,32 @@
         </inertia>
       </inertial>
       <visual name='right_eye_visual'>
-        <pose>0.055 0.033 -0.14 0 0 0</pose> 
+        <pose>0.055 0.033 -0.14 0 0 0</pose>
         <geometry>
  <!-- <cylinder><radius>0.01</radius><length>0.05</length></cylinder>-->
             <mesh>
             <scale>1 1 1</scale>
             <uri>model://icub/meshes/visual/icub_eye.dae</uri>
-          </mesh> 
+          </mesh>
         </geometry>
       </visual>
+      <sensor name="right_camera" type="camera">
+        <pose>0 0 0 0 -3.14159 0</pose>
+        <camera>
+          <horizontal_fov>1.5708</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>100</far>
+          </clip>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+        <visualize>true</visualize>
+      </sensor>
     </link>
 
     <joint name='eyes_tilt' type='revolute'>
@@ -1019,7 +1035,7 @@
         <limit>
           <lower>-0.645772</lower>
           <upper>1.74533</upper>
-          <effort>34</effort>
+          <effort>40</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -1035,7 +1051,7 @@
       <pose>-0.0257494 0.11026 0.1073 3.14159 -6.5209e-06 -3.14159</pose>
       <inertial>
         <pose>-0.00015906 8.28733e-05 0.0298828 0 -0 0</pose>
-        <mass>0.728</mass>
+        <mass>0.729</mass>
         <inertia>
           <ixx>0.01</ixx>
           <ixy>-1.08e-06</ixy>
@@ -1064,7 +1080,7 @@
         </geometry>
       </visual>
     </link>
-    <joint name='r_arm_fixed_joint' type='fixed'>
+    <joint name='r_arm_ft_sensor' type='fixed'>
       <child>r_upper_arm</child>
       <parent>r_shoulder_3</parent>
     </joint>
@@ -1091,7 +1107,7 @@
         <limit>
           <lower>0.0959931</lower>
           <upper>1.85005</upper>
-          <effort>20</effort>
+          <effort>40</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -1144,7 +1160,7 @@
         <limit>
           <lower>-0.872665</lower>
           <upper>0.872665</upper>
-          <effort>0.45</effort>
+          <effort>20</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -1160,14 +1176,14 @@
       <pose>-0.0107503 0.11026 -0.11428 0.426292 -1.57079 1.14451</pose>
       <inertial>
         <pose>0 0 0 0 -0 0</pose>
-        <mass>0.1</mass>
+        <mass>0.05</mass>
         <inertia>
-          <ixx>0.01</ixx>
+          <ixx>0.0001</ixx>
           <ixy>0</ixy>
           <ixz>0</ixz>
-          <iyy>0.01</iyy>
+          <iyy>0.0001</iyy>
           <iyz>0</iyz>
-          <izz>0.01</izz>
+          <izz>0.0001</izz>
         </inertia>
       </inertial>
     </link>
@@ -1179,7 +1195,7 @@
         <limit>
           <lower>-1.13446</lower>
           <upper>0.174533</upper>
-          <effort>0.65</effort>
+          <effort>5</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -1191,48 +1207,15 @@
         <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
-    <link name='r_hand'>
-      <pose>-0.0107503 0.11026 -0.11428 -0.720145 1.57079 -2.29094</pose>
-      <inertial>
-        <pose>0.07023 -0.00805 0.007 0 -0 0</pose>
-        <mass>0.213</mass>
-        <inertia>
-          <ixx>0.01</ixx>
-          <ixy>1.26e-05</ixy>
-          <ixz>-6.08e-06</ixz>
-          <iyy>0.01</iyy>
-          <iyz>1.76e-05</iyz>
-          <izz>0.01</izz>
-        </inertia>
-      </inertial>
-      <collision name='r_hand_collision'>
-        <pose>1.0721e-12 0.0204334 0.000143922 1.53098e-11 2.00656e-11 -3.14159</pose>
-        <geometry>
-          <mesh>
-            <scale>1 1 1</scale>
-            <uri>model://icub/meshes/collision/icub_simple_collision_r_hand.dae</uri>
-          </mesh>
-        </geometry>
-      </collision>
-      <visual name='r_hand_visual'>
-        <pose>1.0721e-12 0.0204334 0.000143922 1.53098e-11 2.00656e-11 -3.14159</pose>
-        <geometry>
-          <mesh>
-            <scale>1 1 1</scale>
-            <uri>model://icub/meshes/visual/icub_r_hand.dae</uri>
-          </mesh>
-        </geometry>
-      </visual>
-    </link>
     <joint name='r_wrist_yaw' type='revolute'>
-      <child>r_hand</child>
+      <child>r_hand::r_hand_base_link</child>
       <parent>r_wrist_1</parent>
       <axis>
         <xyz>3.67323e-06 -1 6.27054e-06</xyz>
         <limit>
           <lower>-0.436332</lower>
           <upper>0.436332</upper>
-          <effort>0.65</effort>
+          <effort>5</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -1244,6 +1227,7 @@
         <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
+
     <include>
         <uri>model://icub/l_leg</uri>
     </include>
@@ -1252,6 +1236,15 @@
         <uri>model://icub/r_leg</uri>
     </include>
 
-    <pose>0 0 0.70 0 0 0</pose>
+    <include>
+      <uri>model://icub/l_hand</uri>
+      <pose>-0.0107501 -0.110259 -0.11428 1.57 0 1.57</pose>
+    </include>
+
+    <include>
+      <uri>model://icub/r_hand</uri>
+      <pose>-0.0107503 0.11026 -0.11428 1.57 0 -1.57</pose>
+    </include>
+
   </model>
 </sdf>

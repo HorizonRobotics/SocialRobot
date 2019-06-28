@@ -290,9 +290,10 @@ class Agent : public Model {
                         double i,
                         double d,
                         double max_force) {
-    auto pid = gazebo::common::PID(p, i, d);
+    auto pid = gazebo::common::PID(p*max_force, i*max_force, d*max_force);
     pid.SetCmdMax(max_force);
     pid.SetCmdMin(-max_force);
+    pid.SetIMax(max_force * 0.1); // limit i term
     auto controller = model_->GetJointController();
     if (pid_control_type == "force") {
       joints_control_type_[joint_name] = control_type_force_;

@@ -59,21 +59,21 @@ class ICubWalk(GazeboEnvBase):
         self._world.info()
         #logger.info("joint names: %s" % self._all_joints)
 
-        self._agent_control_range = 100.0
         self._agent_joints = [
-            'icub::iCub::l_hip_pitch',
-            'icub::iCub::l_hip_roll', 
-            'icub::iCub::l_hip_yaw',
-            'icub::iCub::l_knee',
-            'icub::iCub::l_ankle_pitch',
-            'icub::iCub::l_ankle_roll',
-            'icub::iCub::r_hip_pitch',
-            'icub::iCub::r_hip_roll',
-            'icub::iCub::r_hip_yaw',
-            'icub::iCub::r_knee',
-            'icub::iCub::r_ankle_pitch',
-            'icub::iCub::r_ankle_roll',
+            'icub::iCub::l_leg::l_hip_pitch',
+            'icub::iCub::l_leg::l_hip_roll', 
+            'icub::iCub::l_leg::l_hip_yaw',
+            'icub::iCub::l_leg::l_knee',
+            'icub::iCub::l_leg::l_ankle_pitch',
+            'icub::iCub::l_leg::l_ankle_roll',
+            'icub::iCub::r_leg::r_hip_pitch',
+            'icub::iCub::r_leg::r_hip_roll',
+            'icub::iCub::r_leg::r_hip_yaw',
+            'icub::iCub::r_leg::r_knee',
+            'icub::iCub::r_leg::r_ankle_pitch',
+            'icub::iCub::r_leg::r_ankle_roll',
             'icub::iCub::torso_yaw',
+            'icub::iCub::torso_roll',
             'icub::iCub::torso_pitch',
             'icub::iCub::l_shoulder_pitch',
             'icub::iCub::l_shoulder_roll',
@@ -86,10 +86,25 @@ class ICubWalk(GazeboEnvBase):
             'icub::iCub::r_shoulder_yaw',
             'icub::iCub::r_elbow',
         ]
-        logger.info("joints to control: %s" % self._agent_joints)
+
+        joint_states = list(
+            map(lambda s: self._agent.get_joint_state(s), self._agent_joints))
+        self._joints_limits = list(
+            map(lambda s: s.get_effort_limits()[0], joint_states))
         if use_pid:
-            for _joint in self._agent_joints:
-                self._agent.set_pid_controller(_joint, 'velocity', p=30.0, d=5.0, max_force=100.0)
+            for joint_index in range(len(self._agent_joints)):
+                self._agent.set_pid_controller(
+                    self._agent_joints[joint_index],
+                    'velocity',
+                    p=0.02,
+                    d=0.00001,
+                    max_force=self._joints_limits[joint_index])
+            self._agent_control_range = 3.0*np.pi
+        else:
+            self._agent_control_range = np.array(self._joints_limits)
+
+        logger.info("joints to control: %s" % self._agent_joints)
+        logger.info("in range: %s" % str(self._joints_limits))
 
         self.action_space = gym.spaces.Box(
             low=-1.0,
@@ -110,14 +125,14 @@ class ICubWalk(GazeboEnvBase):
             Observaion of the first step
         """
         self._world.reset()
-        self._world.step(20)
+        self._world.step(10)
         self._steps_in_this_episode = 0
         self._cum_reward = 0.0
         # Give an intilal random pose offset by take an random action
         actions = np.array(np.random.randn(self.action_space.shape[0]))
         controls = dict(zip(self._agent_joints, self._agent_control_range * actions))
         self._agent.take_action(controls)
-        self._world.step(20)
+        self._world.step(10)
         obs = self._get_observation()
         return obs
 
@@ -151,12 +166,12 @@ class ICubWalk(GazeboEnvBase):
         controls = action * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
         self._agent.take_action(controls)
-        self._world.step(20)
+        self._world.step(50)
         obs = self._get_observation()
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
         ctrl_cost = np.sum(np.square(action))/action.shape[0]
-        walk_distance = torso_pose[0]
-        reward = 1.0 + 1e-1 * walk_distance - 2e-1 * ctrl_cost
+        walked_distance = torso_pose[0]
+        reward = 1.0 + 1.0 * walked_distance - 2e-1 * ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
         fail = torso_pose[2] < 0.58
@@ -177,7 +192,7 @@ def main():
     """
     Simple testing of this environment.
     """
-    env = ICubWalkPID(max_steps=120)
+    env = ICubWalk(max_steps=120)
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))
