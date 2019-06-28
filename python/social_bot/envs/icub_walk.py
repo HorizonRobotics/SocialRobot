@@ -42,6 +42,7 @@ class ICubWalk(GazeboEnvBase):
     def __init__(self,
                  max_steps=120,
                  use_pid=False,
+                 obs_stack=True,
                  port=None):
         """
         Args:
@@ -51,6 +52,7 @@ class ICubWalk(GazeboEnvBase):
         """
         super(ICubWalk, self).__init__(port=port)
         self._max_steps = max_steps
+        self._obs_stack = obs_stack
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "icub.world"))
         self._agent = self._world.get_agent('icub')
@@ -114,6 +116,8 @@ class ICubWalk(GazeboEnvBase):
         
         self.reset()
         obs = self._get_observation()
+        if self._obs_stack:
+            obs = np.concatenate((obs, obs), axis=0)
         self.observation_space = gym.spaces.Box(
             low=-100, high=100, shape=obs.shape, dtype=np.float32)
 
@@ -134,6 +138,9 @@ class ICubWalk(GazeboEnvBase):
         self._agent.take_action(controls)
         self._world.step(10)
         obs = self._get_observation()
+        self._obs_prev = obs
+        if self._obs_stack:
+            obs = np.concatenate((obs, obs), axis=0)
         return obs
 
     def _get_observation(self):
@@ -168,6 +175,8 @@ class ICubWalk(GazeboEnvBase):
         self._agent.take_action(controls)
         self._world.step(50)
         obs = self._get_observation()
+        stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
+        self._obs_prev = obs
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
         ctrl_cost = np.sum(np.square(action))/action.shape[0]
         walked_distance = torso_pose[0]
@@ -179,6 +188,8 @@ class ICubWalk(GazeboEnvBase):
         if done:
             logger.debug("episode ends at cum reward:" + str(self._cum_reward)
                 + ", step:" + str(self._steps_in_this_episode))
+        if self._obs_stack:
+            obs = stacked_obs
         return obs, reward, done, {}
 
 
@@ -192,7 +203,7 @@ def main():
     """
     Simple testing of this environment.
     """
-    env = ICubWalk(max_steps=120)
+    env = ICubWalkPID(max_steps=120)
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))
