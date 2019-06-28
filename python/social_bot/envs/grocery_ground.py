@@ -105,7 +105,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
                 logger.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                              "dist: " + str(dist))
                 agent_sentence = yield TeacherAction(
-                    reward=10.0, sentence="Well done!", done=True)
+                    reward=10.0, sentence="well done", done=True)
                 steps_since_last_reward = 0
             else:
                 if self._reward_shaping:
@@ -116,7 +116,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
                     reward=reward,
                     sentence=self._goal_name,
                     done=False)
-        yield TeacherAction(reward=0.0, sentence="Failed to " + self._goal_name, done=True)
+        yield TeacherAction(reward=0.0, sentence="failed to " + self._goal_name, done=True)
 
 
 @gin.configurable
@@ -233,7 +233,9 @@ class GroceryGround(GazeboEnvBase):
             shape=[len(self._agent_joints)],
             dtype=np.float32)
         if self._with_language:
-            sequence_space = DiscreteSequence(self._teacher.vocab_size, 20)
+            self._seq_length = 20
+            sequence_space = DiscreteSequence(
+                self._teacher.vocab_size, self._seq_length)
             self.observation_space = gym.spaces.Dict(
                 data=obs_data_space, sequence=sequence_space)
             self.action_space = gym.spaces.Dict(
@@ -260,7 +262,8 @@ class GroceryGround(GazeboEnvBase):
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
-            seq = self._teacher.sentence_to_sequence(teacher_action.sentence)
+            seq = self._teacher.sentence_to_sequence(
+                teacher_action.sentence, self._seq_length)
             obs = OrderedDict(data=obs_data, sequence=seq)
         else:
             obs = self._get_observation()
@@ -319,7 +322,8 @@ class GroceryGround(GazeboEnvBase):
         self._world.step(10)
         if self._with_language:
             obs_data = self._get_observation()
-            seq = self._teacher.sentence_to_sequence(teacher_action.sentence)
+            seq = self._teacher.sentence_to_sequence(
+                teacher_action.sentence, self._seq_length)
             obs = OrderedDict(data=obs_data, sequence=seq)
         else:
             obs = self._get_observation()
@@ -366,7 +370,7 @@ def main():
     while True:
         actions = np.array(np.random.randn(env._control_space.shape[0]))
         if with_language:
-            seq = env._teacher.sentence_to_sequence("hello")
+            seq = env._teacher.sentence_to_sequence("hello", env._seq_length)
             actions = dict(control=actions, sequence=seq)
         obs, _, done, _ = env.step(actions)
         if with_language and (env._steps_in_this_episode == 1 or done):

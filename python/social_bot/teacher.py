@@ -13,11 +13,13 @@
 # limitations under the License.
 
 from abc import abstractmethod
+import logging
 import numpy as np
 import random
 import gym
 from gym import spaces
 
+logger = logging.getLogger(__name__)
 
 class DiscreteSequence(gym.Space):
     """
@@ -147,22 +149,29 @@ class Teacher(object):
         self._weights.append(weight)
 
     def build_vocab_from_tasks(self):
-        vovab_list = []
+        vocab_list = []
         for g in self._task_groups:
             for t in g._tasks:
-                vovab_list = vovab_list + t.task_vocab
+                vocab_list = vocab_list + t.task_vocab
         # remove repeated words and convert to dict
-        self._vovab_list = sorted(set(vovab_list),key=vovab_list.index)
-        self.vocab_size = len(self._vovab_list)
-        self._vovab_dict = dict(zip(self._vovab_list,list(range(0,self.vocab_size))))
+        self._vocab_list = sorted(set(vocab_list),key=vocab_list.index)
+        self.vocab_size = len(self._vocab_list)
+        self._vocab_dict = dict(
+            zip(self._vocab_list, list(range(1, 1 + self.vocab_size))))
 
-    def sentence_to_sequence(self, sentence):
+    def sentence_to_sequence(self, sentence, max_sequence_length):
         word_list = sentence.split()
-        sequence = list(map(lambda x : self._vovab_dict[x], word_list))
-        return np.array(sequence)
+        sequence = list(map(lambda x : self._vocab_dict[x], word_list))
+        if None in sequence:
+            logger.warn("Word out of vocab:" + word_list[sequence.index(None)])
+        padding_num = max_sequence_length - len(sequence)
+        assert padding_num > 0
+        return np.pad(sequence, (0, padding_num), 'constant')
 
     def sequence_to_sentence(self, sequence):
-        word_list = list(map(lambda x : self._vovab_list[x], sequence))
+        for seq_len in range(len(sequence)):
+            if sequence[seq_len] == 0: break
+        word_list = list(map(lambda x : self._vocab_list[x-1], sequence[:seq_len]))
         return " ".join(word_list)
 
     def reset(self, agent, world):
