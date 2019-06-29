@@ -407,9 +407,6 @@ class Pr2Gripper(GazeboEnvBase):
                 self.reset()
                 reward = 0.0
 
-    def render(self, mode='human'):
-        return
-
 
 def main():
     env = Pr2Gripper(max_steps=100, use_internal_states_only=False)
