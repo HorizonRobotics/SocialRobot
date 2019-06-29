@@ -380,6 +380,13 @@
                     </mesh>
                 </geometry>
             </visual>
+            <sensor name="r_foot_contact_sensor" type="contact">
+                <update_rate>100.000000</update_rate>
+                <contact>
+                <collision>r_foot_collision</collision>
+                <topic>__default_topic__</topic>
+                </contact>
+            </sensor>
         </link>
         <joint name='r_foot_ft_sensor' type='fixed'>
             <child>r_foot</child>

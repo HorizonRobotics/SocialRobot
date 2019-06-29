@@ -143,6 +143,13 @@ class ICubWalk(GazeboEnvBase):
             obs = np.concatenate((obs, obs), axis=0)
         return obs
 
+    def _has_contacts(self, contacts_sensor):
+        # ground_plane::link
+        contacts = self._agent.get_collisions(contacts_sensor)
+        print(contacts_sensor)
+        print(contacts)
+        return len(contacts) > 0
+
     def _get_observation(self):
         agent_pose = np.array(self._agent.get_pose()).flatten()
         agent_vel = np.array(self._agent.get_velocities()).flatten()
@@ -157,6 +164,8 @@ class ICubWalk(GazeboEnvBase):
             joint_vel.append(joint_state.get_velocities())
         joint_pos = np.array(joint_pos).flatten()
         joint_vel = np.array(joint_vel).flatten()
+        # self._has_contacts("l_foot_contact_sensor")
+        # self._has_contacts("r_foot_contact_sensor")
         obs = np.concatenate(
             (agent_pose, agent_vel, torso_pose, joint_pos, joint_vel), axis=0)
         obs = np.array(obs).reshape(-1)
@@ -178,9 +187,9 @@ class ICubWalk(GazeboEnvBase):
         stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
         self._obs_prev = obs
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
+        walk_vel = np.array(self._agent.get_velocities()).flatten()[0]
         ctrl_cost = np.sum(np.square(action))/action.shape[0]
-        walked_distance = torso_pose[0]
-        reward = 1.0 + 1.0 * walked_distance - 2e-1 * ctrl_cost
+        reward = 1.0 + 1.0 * min(walk_vel, 3.0) - 2e-1 * ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
         fail = torso_pose[2] < 0.58
