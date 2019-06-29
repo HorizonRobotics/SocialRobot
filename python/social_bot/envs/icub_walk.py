@@ -143,12 +143,12 @@ class ICubWalk(GazeboEnvBase):
             obs = np.concatenate((obs, obs), axis=0)
         return obs
 
-    def _has_contacts(self, contacts_sensor):
-        # ground_plane::link
+    def _check_contacts_to_ground(self, contacts_sensor):
         contacts = self._agent.get_collisions(contacts_sensor)
-        print(contacts_sensor)
-        print(contacts)
-        return len(contacts) > 0
+        for collision in contacts:
+            if collision[1] == 'ground_plane::link::collision':
+                return True
+        return False
 
     def _get_observation(self):
         agent_pose = np.array(self._agent.get_pose()).flatten()
@@ -164,10 +164,13 @@ class ICubWalk(GazeboEnvBase):
             joint_vel.append(joint_state.get_velocities())
         joint_pos = np.array(joint_pos).flatten()
         joint_vel = np.array(joint_vel).flatten()
-        # self._has_contacts("l_foot_contact_sensor")
-        # self._has_contacts("r_foot_contact_sensor")
+        foot_contacts = np.array(
+            [self._check_contacts_to_ground("l_foot_contact_sensor"),
+             self._check_contacts_to_ground("r_foot_contact_sensor")]
+            ).astype(np.float32)
         obs = np.concatenate(
-            (agent_pose, agent_vel, torso_pose, joint_pos, joint_vel), axis=0)
+            (agent_pose, agent_vel, torso_pose, joint_pos, joint_vel, foot_contacts),
+            axis=0)
         obs = np.array(obs).reshape(-1)
         return obs
 

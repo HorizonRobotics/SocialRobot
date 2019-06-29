@@ -60,7 +60,7 @@ from tf_agents.utils import common
 import social_bot
 from alf.environments import suite_socialbot
 
-flags.DEFINE_string('root_dir', '~/tmp/ICubWalkExample',
+flags.DEFINE_string('root_dir', '~/tmp/ICubWalkPIDExample',
                     'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_multi_string('gin_file', None,
                           'Path to the trainer config files.')
@@ -84,7 +84,7 @@ def normal_projection_net(action_spec,
 @gin.configurable
 def train_eval(
         root_dir,
-        env_name='SocialBot-ICubWalk-v0',
+        env_name='SocialBot-ICubWalkPID-v0',
         num_iterations=10000000,
         actor_fc_layers=(256, 256),
         critic_obs_fc_layers=None,
