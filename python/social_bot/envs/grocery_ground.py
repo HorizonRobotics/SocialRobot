@@ -54,7 +54,8 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         self._reward_shaping = reward_shaping
         self._random_goal = random_goal
         self._goal_name = 'cube_20k'
-        self._object_list = ['coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
+        self._object_list = [
+            'coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
             'plastic_cup', 'beer', 'hammer'
         ]
         self.task_vocab = self.task_vocab + self._object_list
@@ -76,7 +77,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
             Goal's name at this episode
         """
         return self._goal_name
-        
+
     def run(self, agent, world):
         """
         Start a teaching episode for this task.
@@ -111,12 +112,11 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
                 if self._reward_shaping:
                     reward = -dist / self._random_range
                 else:
-                    reward=0.0
+                    reward = 0.0
                 agent_sentence = yield TeacherAction(
-                    reward=reward,
-                    sentence=self._goal_name,
-                    done=False)
-        yield TeacherAction(reward=0.0, sentence="failed to " + self._goal_name, done=True)
+                    reward=reward, sentence=self._goal_name, done=False)
+        yield TeacherAction(
+            reward=0.0, sentence="failed to " + self._goal_name, done=True)
 
 
 @gin.configurable
@@ -234,8 +234,8 @@ class GroceryGround(GazeboEnvBase):
             dtype=np.float32)
         if self._with_language:
             self._seq_length = 20
-            sequence_space = DiscreteSequence(
-                self._teacher.vocab_size, self._seq_length)
+            sequence_space = DiscreteSequence(self._teacher.vocab_size,
+                                              self._seq_length)
             self.observation_space = gym.spaces.Dict(
                 data=obs_data_space, sequence=sequence_space)
             self.action_space = gym.spaces.Dict(
@@ -262,8 +262,8 @@ class GroceryGround(GazeboEnvBase):
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
-            seq = self._teacher.sentence_to_sequence(
-                teacher_action.sentence, self._seq_length)
+            seq = self._teacher.sentence_to_sequence(teacher_action.sentence,
+                                                     self._seq_length)
             obs = OrderedDict(data=obs_data, sequence=seq)
         else:
             obs = self._get_observation()
@@ -322,8 +322,8 @@ class GroceryGround(GazeboEnvBase):
         self._world.step(10)
         if self._with_language:
             obs_data = self._get_observation()
-            seq = self._teacher.sentence_to_sequence(
-                teacher_action.sentence, self._seq_length)
+            seq = self._teacher.sentence_to_sequence(teacher_action.sentence,
+                                                     self._seq_length)
             obs = OrderedDict(data=obs_data, sequence=seq)
         else:
             obs = self._get_observation()
@@ -364,9 +364,10 @@ def main():
     use_image_obs = False
     random_goal = True
     fig = None
-    env = GroceryGround(with_language = with_language,
-                        use_image_obs=use_image_obs,
-                        random_goal = random_goal)
+    env = GroceryGround(
+        with_language=with_language,
+        use_image_obs=use_image_obs,
+        random_goal=random_goal)
     while True:
         actions = np.array(np.random.randn(env._control_space.shape[0]))
         if with_language:
@@ -385,6 +386,7 @@ def main():
             plt.pause(0.00001)
         if done:
             env.reset()
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
