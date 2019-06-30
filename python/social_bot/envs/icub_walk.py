@@ -40,18 +40,22 @@ class ICubWalk(GazeboEnvBase):
     """
 
     def __init__(self,
-                 max_steps=120,
+                 max_steps=200,
                  use_pid=False,
                  obs_stack=True,
+                 sub_seteps=50,
                  port=None):
         """
         Args:
             max_steps (int): episode will end when the agent exceeds the number of steps.
             use_pid (bool): use pid or direct force to control
             port: Gazebo port, need to specify when run multiple environment in parallel
+            obs_stack (bool): Use staked multi step observation if True
+            sub_seteps (int): take how many sim substeps during one gym step
         """
         super(ICubWalk, self).__init__(port=port)
         self._max_steps = max_steps
+        self._sub_seteps = sub_seteps
         self._obs_stack = obs_stack
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "icub.world"))
@@ -151,10 +155,20 @@ class ICubWalk(GazeboEnvBase):
         return False
 
     def _get_observation(self):
-        agent_pose = np.array(self._agent.get_pose()).flatten()
+        agent_pose = np.array(
+            self._agent.get_link_pose('icub::iCub::root_link')).flatten()
+        head_pose = np.array(
+            self._agent.get_link_pose('icub::iCub::head')).flatten()
+        l_foot_pose = np.array(
+            self._agent.get_link_pose('icub::iCub::l_leg::l_foot')).flatten()
+        r_foot_pose = np.array(
+            self._agent.get_link_pose('icub::iCub::r_leg::r_foot')).flatten()
+        average_pos =  np.sum(
+            [agent_pose[0:3], head_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]],
+            axis=0)/4.0
+        agent_poses = np.concatenate(
+            (average_pos, agent_pose, head_pose, l_foot_pose, r_foot_pose))
         agent_vel = np.array(self._agent.get_velocities()).flatten()
-        torso_pose = np.array(
-            self._agent.get_link_pose('icub::iCub::chest')).flatten()
         joint_pos = []
         joint_vel = []
         for joint_id in range(len(self._agent_joints)):
@@ -169,7 +183,7 @@ class ICubWalk(GazeboEnvBase):
              self._check_contacts_to_ground("r_foot_contact_sensor")]
             ).astype(np.float32)
         obs = np.concatenate(
-            (agent_pose, agent_vel, torso_pose, joint_pos, joint_vel, foot_contacts),
+            (agent_poses, agent_vel, joint_pos, joint_vel, foot_contacts),
             axis=0)
         obs = np.array(obs).reshape(-1)
         return obs
@@ -185,12 +199,13 @@ class ICubWalk(GazeboEnvBase):
         controls = action * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
         self._agent.take_action(controls)
-        self._world.step(50)
+        self._world.step(self._sub_seteps)
         obs = self._get_observation()
+        walk_vel = (obs[0] - self._obs_prev[0]) * (1000.0 / self._sub_seteps)
+        # print(str(walk_vel) +", " + str(obs[0:3]) + ", " + str(self._obs_prev[0:3]))
         stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
         self._obs_prev = obs
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
-        walk_vel = np.array(self._agent.get_velocities()).flatten()[0]
         ctrl_cost = np.sum(np.square(action))/action.shape[0]
         reward = 1.0 + 1.0 * min(walk_vel, 3.0) - 2e-1 * ctrl_cost
         self._cum_reward += reward
@@ -206,16 +221,16 @@ class ICubWalk(GazeboEnvBase):
 
 
 class ICubWalkPID(ICubWalk):
-    def __init__(self, max_steps=120, port=None):
+    def __init__(self, max_steps=200, sub_seteps=50, port=None):
         super(ICubWalkPID, self).__init__(
-            use_pid=True, max_steps=max_steps, port=port)
+            use_pid=True, max_steps=max_steps, sub_seteps=sub_seteps, port=port)
 
 
 def main():
     """
     Simple testing of this environment.
     """
-    env = ICubWalkPID(max_steps=120)
+    env = ICubWalkPID(max_steps=200, sub_seteps=50)
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))
