@@ -40,7 +40,7 @@ class ICubWalk(GazeboEnvBase):
     """
 
     def __init__(self,
-                 max_steps=200,
+                 max_steps=120,
                  use_pid=False,
                  obs_stack=True,
                  sub_seteps=50,
@@ -202,12 +202,11 @@ class ICubWalk(GazeboEnvBase):
         self._world.step(self._sub_seteps)
         obs = self._get_observation()
         walk_vel = (obs[0] - self._obs_prev[0]) * (1000.0 / self._sub_seteps)
-        # print(str(walk_vel) +", " + str(obs[0:3]) + ", " + str(self._obs_prev[0:3]))
         stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
         self._obs_prev = obs
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
         ctrl_cost = np.sum(np.square(action))/action.shape[0]
-        reward = 1.0 + 1.0 * min(walk_vel, 3.0) - 2e-1 * ctrl_cost
+        reward = 1.0 + 10.0 * min(walk_vel, 3.0) - 2e-1 * ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
         fail = torso_pose[2] < 0.58
@@ -221,7 +220,7 @@ class ICubWalk(GazeboEnvBase):
 
 
 class ICubWalkPID(ICubWalk):
-    def __init__(self, max_steps=200, sub_seteps=50, port=None):
+    def __init__(self, max_steps=120, sub_seteps=50, port=None):
         super(ICubWalkPID, self).__init__(
             use_pid=True, max_steps=max_steps, sub_seteps=sub_seteps, port=port)
 
@@ -230,7 +229,7 @@ def main():
     """
     Simple testing of this environment.
     """
-    env = ICubWalkPID(max_steps=200, sub_seteps=50)
+    env = ICubWalkPID(max_steps=120, sub_seteps=50)
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))
