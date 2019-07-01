@@ -72,8 +72,8 @@ def train_eval(
         env_name='SocialBot-GroceryGround-v0',
         random_seed=0,
         # TODO(b/127576522): rename to policy_fc_layers.
-        actor_fc_layers=(256, 100),
-        value_fc_layers=(256, 100),
+        actor_fc_layers=(128, 64),
+        value_fc_layers=(128, 64),
         use_rnns=False,
         # Params for collect
         num_environment_steps=10000000,
@@ -82,7 +82,7 @@ def train_eval(
         replay_buffer_capacity=1001,  # Per-environment
         # Params for train
         num_epochs=25,
-        learning_rate=1e-4,
+        learning_rate=3e-4,
         # Params for eval
         num_eval_episodes=10,
         eval_interval=500,

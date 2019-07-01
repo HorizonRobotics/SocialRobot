@@ -86,10 +86,10 @@ def train_eval(
         root_dir,
         env_name='SocialBot-ICubWalkPID-v0',
         num_iterations=10000000,
-        actor_fc_layers=(256, 256),
+        actor_fc_layers=(256, 128),
         critic_obs_fc_layers=None,
         critic_action_fc_layers=None,
-        critic_joint_fc_layers=(256, 256),
+        critic_joint_fc_layers=(256, 128),
         # Params for collect
         initial_collect_steps=2000,
         collect_steps_per_iteration=1,
