@@ -44,13 +44,39 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
     A simple teacher task to find a goal for env GroceryGround.
     """
 
-    def __init__(self, reward_shaping=False, **kwargs):
+    def __init__(self, reward_shaping=False, random_goal=False, **kwargs):
         """
         Args:
-            eward_shaping (bool): if ture, use shaped reward accroding to distance rather than -1 and 1
+            reward_shaping (bool): if ture, use shaped reward accroding to distance rather than -1 and 1
+            random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
         """
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
         self._reward_shaping = reward_shaping
+        self._random_goal = random_goal
+        self._goal_name = 'cube_20k'
+        self._object_list = [
+            'coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
+            'plastic_cup', 'beer', 'hammer'
+        ]
+        self.task_vocab = self.task_vocab + self._object_list
+
+    def get_object_list(self):
+        """
+        Args:
+            None
+        Returns:
+            Object list defined by teacher task
+        """
+        return self._object_list
+
+    def get_goal_name(self):
+        """
+        Args:
+            None
+        Returns:
+            Goal's name at this episode
+        """
+        return self._goal_name
 
     def run(self, agent, world):
         """
@@ -61,6 +87,9 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         """
         agent_sentence = yield
         agent.reset()
+        if self._random_goal:
+            random_id = random.randrange(len(self._object_list))
+            self._goal_name = self._object_list[random_id]
         goal = world.get_agent(self._goal_name)
         loc, dir = agent.get_pose()
         loc = np.array(loc)
@@ -77,17 +106,17 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
                 logger.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                              "dist: " + str(dist))
                 agent_sentence = yield TeacherAction(
-                    reward=10.0, sentence="Well done!", done=True)
+                    reward=10.0, sentence="well done", done=True)
                 steps_since_last_reward = 0
             else:
                 if self._reward_shaping:
-                    agent_sentence = yield TeacherAction(
-                        reward=-dist / self._random_range,
-                        sentence="Failed",
-                        done=False)
+                    reward = -dist / self._random_range
                 else:
-                    agent_sentence = yield TeacherAction()
-        yield TeacherAction(reward=0.0, sentence="Failed", done=True)
+                    reward = 0.0
+                agent_sentence = yield TeacherAction(
+                    reward=reward, sentence=self._goal_name, done=False)
+        yield TeacherAction(
+            reward=0.0, sentence="failed to " + self._goal_name, done=True)
 
 
 @gin.configurable
@@ -115,24 +144,29 @@ class GroceryGround(GazeboEnvBase):
     def __init__(self,
                  with_language=False,
                  use_image_obs=False,
+                 random_goal=False,
+                 use_pid=False,
                  agent_type='pioneer2dx_noplugin',
-                 goal_name='cube_20k',
-                 max_steps=200,
+                 max_steps=160,
                  port=None,
                  resized_image_size=(64, 64),
                  data_format='channels_last'):
         """
         Args:
-            with_language (bool): the observation will be a dict with an extra sentence
-            use_image_obs (bool): use image, or use internal states as observation
+            with_language (bool): The observation will be a dict with an extra sentence
+            use_image_obs (bool): Use image, or use internal states as observation
                 poses in internal states observation are in world coordinate
-            agent_type (string): select the agent robot, supporting pr2_differential, 
+            random_goal (bool): If ture, teacher will randomly select goal from the 
+                object list each episode
+            use_pid (bool): If ture, joints will be equipped with PID controller, action 
+                is the target velocity. Otherwise joints are directly controlled by force.
+            agent_type (string): Select the agent robot, supporting pr2_differential, 
                 pioneer2dx_noplugin, turtlebot, and irobot create for now
             port: Gazebo port, need to specify when run multiple environment in parallel
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
                 to (width, height)
-            data_format (str):  one of `channels_last` or `channels_first`.
+            data_format (str):  One of `channels_last` or `channels_first`.
                 The ordering of the dimensions in the images.
                 `channels_last` corresponds to images with shape
                 `(height, width, channels)` while `channels_first` corresponds
@@ -141,10 +175,21 @@ class GroceryGround(GazeboEnvBase):
         super(GroceryGround, self).__init__(port=port)
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
-        self._object_types = [
-            'coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
-            'plastic_cup', 'beer', 'hammer'
-        ]
+
+        self._teacher = teacher.Teacher(task_groups_exclusive=False)
+        task_group = teacher.TaskGroup()
+        self._teacher_task = GroceryGroundGoalTask(
+            max_steps=max_steps,
+            success_distance_thresh=0.5,
+            fail_distance_thresh=3.0,
+            reward_shaping=True,
+            random_goal=random_goal,
+            random_range=10.0)
+        task_group.add_task(self._teacher_task)
+        self._teacher.add_task_group(task_group)
+        self._teacher.build_vocab_from_tasks()
+
+        self._object_list = self._teacher_task.get_object_list()
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self._world.info()
@@ -159,26 +204,15 @@ class GroceryGround(GazeboEnvBase):
         agent_cfg = agent_cfgs[agent_type]
         self._agent = self._world.get_agent(agent_type)
         self._agent_joints = agent_cfg['control_joints']
-        for _joint in self._agent_joints:
-            self._agent.set_pid_controller(_joint, 'velocity', d=0.005)
-        self._agent_control_range = agent_cfg['control_limit']
+        if use_pid:
+            for _joint in self._agent_joints:
+                self._agent.set_pid_controller(_joint, 'velocity', d=0.005)
+            self._agent_control_range = 20.0
+        else:
+            self._agent_control_range = agent_cfg['control_limit']
         self._agent_camera = agent_cfg['camera_sensor']
-        self._goal_name = goal_name
-        self._goal = self._world.get_model(goal_name)
 
         logger.info("joints to control: %s" % self._agent_joints)
-
-        self._teacher = teacher.Teacher(False)
-        task_group = teacher.TaskGroup()
-        self._teacher_task = GroceryGroundGoalTask(
-            max_steps=max_steps,
-            goal_name=self._goal_name,
-            success_distance_thresh=0.5,
-            fail_distance_thresh=3.0,
-            reward_shaping=True,
-            random_range=10.0)
-        task_group.add_task(self._teacher_task)
-        self._teacher.add_task_group(task_group)
 
         self._with_language = with_language
         self._use_image_obs = use_image_obs
@@ -186,7 +220,6 @@ class GroceryGround(GazeboEnvBase):
         self._data_format = data_format
         self._resized_image_size = resized_image_size
 
-        self.reset()
         obs_data = self._get_observation()
         if self._use_image_obs:
             obs_data_space = gym.spaces.Box(
@@ -194,21 +227,23 @@ class GroceryGround(GazeboEnvBase):
         else:
             obs_data_space = gym.spaces.Box(
                 low=-50, high=50, shape=obs_data.shape, dtype=np.float32)
-
-        control_space = gym.spaces.Box(
+        self._control_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
             shape=[len(self._agent_joints)],
             dtype=np.float32)
-
         if self._with_language:
+            self._seq_length = 20
+            sequence_space = DiscreteSequence(self._teacher.vocab_size,
+                                              self._seq_length)
             self.observation_space = gym.spaces.Dict(
-                data=obs_data_space, sentence=DiscreteSequence(128, 24))
+                data=obs_data_space, sequence=sequence_space)
             self.action_space = gym.spaces.Dict(
-                control=control_space, sentence=DiscreteSequence(128, 24))
+                control=self._control_space, sequence=sequence_space)
         else:
             self.observation_space = obs_data_space
-            self.action_space = control_space
+            self.action_space = self._control_space
+        self.reset()
 
     def reset(self):
         """
@@ -227,7 +262,9 @@ class GroceryGround(GazeboEnvBase):
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
-            obs = OrderedDict(data=obs_data, sentence=teacher_action)
+            seq = self._teacher.sentence_to_sequence(teacher_action.sentence,
+                                                     self._seq_length)
+            obs = OrderedDict(data=obs_data, sequence=seq)
         else:
             obs = self._get_observation()
         return obs
@@ -245,7 +282,8 @@ class GroceryGround(GazeboEnvBase):
             if self._data_format == "channels_first":
                 obs_data = np.transpose(obs_data, [2, 0, 1])
         else:
-            goal_pos = np.array(self._goal.get_pose()[0]).flatten()
+            goal = self._world.get_model(self._teacher_task.get_goal_name())
+            goal_pos = np.array(goal.get_pose()[0]).flatten()
             agent_pose = np.array(self._agent.get_pose()).flatten()
             agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
             joint_vel = []
@@ -263,16 +301,17 @@ class GroceryGround(GazeboEnvBase):
         """
         Args:
             action (dict|int): If with_language, action is a dictionary 
-                    with key "control" and "sentence".
+                    with key "control" and "sequence".
                     action['control'] is a vector whose dimention is
-                    len(_joint_names). action['sentence'] is a string.
+                    len(_joint_names). action['sequence'] is a sentence.
                     If not with_language, it is an int for the action id.
         Returns:
-            If with_language, it is a dictionary with key 'data' and 'sentence'
+            If with_language, it is a dictionary with key 'data' and 'sequence'
             If not with_language, it is a numpy.array or image for observation
         """
         if self._with_language:
-            sentence = action.get('sentence', None)
+            sequence = action.get('sequence', None)
+            sentence = self._teacher.sequence_to_sentence(sequence)
             controls = action['control'] * self._agent_control_range
         else:
             sentence = ''
@@ -283,7 +322,9 @@ class GroceryGround(GazeboEnvBase):
         self._world.step(10)
         if self._with_language:
             obs_data = self._get_observation()
-            obs = OrderedDict(data=obs_data, sentence=teacher_action.sentence)
+            seq = self._teacher.sentence_to_sequence(teacher_action.sentence,
+                                                     self._seq_length)
+            obs = OrderedDict(data=obs_data, sequence=seq)
         else:
             obs = self._get_observation()
         self._steps_in_this_episode += 1
@@ -293,8 +334,8 @@ class GroceryGround(GazeboEnvBase):
         return obs, teacher_action.reward, teacher_action.done, {}
 
     def _random_insert_objects(self):
-        for obj_id in range(len(self._object_types)):
-            model_name = self._object_types[obj_id]
+        for obj_id in range(len(self._object_list)):
+            model_name = self._object_list[obj_id]
             self._world.insertModelFile('model://' + model_name)
             logger.debug('model ' + model_name + ' inserted')
             self._world.step(10)
@@ -304,10 +345,10 @@ class GroceryGround(GazeboEnvBase):
             time.sleep(0.1)
 
     def _random_move_objects(self, random_range=10.0):
-        obj_num = len(self._object_types)
+        obj_num = len(self._object_list)
         obj_pos_list = random.sample(self._pos_list, obj_num)
         for obj_id in range(obj_num):
-            model_name = self._object_types[obj_id]
+            model_name = self._object_list[obj_id]
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
@@ -319,17 +360,30 @@ def main():
     Simple testing of this environment.
     """
     import matplotlib.pyplot as plt
+    with_language = True
+    use_image_obs = False
+    random_goal = True
     fig = None
-    env = GroceryGround(use_image_obs=True)
-    env.render()
+    env = GroceryGround(
+        with_language=with_language,
+        use_image_obs=use_image_obs,
+        random_goal=random_goal)
     while True:
-        actions = np.array(np.random.randn(env.action_space.shape[0]))
+        actions = np.array(np.random.randn(env._control_space.shape[0]))
+        if with_language:
+            seq = env._teacher.sentence_to_sequence("hello", env._seq_length)
+            actions = dict(control=actions, sequence=seq)
         obs, _, done, _ = env.step(actions)
-        if fig is None:
-            fig = plt.imshow(obs)
-        else:
-            fig.set_data(obs)
-        plt.pause(0.00001)
+        if with_language and (env._steps_in_this_episode == 1 or done):
+            seq = obs["sequence"]
+            logger.info("sequence: " + str(seq))
+            logger.info("sentence: " + env._teacher.sequence_to_sentence(seq))
+        if use_image_obs:
+            if fig is None:
+                fig = plt.imshow(obs)
+            else:
+                fig.set_data(obs)
+            plt.pause(0.00001)
         if done:
             env.reset()
 

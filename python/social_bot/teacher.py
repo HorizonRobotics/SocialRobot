@@ -13,10 +13,13 @@
 # limitations under the License.
 
 from abc import abstractmethod
+import logging
 import numpy as np
 import random
 import gym
 from gym import spaces
+
+logger = logging.getLogger(__name__)
 
 
 class DiscreteSequence(gym.Space):
@@ -137,6 +140,7 @@ class Teacher(object):
     _task_groups = []
     _weights = []
     _task_groups_exclusive = True
+    vocab_size = 0
 
     def __init__(self, task_groups_exclusive=True):
         self._task_groups_exclusive = task_groups_exclusive
@@ -144,6 +148,41 @@ class Teacher(object):
     def add_task_group(self, task_group, weight=1):
         self._task_groups.append(task_group)
         self._weights.append(weight)
+
+    def build_vocab_from_tasks(self):
+        # Initialize vocab with '0' by index 0, which is used for padding
+        vocab_list = [0, ]
+        for g in self._task_groups:
+            for t in g._tasks:
+                vocab_list = vocab_list + t.task_vocab
+        # Remove repeated words and convert to dict
+        self._vocab_list = sorted(set(vocab_list), key=vocab_list.index)
+        self.vocab_size = len(self._vocab_list)
+        self._vocab_dict = dict(
+            zip(self._vocab_list, list(range(0, self.vocab_size))))
+
+    def sentence_to_sequence(self, sentence, max_sequence_length):
+        word_list = sentence.split()
+        for word in word_list:
+            assert word in self._vocab_dict.keys(), \
+                "Word is out of vocab: " + word + \
+                ", during encoding sentence to sequence"
+        sequence = list(map(lambda x: self._vocab_dict[x], word_list))
+        padding_num = max_sequence_length - len(sequence)
+        assert padding_num >= 0, "Sequence " + str(sequence) + \
+            " exceed max_sequence_length: " + str(max_sequence_length) + \
+            ", consider to increase the max_sequence_length"
+        return np.pad(sequence, (0, padding_num), 'constant')
+
+    def sequence_to_sentence(self, sequence):
+        for seq_index in range(len(sequence)):
+            assert sequence[seq_index] < self.vocab_size, \
+                "Unknown word id: " + str(sequence[seq_index]) + \
+                ", during decoding sequence to sentence"
+            if sequence[seq_index] == 0: break
+        word_list = list(
+            map(lambda x: self._vocab_list[x], sequence[:seq_index]))
+        return " ".join(word_list)
 
     def reset(self, agent, world):
         for g in self._task_groups:
