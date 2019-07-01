@@ -1244,6 +1244,7 @@
         <use_parent_model_frame>1</use_parent_model_frame>
       </axis>
     </joint>
+
     <include>
         <uri>model://icub/l_leg</uri>
     </include>
@@ -1253,5 +1254,6 @@
     </include>
 
     <pose>0 0 0.70 0 0 0</pose>
+    
   </model>
 </sdf>

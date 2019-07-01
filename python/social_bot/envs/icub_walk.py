@@ -31,10 +31,11 @@ logger = logging.getLogger(__name__)
 class ICubWalk(GazeboEnvBase):
     """
     The goal of this task is to make the agent icub standing and walking.
-    All the joints are controllable by pid or force.
+    Joints are controllable with force, or with target velocity if the internal
+        pid controller is used.
     Observation is a single ndarray with internal joint states, and agent pose.
     Reward shaping:
-        reward = not_fall_bonus + walk_distance - ctrl_cost
+        reward = not_fall_bonus + truncked_walk_velocity - ctrl_cost
     This task is not solved yet. But examples/tain_icub_sac.py can help the agent
         stand much longer.
     """
@@ -63,7 +64,6 @@ class ICubWalk(GazeboEnvBase):
         # to avoid different parallel simulation has the same randomness
         random.seed(port)
         self._world.info()
-        #logger.info("joint names: %s" % self._all_joints)
 
         self._agent_joints = [
             'icub::iCub::l_leg::l_hip_pitch',
@@ -165,7 +165,7 @@ class ICubWalk(GazeboEnvBase):
             self._agent.get_link_pose('icub::iCub::r_leg::r_foot')).flatten()
         average_pos =  np.sum(
             [agent_pose[0:3], head_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]],
-            axis=0)/4.0
+            axis=0) / 4.0
         agent_poses = np.concatenate(
             (average_pos, agent_pose, head_pose, l_foot_pose, r_foot_pose))
         agent_vel = np.array(self._agent.get_velocities()).flatten()
@@ -185,7 +185,6 @@ class ICubWalk(GazeboEnvBase):
         obs = np.concatenate(
             (agent_poses, agent_vel, joint_pos, joint_vel, foot_contacts),
             axis=0)
-        obs = np.array(obs).reshape(-1)
         return obs
 
     def step(self, action):

@@ -6,7 +6,7 @@
       <pose>0 0 0 0 -0 0</pose>
       <inertial>
         <pose>0 0 0 0 -0 0</pose>
-        <mass>4.72</mass>
+        <mass>1.0</mass>
         <inertia>
           <ixx>0.01</ixx>
           <ixy>0</ixy>
@@ -77,7 +77,7 @@
         <limit>
           <lower>-0.383972</lower>
           <upper>1.46608</upper>
-          <effort>40</effort>
+          <effort>320</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -112,7 +112,7 @@
         <limit>
           <lower>-0.680678</lower>
           <upper>0.680678</upper>
-          <effort>40</effort>
+          <effort>160</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -128,7 +128,7 @@
       <pose>-0.00549988 1.45945e-08 0.032 1.5708 -7.34642e-06 -3.14159</pose>
       <inertial>
         <pose>0.00222898 0.075 -1.18362e-17 0 -0 0</pose>
-        <mass>4.81</mass>
+        <mass>1.2</mass>
         <inertia>
           <ixx>0.07472</ixx>
           <ixy>-3.6e-06</ixy>
@@ -165,7 +165,7 @@
         <limit>
           <lower>-1.02974</lower>
           <upper>1.02974</upper>
-          <effort>40</effort>
+          <effort>80</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -351,23 +351,9 @@
         </geometry>
       </visual>
     </link>
-    <joint name='l_arm_ft_sensor' type='fixed'>
+    <joint name='l_arm_fixed_joint' type='fixed'>
       <child>l_upper_arm</child>
       <parent>l_shoulder_3</parent>
-      <axis>
-        <xyz>-0 0 0</xyz>
-        <limit>
-          <lower>0</lower>
-          <upper>0</upper>
-          <effort>0</effort>
-          <velocity>0</velocity>
-        </limit>
-        <dynamics>
-          <spring_reference>0</spring_reference>
-          <spring_stiffness>0</spring_stiffness>
-        </dynamics>
-        <use_parent_model_frame>1</use_parent_model_frame>
-      </axis>
     </joint>
     <link name='l_elbow_1'>
       <pose>-0.0257497 -0.11026 0.0230202 3.14159 -6.5209e-06 -3.14159</pose>
@@ -643,7 +629,7 @@
       <pose>-0.00780836 1.22353e-08 0.2348 -1.5708 1.46928e-05 8.36603e-06</pose>
       <inertial>
         <pose>0.0185 -0.1108 6.78454e-18 0 -0 0</pose>
-        <mass>3</mass>
+        <mass>0.5</mass>
         <inertia>
           <ixx>0.01</ixx>
           <ixy>0</ixy>
@@ -1080,7 +1066,7 @@
         </geometry>
       </visual>
     </link>
-    <joint name='r_arm_ft_sensor' type='fixed'>
+    <joint name='r_arm_fixed_joint' type='fixed'>
       <child>r_upper_arm</child>
       <parent>r_shoulder_3</parent>
     </joint>

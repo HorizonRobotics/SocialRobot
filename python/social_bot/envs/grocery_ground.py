@@ -350,7 +350,7 @@ def main():
     """
     import matplotlib.pyplot as plt
     fig = None
-    env = GroceryGround(use_image_obs=True)
+    env = GroceryGround(use_image_obs=True, agent_type = 'icub_with_hands')
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))
