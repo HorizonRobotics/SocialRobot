@@ -140,7 +140,7 @@ class GroceryGround(GazeboEnvBase):
     can also be controlled by the teacher.
 
     """
-
+        
     def __init__(self,
                  with_language=False,
                  use_image_obs=False,
@@ -161,7 +161,8 @@ class GroceryGround(GazeboEnvBase):
             use_pid (bool): If ture, joints will be equipped with PID controller, action 
                 is the target velocity. Otherwise joints are directly controlled by force.
             agent_type (string): Select the agent robot, supporting pr2_differential, 
-                pioneer2dx_noplugin, turtlebot, and irobot create for now
+                pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
+                note that 'agent_type' should be the same str as the model's name
             port: Gazebo port, need to specify when run multiple environment in parallel
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
@@ -173,9 +174,11 @@ class GroceryGround(GazeboEnvBase):
                 to images with shape `(channels, height, width)`.
         """
         super(GroceryGround, self).__init__(port=port)
-        self._world = gazebo.new_world_from_file(
-            os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
-
+        wf_path = os.path.join(social_bot.get_world_dir(), "grocery_ground.world")
+        with open(wf_path, 'r+') as world_file:
+            world_string = self._insert_agent_to_world_file(world_file, agent_type)
+        self._world = gazebo.new_world_from_string(world_string)
+        
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
         self._teacher_task = GroceryGroundGoalTask(
@@ -192,17 +195,14 @@ class GroceryGround(GazeboEnvBase):
         self._object_list = self._teacher_task.get_object_list()
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
-        self._world.info()
-        self._world.insertModelFile('model://' + agent_type)
         self._world.step(20)
-        time.sleep(0.1)  # Avoid 'px!=0' error
-        self._random_insert_objects()
+        self._insert_objects(self._object_list)
         self._world.model_list_info()
         self._world.info()
         agent_cfgs = json.load(
             open(os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),'r'))
         agent_cfg = agent_cfgs[agent_type]
-        self._agent = self._world.get_agent(agent_type)
+        self._agent = self._world.get_agent()
         self._agent_joints = agent_cfg['control_joints']
         if use_pid:
             for _joint in self._agent_joints:
@@ -333,9 +333,17 @@ class GroceryGround(GazeboEnvBase):
             logger.debug("episode ends at cum reward:" + str(self._cum_reward))
         return obs, teacher_action.reward, teacher_action.done, {}
 
-    def _random_insert_objects(self):
-        for obj_id in range(len(self._object_list)):
-            model_name = self._object_list[obj_id]
+    def _insert_agent_to_world_file(self, world_file, model):
+        content = world_file.read()
+        insert_pos = content.find("<!-- Static Objects -->")
+        content = list(content)
+        insert_str = "<include> <uri>model://"+model+"</uri> </include>\n"
+        content.insert(insert_pos, insert_str)
+        return "".join(content)
+
+    def _insert_objects(self, object_list):
+        for obj_id in range(len(object_list)):
+            model_name = object_list[obj_id]
             self._world.insertModelFile('model://' + model_name)
             logger.debug('model ' + model_name + ' inserted')
             self._world.step(10)
@@ -367,7 +375,10 @@ def main():
     env = GroceryGround(
         with_language=with_language,
         use_image_obs=use_image_obs,
+        agent_type='icub',
+        use_pid=True,
         random_goal=random_goal)
+    env.render()
     while True:
         actions = np.array(np.random.randn(env._control_space.shape[0]))
         if with_language:

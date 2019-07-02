@@ -420,10 +420,31 @@ void StartSensors() {
   std::call_once(flag, []() { gazebo::sensors::run_threads(); });
 }
 
-std::unique_ptr<World> NewWorldFromString(const std::string& std_string);
+std::unique_ptr<World> NewWorldFromString(const std::string& std_string) {
+  gazebo::physics::WorldPtr world;
+  sdf::SDFPtr worldSDF(new sdf::SDF);
+  worldSDF->SetFromString(std_string);
+  sdf::ElementPtr worldElem = worldSDF->Root()->GetElement("world");
+  world = gazebo::physics::create_world();
+  gazebo::physics::load_world(world, worldElem);
+  gazebo::physics::init_world(world);
+  gazebo::sensors::run_once(true);
+  StartSensors();
+  return std::make_unique<World>(world);
+}
 
 std::unique_ptr<World> NewWorldFromFile(const std::string& world_file) {
   gazebo::physics::WorldPtr world = gazebo::loadWorld(world_file);
+  gazebo::sensors::run_once(true);
+  StartSensors();
+  return std::make_unique<World>(world);
+}
+
+std::unique_ptr<World> NewWorldFromFileWithAgent(const std::string& world_file,
+                                                 const std::string& agent_name) {
+  gazebo::physics::WorldPtr world = gazebo::loadWorld(world_file);
+  world->InsertModelFile(agent_name);
+  world->UpdateStateSDF();
   gazebo::sensors::run_once(true);
   StartSensors();
   return std::make_unique<World>(world);
@@ -441,10 +462,21 @@ PYBIND11_MODULE(pygazebo, m) {
         py::arg("port") = 0);
 
   // Global functions
+  m.def("new_world_from_string",
+        &NewWorldFromString,
+        "Create a world from sdf string",
+        py::arg("std_string"));
+
   m.def("new_world_from_file",
         &NewWorldFromFile,
         "Create a world from .world file",
         py::arg("world_file"));
+
+  m.def("new_world_from_file_with_agent",
+        &NewWorldFromFileWithAgent,
+        "Create a world from .world file, and insert the agent model in the mean time",
+        py::arg("world_file"),
+        py::arg("agent_name"));
 
   // World class
   py::class_<World>(m, "World")

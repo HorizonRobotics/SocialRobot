@@ -48,5 +48,35 @@
             "iCub::r_elbow"],
         "control_limit": 80, 
         "camera_sensor": " "
+    },
+    "icub": {
+        "control_joints": [
+            "iCub::l_leg::l_hip_pitch",
+            "iCub::l_leg::l_hip_roll",
+            "iCub::l_leg::l_hip_yaw",
+            "iCub::l_leg::l_knee",
+            "iCub::l_leg::l_ankle_pitch",
+            "iCub::l_leg::l_ankle_roll",
+            "iCub::r_leg::r_hip_pitch",
+            "iCub::r_leg::r_hip_roll",
+            "iCub::r_leg::r_hip_yaw",
+            "iCub::r_leg::r_knee",
+            "iCub::r_leg::r_ankle_pitch",
+            "iCub::r_leg::r_ankle_roll",
+            "iCub::torso_yaw",
+            "iCub::torso_roll",
+            "iCub::torso_pitch",
+            "iCub::l_shoulder_pitch",
+            "iCub::l_shoulder_roll",
+            "iCub::l_shoulder_yaw",
+            "iCub::l_elbow",
+            "iCub::neck_pitch",
+            "iCub::neck_roll",
+            "iCub::r_shoulder_pitch",
+            "iCub::r_shoulder_roll",
+            "iCub::r_shoulder_yaw",
+            "iCub::r_elbow"],
+        "control_limit": 80, 
+        "camera_sensor": " "
     }
 }
