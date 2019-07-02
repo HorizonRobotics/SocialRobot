@@ -6,7 +6,7 @@
     }, 
     "pioneer2dx_noplugin": {
         "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
-        "control_limit": 20.0, 
+        "control_limit": 0.5, 
         "camera_sensor": "default::pioneer2dx_noplugin::camera_link::camera"
     },
     "turtlebot": {
