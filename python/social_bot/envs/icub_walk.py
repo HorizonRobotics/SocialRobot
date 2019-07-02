@@ -41,21 +41,18 @@ class ICubWalk(GazeboEnvBase):
     """
 
     def __init__(self,
-                 max_steps=120,
                  use_pid=False,
                  obs_stack=True,
                  sub_seteps=50,
                  port=None):
         """
         Args:
-            max_steps (int): episode will end when the agent exceeds the number of steps.
             use_pid (bool): use pid or direct force to control
             port: Gazebo port, need to specify when run multiple environment in parallel
             obs_stack (bool): Use staked multi step observation if True
-            sub_seteps (int): take how many sim substeps during one gym step
+            sub_seteps (int): take how many simulator substeps during one gym step
         """
         super(ICubWalk, self).__init__(port=port)
-        self._max_steps = max_steps
         self._sub_seteps = sub_seteps
         self._obs_stack = obs_stack
         self._world = gazebo.new_world_from_file(
@@ -208,8 +205,7 @@ class ICubWalk(GazeboEnvBase):
         reward = 1.0 + 5.0 * min(walk_vel, 1.0) - 2e-1 * ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
-        fail = torso_pose[2] < 0.58
-        done = self._steps_in_this_episode > self._max_steps or fail
+        done = torso_pose[2] < 0.58
         if done:
             logger.debug("episode ends at cum reward:" + str(self._cum_reward)
                 + ", step:" + str(self._steps_in_this_episode))
@@ -219,21 +215,21 @@ class ICubWalk(GazeboEnvBase):
 
 
 class ICubWalkPID(ICubWalk):
-    def __init__(self, max_steps=120, sub_seteps=50, port=None):
+    def __init__(self, sub_seteps=50, port=None):
         super(ICubWalkPID, self).__init__(
-            use_pid=True, max_steps=max_steps, sub_seteps=sub_seteps, port=port)
+            use_pid=True, sub_seteps=sub_seteps, port=port)
 
 
 def main():
     """
     Simple testing of this environment.
     """
-    env = ICubWalkPID(max_steps=120, sub_seteps=50)
+    env = ICubWalkPID(sub_seteps=50)
     env.render()
     while True:
         actions = np.array(np.random.randn(env.action_space.shape[0]))
         obs, _, done, _ = env.step(actions)
-        if done:
+        if done or env._steps_in_this_episode > 100:
             env.reset()
 
 if __name__ == "__main__":
