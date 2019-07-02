@@ -205,7 +205,7 @@ class ICubWalk(GazeboEnvBase):
         self._obs_prev = obs
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
         ctrl_cost = np.sum(np.square(action))/action.shape[0]
-        reward = 1.0 + 10.0 * min(walk_vel, 3.0) - 2e-1 * ctrl_cost
+        reward = 1.0 + 5.0 * min(walk_vel, 1.0) - 2e-1 * ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
         fail = torso_pose[2] < 0.58
