@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import random
 
 import gym
 
@@ -24,6 +25,8 @@ class GazeboEnvBase(gym.Env):
         if port is None:
             port = 0
         self._port = port
+        # to avoid different parallel simulation has the same randomness
+        random.seed(port)
         self._rendering_process = None
         gazebo.initialize(port=port)
 
