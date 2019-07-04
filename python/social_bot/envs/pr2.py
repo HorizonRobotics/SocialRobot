@@ -93,9 +93,6 @@ class Pr2Gripper(GazeboEnvBase):
 
         self._all_joints = self._agent.get_joint_names()
 
-        # to avoid different parallel simulation has the same randomness
-        random.seed(port)
-
         # passive joints are joints that could move but have no actuators, are only indirectly
         # controled by the motion of active joints.
         # Though in the simulation, we could "control" through API, we chose to be more realistic.
