@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-r"""Train and Eval ICub.
+r"""Train and Eval ICub Walk Task.
 
 A simple test for SocialBot-ICub env use TF-Agents
 The original file is from the SAC example of TF-Agents:
@@ -22,8 +21,8 @@ are modifed suite the environment.
 
 To run:
 ```bash
-tensorboard --logdir ~/tmp/ICubWalkPIDExample &
-python ./examples/train_icub_walk_sac.py --logtostderr
+python examples/train_icub_walk_sac.py \
+    --root_dir=~/tmp/ICubWalkSAC &
 ```
 
 """
@@ -60,13 +59,14 @@ from tf_agents.utils import common
 import social_bot
 from alf.environments import suite_socialbot
 
-flags.DEFINE_string('root_dir', '~/tmp/ICubWalkPIDExample',
+flags.DEFINE_string('root_dir', None,
                     'Root directory for writing logs/summaries/checkpoints.')
 flags.DEFINE_multi_string('gin_file', None,
                           'Path to the trainer config files.')
 flags.DEFINE_multi_string('gin_param', None, 'Gin binding to pass through.')
 
 FLAGS = flags.FLAGS
+
 
 @gin.configurable
 def normal_projection_net(action_spec,
@@ -80,6 +80,7 @@ def normal_projection_net(action_spec,
         init_means_output_factor=init_means_output_factor,
         std_transform=sac_agent.std_clip_transform,
         scale_distribution=True)
+
 
 @gin.configurable
 def train_eval(
@@ -101,9 +102,9 @@ def train_eval(
         # Params for train
         train_steps_per_iteration=1,
         batch_size=256,
-        actor_learning_rate=2e-4,
-        critic_learning_rate=2e-4,
-        alpha_learning_rate=2e-4,
+        actor_learning_rate=5e-4,
+        critic_learning_rate=5e-4,
+        alpha_learning_rate=5e-4,
         td_errors_loss_fn=tf.compat.v1.losses.mean_squared_error,
         gamma=0.99,
         reward_scale_factor=1.0,
@@ -119,7 +120,7 @@ def train_eval(
         log_interval=1000,
         summary_interval=1000,
         summaries_flush_secs=10,
-        debug_summaries=False,
+        debug_summaries=True,
         summarize_grads_and_vars=False,
         eval_metrics_callback=None):
     """A simple train and eval for SAC."""
@@ -141,7 +142,6 @@ def train_eval(
     global_step = tf.compat.v1.train.get_or_create_global_step()
     with tf.compat.v2.summary.record_if(
             lambda: tf.math.equal(global_step % summary_interval, 0)):
-        # tf_env = tf_py_environment.TFPyEnvironment(suite_socialbot.load(env_name))
         tf_env = tf_py_environment.TFPyEnvironment(
            parallel_py_environment.ParallelPyEnvironment(
                [lambda: suite_socialbot.load(env_name,wrap_with_process=False)] * num_parallel_environments))
@@ -328,5 +328,7 @@ def main(_):
     gin.parse_config_files_and_bindings(FLAGS.gin_file, FLAGS.gin_param)
     train_eval(FLAGS.root_dir)
 
+
 if __name__ == '__main__':
     app.run(main)
+    flags.mark_flag_as_required('root_dir')

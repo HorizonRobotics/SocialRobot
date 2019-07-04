@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A simple enviroment to train icub robot standing and walking
+A simple enviroment for iCub robot walking task
 """
 import gym
 import os
@@ -40,10 +40,7 @@ class ICubWalk(GazeboEnvBase):
         stand much longer.
     """
 
-    def __init__(self,
-                 use_pid=False,
-                 obs_stack=True,
-                 sub_seteps=50,
+    def __init__(self, use_pid=False, obs_stack=True, sub_seteps=50,
                  port=None):
         """
         Args:
@@ -64,7 +61,7 @@ class ICubWalk(GazeboEnvBase):
 
         self._agent_joints = [
             'icub::iCub::l_leg::l_hip_pitch',
-            'icub::iCub::l_leg::l_hip_roll', 
+            'icub::iCub::l_leg::l_hip_roll',
             'icub::iCub::l_leg::l_hip_yaw',
             'icub::iCub::l_leg::l_knee',
             'icub::iCub::l_leg::l_ankle_pitch',
@@ -102,7 +99,7 @@ class ICubWalk(GazeboEnvBase):
                     p=0.02,
                     d=0.00001,
                     max_force=self._joints_limits[joint_index])
-            self._agent_control_range = 3.0*np.pi
+            self._agent_control_range = 3.0 * np.pi
         else:
             self._agent_control_range = np.array(self._joints_limits)
 
@@ -114,7 +111,7 @@ class ICubWalk(GazeboEnvBase):
             high=1.0,
             shape=[len(self._agent_joints)],
             dtype=np.float32)
-        
+
         self.reset()
         obs = self._get_observation()
         if self._obs_stack:
@@ -135,7 +132,8 @@ class ICubWalk(GazeboEnvBase):
         self._cum_reward = 0.0
         # Give an intilal random pose offset by take an random action
         actions = np.array(np.random.randn(self.action_space.shape[0]))
-        controls = dict(zip(self._agent_joints, self._agent_control_range * actions))
+        controls = dict(
+            zip(self._agent_joints, self._agent_control_range * actions))
         self._agent.take_action(controls)
         self._world.step(10)
         obs = self._get_observation()
@@ -155,16 +153,16 @@ class ICubWalk(GazeboEnvBase):
         agent_pose = np.array(
             self._agent.get_link_pose('icub::iCub::root_link')).flatten()
         head_pose = np.array(
-            self._agent.get_link_pose('icub::iCub::head')).flatten()
+            self._agent.get_link_pose('icub::iCub::chest')).flatten()
         l_foot_pose = np.array(
             self._agent.get_link_pose('icub::iCub::l_leg::l_foot')).flatten()
         r_foot_pose = np.array(
             self._agent.get_link_pose('icub::iCub::r_leg::r_foot')).flatten()
-        average_pos =  np.sum(
-            [agent_pose[0:3], head_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]],
-            axis=0) / 4.0
-        agent_poses = np.concatenate(
-            (average_pos, agent_pose, head_pose, l_foot_pose, r_foot_pose))
+        average_pos = np.sum([
+            agent_pose[0:3], head_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
+        ], axis=0) / 4.0
+        agent_poses = np.concatenate((average_pos, agent_pose, head_pose,
+                                      l_foot_pose, r_foot_pose))
         agent_vel = np.array(self._agent.get_velocities()).flatten()
         joint_pos = []
         joint_vel = []
@@ -174,11 +172,12 @@ class ICubWalk(GazeboEnvBase):
             joint_pos.append(joint_state.get_positions())
             joint_vel.append(joint_state.get_velocities())
         joint_pos = np.array(joint_pos).flatten()
+        self.joint_pos = joint_pos
         joint_vel = np.array(joint_vel).flatten()
-        foot_contacts = np.array(
-            [self._check_contacts_to_ground("l_foot_contact_sensor"),
-             self._check_contacts_to_ground("r_foot_contact_sensor")]
-            ).astype(np.float32)
+        foot_contacts = np.array([
+            self._check_contacts_to_ground("l_foot_contact_sensor"),
+            self._check_contacts_to_ground("r_foot_contact_sensor")
+        ]).astype(np.float32)
         obs = np.concatenate(
             (agent_poses, agent_vel, joint_pos, joint_vel, foot_contacts),
             axis=0)
@@ -201,14 +200,17 @@ class ICubWalk(GazeboEnvBase):
         stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
         self._obs_prev = obs
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
-        ctrl_cost = np.sum(np.square(action))/action.shape[0]
-        reward = 1.0 + 5.0 * min(walk_vel, 1.0) - 2e-1 * ctrl_cost
+        action_ctrl_cost = np.sum(np.square(action)) / action.shape[0]
+        pose_ctrl_cost = np.sum(np.abs(self.joint_pos)) / self.joint_pos.shape[0]
+        ctrl_cost = action_ctrl_cost + 0.5 * pose_ctrl_cost
+        reward = 1.0 + 6.0 * min(walk_vel, 1.0) - 1.0 * ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
         done = torso_pose[2] < 0.58
         if done:
-            logger.debug("episode ends at cum reward:" + str(self._cum_reward)
-                + ", step:" + str(self._steps_in_this_episode))
+            logger.debug("episode ends at cum reward:" +
+                         str(self._cum_reward) + ", step:" +
+                         str(self._steps_in_this_episode))
         if self._obs_stack:
             obs = stacked_obs
         return obs, reward, done, {}
@@ -231,6 +233,7 @@ def main():
         obs, _, done, _ = env.step(actions)
         if done or env._steps_in_this_episode > 100:
             env.reset()
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
