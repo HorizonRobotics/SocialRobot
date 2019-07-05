@@ -127,13 +127,13 @@ class ICubWalk(GazeboEnvBase):
             Observaion of the first step
         """
         self._world.reset()
-        self._world.step(10)
         self._steps_in_this_episode = 0
         self._cum_reward = 0.0
         # Give an intilal random pose offset by take an random action
         actions = np.array(np.random.randn(self.action_space.shape[0]))
         controls = dict(
             zip(self._agent_joints, self._agent_control_range * actions))
+        self._world.step(10)
         self._agent.take_action(controls)
         self._world.step(10)
         obs = self._get_observation()
@@ -152,16 +152,16 @@ class ICubWalk(GazeboEnvBase):
     def _get_observation(self):
         agent_pose = np.array(
             self._agent.get_link_pose('icub::iCub::root_link')).flatten()
-        head_pose = np.array(
+        chest_pose = np.array(
             self._agent.get_link_pose('icub::iCub::chest')).flatten()
         l_foot_pose = np.array(
             self._agent.get_link_pose('icub::iCub::l_leg::l_foot')).flatten()
         r_foot_pose = np.array(
             self._agent.get_link_pose('icub::iCub::r_leg::r_foot')).flatten()
         average_pos = np.sum([
-            agent_pose[0:3], head_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
+            agent_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
         ], axis=0) / 4.0
-        agent_poses = np.concatenate((average_pos, agent_pose, head_pose,
+        agent_poses = np.concatenate((average_pos, agent_pose, chest_pose,
                                       l_foot_pose, r_foot_pose))
         agent_vel = np.array(self._agent.get_velocities()).flatten()
         joint_pos = []
@@ -200,9 +200,9 @@ class ICubWalk(GazeboEnvBase):
         stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
         self._obs_prev = obs
         torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
-        action_ctrl_cost = np.sum(np.square(action)) / action.shape[0]
-        pose_ctrl_cost = np.sum(np.abs(self.joint_pos)) / self.joint_pos.shape[0]
-        ctrl_cost = action_ctrl_cost + 0.5 * pose_ctrl_cost
+        action_cost = np.sum(np.square(action)) / action.shape[0]
+        movement_cost = np.sum(np.abs(self.joint_pos)) / self.joint_pos.shape[0]
+        ctrl_cost = action_cost + 0.5 * movement_cost
         reward = 1.0 + 6.0 * min(walk_vel, 1.0) - 1.0 * ctrl_cost
         self._cum_reward += reward
         self._steps_in_this_episode += 1
