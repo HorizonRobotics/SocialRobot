@@ -2,22 +2,26 @@
     "pr2_differential": {
         "control_joints": ["pr2_differential::fl_caster_r_wheel_joint", "pr2_differential::fr_caster_l_wheel_joint"], 
         "control_limit": 20.0,
-        "camera_sensor": "default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor"
+        "camera_sensor": "default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor",
+        "use_pid": false
     }, 
     "pioneer2dx_noplugin": {
         "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
         "control_limit": 0.5, 
-        "camera_sensor": "default::pioneer2dx_noplugin::camera_link::camera"
+        "camera_sensor": "default::pioneer2dx_noplugin::camera_link::camera",
+        "use_pid": false
     },
     "turtlebot": {
         "control_joints": ["turtlebot::create::left_wheel", "turtlebot::create::right_wheel"], 
         "control_limit": 0.5, 
-        "camera_sensor": "default::turtlebot::kinect::link::camera"
+        "camera_sensor": "default::turtlebot::kinect::link::camera",
+        "use_pid": false
     },
     "create": {
         "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
         "control_limit": 0.5, 
-        "camera_sensor": " "
+        "camera_sensor": " ",
+        "use_pid": false
     },
     "icub_with_hands": {
         "control_joints": [
@@ -46,8 +50,9 @@
             "iCub::r_shoulder_roll",
             "iCub::r_shoulder_yaw",
             "iCub::r_elbow"],
-        "control_limit": 80, 
-        "camera_sensor": " "
+        "control_limit": 10, 
+        "camera_sensor": "default::iCub::left_eye_link::left_camera",
+        "use_pid": true
     },
     "icub": {
         "control_joints": [
@@ -76,7 +81,8 @@
             "iCub::r_shoulder_roll",
             "iCub::r_shoulder_yaw",
             "iCub::r_elbow"],
-        "control_limit": 80, 
-        "camera_sensor": " "
+        "control_limit": 10, 
+        "camera_sensor": " ",
+        "use_pid": true
     }
 }
