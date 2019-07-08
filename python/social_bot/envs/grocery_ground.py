@@ -196,13 +196,12 @@ class GroceryGround(GazeboEnvBase):
         self._world.step(20)
         self._insert_objects(self._object_list)
         self._world.info()
+        self._agent = self._world.get_agent()
+
         agent_cfgs = json.load(
             open(os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),'r'))
         agent_cfg = agent_cfgs[agent_type]
-        self._agent = self._world.get_agent()
         self._agent_joints = agent_cfg['control_joints']
-
-
         joint_states = list(
             map(lambda s: self._agent.get_joint_state(s), self._agent_joints))
         self._joints_limits = list(
@@ -215,12 +214,11 @@ class GroceryGround(GazeboEnvBase):
                     p=0.02,
                     d=0.00001,
                     max_force=self._joints_limits[joint_index])
-            self._agent_control_range = agent_cfg['control_limit']
+            self._agent_control_range = agent_cfg['pid_control_limit']
         else:
             self._agent_control_range = np.array(self._joints_limits)
-        self._agent_camera = agent_cfg['camera_sensor']
-
         logger.info("joints to control: %s" % self._agent_joints)
+        self._agent_camera = agent_cfg['camera_sensor']
 
         self._with_language = with_language
         self._use_image_obs = use_image_obs
@@ -327,7 +325,7 @@ class GroceryGround(GazeboEnvBase):
         controls = dict(zip(self._agent_joints, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
-        self._world.step(20)
+        self._world.step(50)
         if self._with_language:
             obs_data = self._get_observation()
             seq = self._teacher.sentence_to_sequence(teacher_action.sentence,
