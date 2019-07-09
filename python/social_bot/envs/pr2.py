@@ -6,6 +6,7 @@ import numpy as np
 import random
 import math
 import PIL
+import gin
 
 from gym import spaces
 import social_bot
@@ -18,6 +19,7 @@ import matplotlib.pyplot as plt
 logger = logging.getLogger(__name__)
 
 
+@gin.configurable
 class Pr2Gripper(GazeboEnvBase):
     """
     The goal of this task is to train the agent to use its arm and fingers.
@@ -119,7 +121,7 @@ class Pr2Gripper(GazeboEnvBase):
             filter(
                 lambda s: s.find('pr2::r_') != -1 and s.split("::")[-1] not in unused_joints,
                 self._all_joints))
-        logger.info(
+        logger.debug(
             "joints in the right arm to control: %s" % self._r_arm_joints)
 
         joint_states = list(
@@ -128,7 +130,7 @@ class Pr2Gripper(GazeboEnvBase):
         self._r_arm_joints_limits = list(
             map(lambda s: s.get_effort_limits()[0], joint_states))
 
-        logger.info('\n'.join(
+        logger.debug('\n'.join(
             map(lambda s: str(s[0]) + ":" + str(s[1]),
                 zip(self._r_arm_joints, self._r_arm_joints_limits))))
 
@@ -330,15 +332,15 @@ class Pr2Gripper(GazeboEnvBase):
         delta_reward = 0
 
         if self._l_touch:
-            logger.info("l finger touch!")
+            logger.debug("l finger touch!")
             delta_reward += 0.5
 
         if self._r_touch:
-            logger.info("r finger touch!")
+            logger.debug("r finger touch!")
             delta_reward += 0.5
 
         if self._l_touch and self._r_touch:
-            logger.info("both touch!")
+            logger.debug("both touch!")
             goal_loc = self._goal_pose[0]
 
             # lifting reward
@@ -346,7 +348,7 @@ class Pr2Gripper(GazeboEnvBase):
             lift = min(max(elevation - 0.01, 0), 0.2)
 
             if lift > 0:
-                logger.info("beer lift! " + str(lift))
+                logger.debug("beer lift! " + str(lift))
                 delta_reward += (1.0 + 50 * lift)
 
         if delta_reward > 0:
@@ -363,9 +365,9 @@ class Pr2Gripper(GazeboEnvBase):
 
         self._cum_reward += reward
         if done:
-            logger.info("episode ends at dist: " + str(dist) + "|" +
-                        str(gripper_pos) + " with cum reward:" +
-                        str(self._cum_reward))
+            logger.debug("episode ends at dist: " + str(dist) + "|" +
+                         str(gripper_pos) + " with cum reward:" +
+                         str(self._cum_reward))
 
         if self._gripper_reward_dir == 1 and gripper_pos > self._gripper_upper_limit:
             self._gripper_reward_dir = -1
@@ -377,7 +379,7 @@ class Pr2Gripper(GazeboEnvBase):
 
     def run(self):
         self.reset()
-        self._world.info()
+        logger.debug(self._world.info())
         self._max_steps = 1  # To dbg initial setup only
         r_gripper_index = -1
         for i in range(len(self._r_arm_joints)):
@@ -400,7 +402,7 @@ class Pr2Gripper(GazeboEnvBase):
                 plt.imshow(obs[0][:, :, 3:])
                 plt.show()
             if done:
-                logger.info("episode reward:" + str(reward))
+                logger.debug("episode reward:" + str(reward))
                 self.reset()
                 reward = 0.0
 

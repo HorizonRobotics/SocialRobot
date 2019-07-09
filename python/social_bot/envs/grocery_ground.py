@@ -197,10 +197,12 @@ class GroceryGround(GazeboEnvBase):
         self._world.step(20)
         time.sleep(0.1)  # Avoid 'px!=0' error
         self._random_insert_objects()
-        self._world.model_list_info()
-        self._world.info()
+        logger.debug(self._world.model_list_info())
+        logger.debug(self._world.info())
         agent_cfgs = json.load(
-            open(os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),'r'))
+            open(
+                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                'r'))
         agent_cfg = agent_cfgs[agent_type]
         self._agent = self._world.get_agent(agent_type)
         self._agent_joints = agent_cfg['control_joints']
@@ -212,7 +214,7 @@ class GroceryGround(GazeboEnvBase):
             self._agent_control_range = agent_cfg['control_limit']
         self._agent_camera = agent_cfg['camera_sensor']
 
-        logger.info("joints to control: %s" % self._agent_joints)
+        logger.debug("joints to control: %s" % self._agent_joints)
 
         self._with_language = with_language
         self._use_image_obs = use_image_obs

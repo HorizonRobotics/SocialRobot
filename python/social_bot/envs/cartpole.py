@@ -60,7 +60,7 @@ class CartPole(GazeboEnvBase):
             os.path.join(social_bot.get_world_dir(), "cartpole.world"))
 
         self._agent = self._world.get_agent()
-        logger.info("joint names: %s" % self._agent.get_joint_names())
+        logger.debug("joint names: %s" % self._agent.get_joint_names())
         self._x_threshold = x_threshold
         self._theta_threshold = theta_threshold
         high = np.array([
