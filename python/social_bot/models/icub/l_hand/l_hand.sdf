@@ -411,6 +411,26 @@
                 </surface>
             </collision>
         </link>
+        <joint name='l_wrist_yaw' type='revolute'>
+            <child>l_hand_base_link</child>
+            <parent>l_wrist_1</parent>
+            <axis>
+                <xyz>1.01956e-06 -1 -6.27061e-06</xyz>
+                <limit>
+                <lower>-0.436332</lower>
+                <upper>0.436332</upper>
+                <effort>5</effort>
+                <velocity>100</velocity>
+                </limit>
+                <dynamics>
+                <damping>1</damping>
+                <friction>0</friction>
+                <spring_reference>0</spring_reference>
+                <spring_stiffness>0</spring_stiffness>
+                </dynamics>
+                <use_parent_model_frame>1</use_parent_model_frame>
+            </axis>
+        </joint>
         <link name='l_ai_dummy'>
             <pose frame=''>0.01225 -0.0643 -0.027 -1.4749 -0.072507 -1.57079</pose>
             <inertial>

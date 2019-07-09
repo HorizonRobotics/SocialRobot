@@ -53,9 +53,9 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
         self._reward_shaping = reward_shaping
         self._random_goal = random_goal
-        self._goal_name = 'cube_20k'
+        self._goal_name = 'cafe_table'
         self._object_list = [
-            'coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
+            'coke_can', 'table', 'bookshelf', 'car_wheel',
             'plastic_cup', 'beer', 'hammer'
         ]
         self.task_vocab = self.task_vocab + self._object_list
@@ -146,7 +146,7 @@ class GroceryGround(GazeboEnvBase):
                  use_image_obs=False,
                  random_goal=False,
                  agent_type='pioneer2dx_noplugin',
-                 max_steps=160,
+                 max_steps=120,
                  port=None,
                  resized_image_size=(64, 64),
                  data_format='channels_last'):
@@ -264,7 +264,6 @@ class GroceryGround(GazeboEnvBase):
         self._world.reset()
         self._teacher.reset(self._agent, self._world)
         self._random_move_objects()
-        self._world.step(20)
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
