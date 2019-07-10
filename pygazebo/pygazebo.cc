@@ -393,15 +393,15 @@ class World {
   void Reset() { world_->Reset(); }
 };
 
-void Initialize(const std::vector<std::string>& args, int port = 0, bool quite = false) {
+void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=false) {
   static std::once_flag flag;
   if (port != 0) {
     std::string uri = "localhost:" + std::to_string(port);
     setenv("GAZEBO_MASTER_URI", uri.c_str(), 1);
   }
 
-  std::call_once(flag, [&args, quite]() {
-    gazebo::common::Console::SetQuiet(quite);
+  std::call_once(flag, [&args, quiet]() {
+    gazebo::common::Console::SetQuiet(quiet);
     gazebo::setupServer(args);
     // gazebo::runWorld uses World::RunLoop(). RunLoop() starts LogWorker()
     // every time. LogWorker will always store something in the buffer when
@@ -442,7 +442,7 @@ PYBIND11_MODULE(pygazebo, m) {
         "Initialize",
         py::arg("args") = std::vector<std::string>(),
         py::arg("port") = 0,
-        py::arg("quite") = false);
+        py::arg("quiet") = false);
 
   // Global functions
   m.def("new_world_from_file",

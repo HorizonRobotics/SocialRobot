@@ -1,10 +1,10 @@
 # Copyright (c) 2019 Horizon Robotics. All Rights Reserved.
 import gym
 import os
-import logging
 import numpy as np
 import random
 import math
+from absl import logging
 
 from gym import spaces
 import social_bot
@@ -12,8 +12,6 @@ from social_bot import teacher
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 import social_bot.pygazebo as gazebo
-
-logger = logging.getLogger(__name__)
 
 
 class CartPole(GazeboEnvBase):
@@ -60,7 +58,7 @@ class CartPole(GazeboEnvBase):
             os.path.join(social_bot.get_world_dir(), "cartpole.world"))
 
         self._agent = self._world.get_agent()
-        logger.debug("joint names: %s" % self._agent.get_joint_names())
+        logging.debug("joint names: %s" % self._agent.get_joint_names())
         self._x_threshold = x_threshold
         self._theta_threshold = theta_threshold
         high = np.array([

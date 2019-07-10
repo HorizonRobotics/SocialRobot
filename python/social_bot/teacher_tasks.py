@@ -14,7 +14,7 @@
 """
 A variety of teacher tasks.
 """
-import logging
+
 import math
 import numpy as np
 import os
@@ -25,7 +25,7 @@ from social_bot import teacher
 from social_bot.teacher import TeacherAction
 import social_bot.pygazebo as gazebo
 
-logger = logging.getLogger(__name__)
+from absl import logging
 
 
 class GoalTask(teacher.Task):
@@ -86,8 +86,8 @@ class GoalTask(teacher.Task):
                 dot = sum(dir * goal_dir)
                 if dot > 0.707:
                     # within 45 degrees of the agent direction
-                    logger.debug("loc: " + str(loc) + " goal: " +
-                                 str(goal_loc) + "dist: " + str(dist))
+                    logging.debug("loc: " + str(loc) + " goal: " +
+                                  str(goal_loc) + "dist: " + str(dist))
                     agent_sentence = yield TeacherAction(
                         reward=1.0, sentence="Well done!", done=False)
                     steps_since_last_reward = 0
@@ -95,13 +95,13 @@ class GoalTask(teacher.Task):
                 else:
                     agent_sentence = yield TeacherAction()
             elif dist > self._initial_dist + self._fail_distance_thresh:
-                logger.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
-                             "dist: " + str(dist))
+                logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
+                              "dist: " + str(dist))
                 yield TeacherAction(reward=-1.0, sentence="Failed", done=True)
             else:
                 agent_sentence = yield TeacherAction()
-        logger.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
-                     "dist: " + str(dist))
+        logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
+                      "dist: " + str(dist))
         yield TeacherAction(reward=-1.0, sentence="Failed", done=True)
 
     def _move_goal(self, goal, agent_loc):

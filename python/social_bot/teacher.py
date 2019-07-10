@@ -13,13 +13,11 @@
 # limitations under the License.
 
 from abc import abstractmethod
-import logging
 import numpy as np
 import random
 import gym
+from absl import logging
 from gym import spaces
-
-logger = logging.getLogger(__name__)
 
 
 class DiscreteSequence(gym.Space):
@@ -151,7 +149,9 @@ class Teacher(object):
 
     def build_vocab_from_tasks(self):
         # Initialize vocab with '0' by index 0, which is used for padding
-        vocab_list = [0, ]
+        vocab_list = [
+            0,
+        ]
         for g in self._task_groups:
             for t in g._tasks:
                 vocab_list = vocab_list + t.task_vocab
