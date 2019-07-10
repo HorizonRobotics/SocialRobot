@@ -4,7 +4,7 @@
         <link name='r_hand_base_link'>
             <inertial>
                 <pose frame=''>0.011682 -0.051682 0.000577 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -18,7 +18,7 @@
                 <pose frame=''>0.016 -0.0625 -0 -1.5708 7e-06 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_palm.dae</uri>
                     </mesh>
                 </geometry>
@@ -27,7 +27,7 @@
                 <pose frame=''>0.016 -0.0625 -0 -1.5708 7e-06 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_palm.dae</uri>
                     </mesh>
                 </geometry>
@@ -62,7 +62,7 @@
                 <pose frame=''>0.01225 -0.0643 0.027 -1.4749 0.017507 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_indexbase.dae</uri>
                     </mesh>
                 </geometry>
@@ -71,7 +71,7 @@
                 <pose frame=''>0.01225 -0.0643 0.027 -1.4749 0.017507 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_indexbase.dae</uri>
                     </mesh>
                 </geometry>
@@ -106,7 +106,7 @@
                 <pose frame=''>0.01225 -0.079098 0.026741 0.0959 0.017507 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ail0.dae</uri>
                     </mesh>
                 </geometry>
@@ -115,7 +115,7 @@
                 <pose frame=''>0.01225 -0.079098 0.026741 0.0959 0.017507 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ail0.dae</uri>
                     </mesh>
                 </geometry>
@@ -150,7 +150,7 @@
                 <pose frame=''>0.0135 -0.06225 -0.02475 -1.4835 0.017507 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_littlebase.dae</uri>
                     </mesh>
                 </geometry>
@@ -159,7 +159,7 @@
                 <pose frame=''>0.0135 -0.06225 -0.02475 -1.4835 0.017507 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_littlebase.dae</uri>
                     </mesh>
                 </geometry>
@@ -194,7 +194,7 @@
                 <pose frame=''>0.0135 -0.077048 -0.025009 0.0873 0.017507 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_lil0.dae</uri>
                     </mesh>
                 </geometry>
@@ -203,7 +203,7 @@
                 <pose frame=''>0.0135 -0.077048 -0.025009 0.0873 0.017507 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_lil0.dae</uri>
                     </mesh>
                 </geometry>
@@ -238,7 +238,7 @@
                 <pose frame=''>0.011 -0.0653 0.01 -1.5708 7e-06 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_middlebase.dae</uri>
                     </mesh>
                 </geometry>
@@ -247,7 +247,7 @@
                 <pose frame=''>0.011 -0.0653 0.01 -1.5708 7e-06 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_middlebase.dae</uri>
                     </mesh>
                 </geometry>
@@ -282,7 +282,7 @@
                 <pose frame=''>0.011 -0.0803 0.01 -0 7e-06 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ml0.dae</uri>
                     </mesh>
                 </geometry>
@@ -291,7 +291,7 @@
                 <pose frame=''>0.011 -0.0803 0.01 -0 7e-06 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ml0.dae</uri>
                     </mesh>
                 </geometry>
@@ -326,7 +326,7 @@
                 <pose frame=''>0.01175 -0.06415 -0.0059 -1.4835 0.008707 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ringbase.dae</uri>
                     </mesh>
                 </geometry>
@@ -335,7 +335,7 @@
                 <pose frame=''>0.01175 -0.06415 -0.0059 -1.4835 0.008707 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ringbase.dae</uri>
                     </mesh>
                 </geometry>
@@ -370,7 +370,7 @@
                 <pose frame=''>0.01175 -0.078949 -0.006029 0.0873 0.008707 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ril0.dae</uri>
                     </mesh>
                 </geometry>
@@ -379,7 +379,7 @@
                 <pose frame=''>0.01175 -0.078949 -0.006029 0.0873 0.008707 -1.57079</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ril0.dae</uri>
                     </mesh>
                 </geometry>
@@ -436,7 +436,7 @@
         <link name='r_ai_dummy'>
             <pose frame=''>0.01225 -0.0643 0.027 -1.4749 0.017507 -1.57079</pose>
             <inertial>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -482,7 +482,7 @@
             <pose frame=''>0.01225 -0.079098 0.026741 0.0959 0.017507 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -496,7 +496,7 @@
                 <pose frame=''>0.0259 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ail1.dae</uri>
                     </mesh>
                 </geometry>
@@ -505,7 +505,7 @@
                 <pose frame=''>0.0259 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ail1.dae</uri>
                     </mesh>
                 </geometry>
@@ -602,7 +602,7 @@
             <pose frame=''>0.012251 -0.104994 0.026287 0.0959 0.017507 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -616,7 +616,7 @@
                 <pose frame=''>0.022 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ail2.dae</uri>
                     </mesh>
                 </geometry>
@@ -625,7 +625,7 @@
                 <pose frame=''>0.022 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ail2.dae</uri>
                     </mesh>
                 </geometry>
@@ -692,7 +692,7 @@
             <pose frame=''>0.012251 -0.126991 0.025902 0.0959 0.017507 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -706,7 +706,7 @@
                 <pose frame=''>0.0168 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ail3.dae</uri>
                     </mesh>
                 </geometry>
@@ -715,7 +715,7 @@
                 <pose frame=''>0.0168 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ail3.dae</uri>
                     </mesh>
                 </geometry>
@@ -781,7 +781,7 @@
         <link name='r_li_dummy'>
             <pose frame=''>0.0135 -0.06225 -0.02475 -1.4835 0.017507 -1.57079</pose>
             <inertial>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -827,7 +827,7 @@
             <pose frame=''>0.0135 -0.077048 -0.025009 0.0873 0.017507 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -841,7 +841,7 @@
                 <pose frame=''>0.0218 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_lil1.dae</uri>
                     </mesh>
                 </geometry>
@@ -850,7 +850,7 @@
                 <pose frame=''>0.0218 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_lil1.dae</uri>
                     </mesh>
                 </geometry>
@@ -917,7 +917,7 @@
             <pose frame=''>0.0135 -0.098844 -0.025391 0.0873 0.017507 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -931,7 +931,7 @@
                 <pose frame=''>0.019 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_lil2.dae</uri>
                     </mesh>
                 </geometry>
@@ -940,7 +940,7 @@
                 <pose frame=''>0.019 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_lil2.dae</uri>
                     </mesh>
                 </geometry>
@@ -1007,7 +1007,7 @@
             <pose frame=''>0.0135 -0.117841 -0.025723 0.0873 0.017507 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1021,7 +1021,7 @@
                 <pose frame=''>0.0168 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_lil3.dae</uri>
                     </mesh>
                 </geometry>
@@ -1030,7 +1030,7 @@
                 <pose frame=''>0.0168 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_lil3.dae</uri>
                     </mesh>
                 </geometry>
@@ -1096,7 +1096,7 @@
         <link name='r_m_dummy'>
             <pose frame=''>0.011 -0.0653 0.01 -1.5708 7e-06 -1.57079</pose>
             <inertial>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1142,7 +1142,7 @@
             <pose frame=''>0.011 -0.0803 0.01 -0 7e-06 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1156,7 +1156,7 @@
                 <pose frame=''>0.0285 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ml1.dae</uri>
                     </mesh>
                 </geometry>
@@ -1165,7 +1165,7 @@
                 <pose frame=''>0.0285 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ml1.dae</uri>
                     </mesh>
                 </geometry>
@@ -1232,7 +1232,7 @@
             <pose frame=''>0.011 -0.1088 0.01 -0 7e-06 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1246,7 +1246,7 @@
                 <pose frame=''>0.024 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ml2.dae</uri>
                     </mesh>
                 </geometry>
@@ -1255,7 +1255,7 @@
                 <pose frame=''>0.024 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ml2.dae</uri>
                     </mesh>
                 </geometry>
@@ -1322,7 +1322,7 @@
             <pose frame=''>0.011001 -0.1328 0.009999 -0 7e-06 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1336,7 +1336,7 @@
                 <pose frame=''>0.0168 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ml3.dae</uri>
                     </mesh>
                 </geometry>
@@ -1345,7 +1345,7 @@
                 <pose frame=''>0.0168 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ml3.dae</uri>
                     </mesh>
                 </geometry>
@@ -1411,7 +1411,7 @@
         <link name='r_ri_dummy'>
             <pose frame=''>0.01175 -0.06415 -0.0059 -1.4835 0.008707 -1.57079</pose>
             <inertial>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1457,7 +1457,7 @@
             <pose frame=''>0.01175 -0.078949 -0.006029 0.0873 0.008707 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1471,7 +1471,7 @@
                 <pose frame=''>0.0259 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ril1.dae</uri>
                     </mesh>
                 </geometry>
@@ -1480,7 +1480,7 @@
                 <pose frame=''>0.0259 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ril1.dae</uri>
                     </mesh>
                 </geometry>
@@ -1547,7 +1547,7 @@
             <pose frame=''>0.01175 -0.104848 -0.006254 0.0873 0.008707 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1561,7 +1561,7 @@
                 <pose frame=''>0.022 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ril2.dae</uri>
                     </mesh>
                 </geometry>
@@ -1570,7 +1570,7 @@
                 <pose frame=''>0.022 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ril2.dae</uri>
                     </mesh>
                 </geometry>
@@ -1637,7 +1637,7 @@
             <pose frame=''>0.01175 -0.126848 -0.006446 0.0873 0.008707 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1651,7 +1651,7 @@
                 <pose frame=''>0.0168 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_ril3.dae</uri>
                     </mesh>
                 </geometry>
@@ -1660,7 +1660,7 @@
                 <pose frame=''>0.0168 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_ril3.dae</uri>
                     </mesh>
                 </geometry>
@@ -1727,7 +1727,7 @@
             <pose frame=''>0.021 -0.0386 0.01235 -0.078604 -1.07329 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1741,7 +1741,7 @@
                 <pose frame=''>0 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_tl0.dae</uri>
                     </mesh>
                 </geometry>
@@ -1750,7 +1750,7 @@
                 <pose frame=''>0 0 0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_tl0.dae</uri>
                     </mesh>
                 </geometry>
@@ -1785,7 +1785,7 @@
                 <pose frame=''>0.021 0.0056 -0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_tl1.dae</uri>
                     </mesh>
                 </geometry>
@@ -1794,7 +1794,7 @@
                 <pose frame=''>0.021 0.0056 -0 -1.5708 0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_tl1.dae</uri>
                     </mesh>
                 </geometry>
@@ -1861,7 +1861,7 @@
             <pose frame=''>0.026583 -0.049008 0.030595 -1.6494 -1.07329 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1875,7 +1875,7 @@
                 <pose frame=''>0.026 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_tl2.dae</uri>
                     </mesh>
                 </geometry>
@@ -1884,7 +1884,7 @@
                 <pose frame=''>0.026 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_tl2.dae</uri>
                     </mesh>
                 </geometry>
@@ -1951,7 +1951,7 @@
             <pose frame=''>0.026583 -0.061416 0.053443 -1.6494 -1.07329 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -1965,7 +1965,7 @@
                 <pose frame=''>0.022 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_tl3.dae</uri>
                     </mesh>
                 </geometry>
@@ -1974,7 +1974,7 @@
                 <pose frame=''>0.022 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_tl3.dae</uri>
                     </mesh>
                 </geometry>
@@ -2041,7 +2041,7 @@
             <pose frame=''>0.026583 -0.071916 0.072776 -1.6494 -1.07329 -1.57079</pose>
             <inertial>
                 <pose frame=''>0 0 0 0 -0 0</pose>
-                <mass>0.025</mass>
+                <mass>0.1</mass>
                 <inertia>
                     <ixx>0.0000112</ixx>
                     <ixy>0</ixy>
@@ -2055,7 +2055,7 @@
                 <pose frame=''>0.0168 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/visual/r_hand/r_tl4.dae</uri>
                     </mesh>
                 </geometry>
@@ -2064,7 +2064,7 @@
                 <pose frame=''>0.0168 0 0 0 -0 0</pose>
                 <geometry>
                     <mesh>
-                        <scale>1 1 1</scale>
+                        <scale>0.9 0.9 0.9</scale>
                         <uri>model://icub/meshes/collision/r_hand/r_tl4.dae</uri>
                     </mesh>
                 </geometry>

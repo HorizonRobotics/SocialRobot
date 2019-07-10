@@ -431,7 +431,7 @@
         <limit>
           <lower>-0.872665</lower>
           <upper>0.872665</upper>
-          <effort>1.45</effort>
+          <effort>8.45</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -466,7 +466,7 @@
         <limit>
           <lower>-1.13446</lower>
           <upper>0.174533</upper>
-          <effort>1.65</effort>
+          <effort>8.65</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -1126,7 +1126,7 @@
         <limit>
           <lower>-0.872665</lower>
           <upper>0.872665</upper>
-          <effort>1.45</effort>
+          <effort>8.45</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -1161,7 +1161,7 @@
         <limit>
           <lower>-1.13446</lower>
           <upper>0.174533</upper>
-          <effort>1.65</effort>
+          <effort>8.65</effort>
           <velocity>100</velocity>
         </limit>
         <dynamics>
@@ -1184,12 +1184,12 @@
 
     <include>
       <uri>model://icub/l_hand</uri>
-      <pose>-0.0107501 -0.110259 -0.12428 1.57 0 1.57</pose>
+      <pose>-0.0107501 -0.110259 -0.11928 1.57 0 1.57</pose>
     </include>
 
     <include>
       <uri>model://icub/r_hand</uri>
-      <pose>-0.0107503 0.11026 -0.12428 1.57 0 -1.57</pose>
+      <pose>-0.0107503 0.11026 -0.11928 1.57 0 -1.57</pose>
     </include>
 
   </model>

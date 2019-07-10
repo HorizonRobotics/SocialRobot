@@ -53,12 +53,16 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
         self._reward_shaping = reward_shaping
         self._random_goal = random_goal
-        self._goal_name = 'cafe_table'
+        self._goal_name = 'coke_can_on_table'
+        self._static_object_list = [
+            'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
+            'hammer_on_table', 'cafe_table'
+        ]
         self._object_list = [
             'coke_can', 'table', 'bookshelf', 'car_wheel',
             'plastic_cup', 'beer', 'hammer'
         ]
-        self.task_vocab = self.task_vocab + self._object_list
+        self.task_vocab = self.task_vocab + self._static_object_list + self._object_list
 
     def get_object_list(self):
         """

@@ -9,6 +9,13 @@
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1</real_time_factor>
       <real_time_update_rate>0</real_time_update_rate>
+      <ode>
+        <solver>quick</solver>
+        <constraints>
+          <contact_max_correcting_vel>0.001</contact_max_correcting_vel>
+          <contact_surface_layer>0.002</contact_surface_layer>
+        </constraints>
+      </ode>
     </physics>
     <!-- Ground -->
     <include>
@@ -27,7 +34,6 @@
       <pose frame=''>-4.20 4.92 0 0 -0 0</pose>
     </model>
     <model name='coke_can_on_table'>
-      <static>1</static>
       <include>
         <uri>model://coke_can</uri>
       </include>
