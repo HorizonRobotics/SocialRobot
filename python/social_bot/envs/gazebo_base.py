@@ -17,6 +17,7 @@ import random
 
 import gym
 import gin
+import numpy as np
 
 import social_bot.pygazebo as gazebo
 
@@ -48,6 +49,21 @@ class GazeboEnvBase(gym.Env):
             return
         raise NotImplementedError(
             "rendering mode 'rgb_array' is not implemented.")
+
+    def _get_internal_states(self, agent, agent_joints):
+        joint_pos = []
+        joint_vel = []
+        for joint_id in range(len(agent_joints)):
+            joint_name = agent_joints[joint_id]
+            joint_state = agent.get_joint_state(joint_name)
+            joint_pos.append(joint_state.get_positions())
+            joint_vel.append(joint_state.get_velocities())
+        joint_pos = np.array(joint_pos).flatten()
+        joint_vel = np.array(joint_vel).flatten()
+        # pos of continous joint could be huge, wrap the range to [-pi, pi)
+        joint_pos = (joint_pos + np.pi) % (2 * np.pi) - np.pi
+        internal_states = np.concatenate((joint_pos, joint_vel), axis=0)
+        return internal_states
 
     def __del__(self):
         if self._rendering_process is not None:

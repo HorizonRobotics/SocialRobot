@@ -49,6 +49,7 @@ class SimpleNavigation(GazeboEnvBase):
 
     def __init__(self,
                  with_language=True,
+                 with_internal_states=False,
                  port=None,
                  resized_image_size=None,
                  data_format='channels_last'):
@@ -81,6 +82,7 @@ class SimpleNavigation(GazeboEnvBase):
         task_group.add_task(GoalTask())
         self._teacher.add_task_group(task_group)
         self._with_language = with_language
+        self._with_internal_states = with_internal_states
         self._resized_image_size = resized_image_size
         assert data_format in ('channels_first', 'channels_last')
         self._data_format = data_format
@@ -88,13 +90,24 @@ class SimpleNavigation(GazeboEnvBase):
         time.sleep(0.1)  # Allow Gazebo threads to be fully ready
         self.reset()
         # get observation dimension
-        image = self.get_camera_observation()
+        obs = self._get_observation()
+        if self._with_internal_states:
+            obs_space = gym.spaces.Tuple([
+                gym.spaces.Box(
+                    low=0, high=1.0, shape=obs[0].shape, dtype=np.float32),
+                gym.spaces.Box(
+                    low=-np.inf,
+                    high=np.inf,
+                    shape=obs[1].shape,
+                    dtype=np.float32)
+            ])
+        else :
+            obs_space = gym.spaces.Box(
+                    low=0, high=1.0, shape=obs.shape, dtype=np.float32),
         if with_language:
             self._observation_space = gym.spaces.Dict(
-                image=gym.spaces.Box(
-                    low=0, high=255, shape=image.shape, dtype=np.uint8),
+                image=obs_space,
                 sentence=DiscreteSequence(256, 20))
-
             self._action_space = gym.spaces.Dict(
                 control=gym.spaces.Box(
                     low=-0.2,
@@ -103,8 +116,7 @@ class SimpleNavigation(GazeboEnvBase):
                     dtype=np.float32),
                 sentence=DiscreteSequence(256, 20))
         else:
-            self._observation_space = gym.spaces.Box(
-                low=0, high=255, shape=image.shape, dtype=np.uint8)
+            self._observation_space = obs_space
             self._action_space = gym.spaces.Box(
                 low=-0.2,
                 high=0.2,
@@ -122,6 +134,14 @@ class SimpleNavigation(GazeboEnvBase):
     @property
     def reward_range(self):
         return -1., 1.
+
+    def _get_observation(self):
+        obs = self.get_camera_observation()
+        if self._with_internal_states:
+            internal_states = self._get_internal_states(
+                self._agent, self._joint_names)
+            obs = (obs, internal_states)
+        return obs
 
     def step(self, action):
         """
@@ -144,7 +164,7 @@ class SimpleNavigation(GazeboEnvBase):
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(self.NUM_SIMULATION_STEPS)
-        image = self.get_camera_observation()
+        image = self._get_observation()
         if self._with_language:
             obs = OrderedDict(image=image, sentence=teacher_action.sentence)
         else:
@@ -172,6 +192,7 @@ class SimpleNavigation(GazeboEnvBase):
             image = np.array(image, copy=False)
         if self._data_format == "channels_first":
             image = np.transpose(image, [2, 0, 1])
+        image = image.astype(np.float32) / 255.
         return image
 
 
@@ -215,11 +236,11 @@ def main():
                 fig.set_data(obs['image'])
             plt.pause(0.00001)
             if done:
-                logger.info("reward: " + str(reward) + "sent: " +
+                logging.info("reward: " + str(reward) + "sent: " +
                             str(obs["sentence"]))
                 break
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.set_verbosity(logging.DEBUG)
     main()

@@ -222,11 +222,18 @@ class GroceryGround(GazeboEnvBase):
 
         obs_data = self._get_observation()
         if self._use_image_obs:
-            obs_data_space = gym.spaces.Box(
-                low=0, high=255, shape=obs_data.shape, dtype=np.uint8)
+            obs_data_space = gym.spaces.Tuple([
+                gym.spaces.Box(
+                    low=0, high=1.0, shape=obs_data[0].shape, dtype=np.float32),
+                gym.spaces.Box(
+                    low=-np.inf,
+                    high=np.inf,
+                    shape=obs_data[1].shape,
+                    dtype=np.float32)
+            ])
         else:
             obs_data_space = gym.spaces.Box(
-                low=-50, high=50, shape=obs_data.shape, dtype=np.float32)
+                low=-np.inf, high=np.inf, shape=obs_data.shape, dtype=np.float32)
         self._control_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
@@ -270,32 +277,29 @@ class GroceryGround(GazeboEnvBase):
         return obs
 
     def _get_observation(self):
+        internal_states = self._get_internal_states(
+            self._agent, self._agent_joints)
         if self._use_image_obs:
-            obs_data = np.array(
+            img = np.array(
                 self._agent.get_camera_observation(self._agent_camera),
                 copy=False)
-            obs_data = np.array(obs_data)
             if self._resized_image_size:
-                obs_data = PIL.Image.fromarray(obs_data).resize(
+                img = PIL.Image.fromarray(img).resize(
                     self._resized_image_size, PIL.Image.ANTIALIAS)
-                obs_data = np.array(obs_data, copy=False)
+                img = np.array(img, copy=False)
             if self._data_format == "channels_first":
-                obs_data = np.transpose(obs_data, [2, 0, 1])
+                img = np.transpose(img, [2, 0, 1])
+            img = img.astype(np.float32) / 255.
+            obs = (img, internal_states)
         else:
             goal = self._world.get_model(self._teacher_task.get_goal_name())
             goal_pos = np.array(goal.get_pose()[0]).flatten()
             agent_pose = np.array(self._agent.get_pose()).flatten()
             agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
-            joint_vel = []
-            for joint_id in range(len(self._agent_joints)):
-                joint_name = self._agent_joints[joint_id]
-                joint_state = self._agent.get_joint_state(joint_name)
-                joint_vel.append(joint_state.get_velocities())
-            joint_vel = np.array(joint_vel).flatten()
             obs_data = np.concatenate(
-                (goal_pos, agent_pose, agent_vel, joint_vel), axis=0)
-            obs_data = np.array(obs_data).reshape(-1)
-        return obs_data
+                (goal_pos, agent_pose, agent_vel, internal_states), axis=0)
+            obs = np.array(obs_data)
+        return obs
 
     def step(self, action):
         """
@@ -362,7 +366,7 @@ def main():
     """
     import matplotlib.pyplot as plt
     with_language = True
-    use_image_obs = False
+    use_image_obs = True
     random_goal = True
     fig = None
     env = GroceryGround(
@@ -380,10 +384,12 @@ def main():
             logging.info("sequence: " + str(seq))
             logging.info("sentence: " + env._teacher.sequence_to_sentence(seq))
         if use_image_obs:
+            if with_language:
+                obs = obs['data']
             if fig is None:
-                fig = plt.imshow(obs)
+                fig = plt.imshow(obs[0])
             else:
-                fig.set_data(obs)
+                fig.set_data(obs[0])
             plt.pause(0.00001)
         if done:
             env.reset()
