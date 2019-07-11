@@ -3,6 +3,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <stdlib.h>
+#include <sstream>
 #include <gazebo/common/PID.hh>
 #include <gazebo/gazebo.hh>
 #include <gazebo/physics/Joint.hh>
@@ -130,7 +131,6 @@ class Agent : public Model {
     names.reserve(model_->GetJointCount());
     for (auto joint : model_->GetJoints()) {
       names.push_back(joint->GetScopedName());
-      std::cout << " joint name: " << names.back() << std::endl;
     }
     return names;
   }
@@ -272,12 +272,12 @@ class Agent : public Model {
                                               name2control.second);
           break;
         default:
-          std::cout << "Unknown control type '" << control_type << "'"
+          std::cerr << "Unknown control type '" << control_type << "'"
                     << " in joint '" << name2control.first << "'" << std::endl;
           return false;
       }
       if (!ret) {
-        std::cout << "Cannot find joint '" << name2control.first << "'"
+        std::cerr << "Cannot find joint '" << name2control.first << "'"
                   << " in  Agent '" << model_->GetName() << "'" << std::endl;
         return false;
       }
@@ -304,7 +304,7 @@ class Agent : public Model {
       joints_control_type_[joint_name] = control_type_position_;
       controller->SetPositionPID(joint_name, pid);
     } else {
-      std::cout << "Unknown PID type '" << pid_control_type << "'" << std::endl;
+      std::cerr << "Unknown PID type '" << pid_control_type << "'" << std::endl;
     }
   }
 
@@ -341,30 +341,33 @@ class World {
     world_->InsertModelFile(fileName);
   }
 
-  void ModelListInfo() {
+  std::string ModelListInfo() {
+    std::stringstream ss;
     for (auto model : world_->Models()) {
-      std::cout << "Model: " << model->GetName() << std::endl;
+      ss << "Model: " << model->GetName() << std::endl;
     }
+    return ss.str();
   }
 
-  void Info() const {
-    std::cout << " ==== world info ==== " << std::endl;
+  std::string Info() const {
+    std::stringstream ss;
+    ss << " ==== world info ==== " << std::endl;
     gazebo::physics::WorldState world_state(world_);
-    std::cout << " world state: " << world_state << std::endl;
+    ss << " world state: " << world_state << std::endl;
     for (auto model : world_->Models()) {
-      std::cout << "Model: " << model->GetName() << std::endl;
+      ss << "Model: " << model->GetName() << std::endl;
       for (auto link : model->GetLinks()) {
-        std::cout << "Link: " << link->GetScopedName() << std::endl;
+        ss << "Link: " << link->GetScopedName() << std::endl;
       }
 
       for (auto joint : model->GetJoints()) {
-        std::cout << "Joint: " << joint->GetScopedName() << std::endl;
-        std::cout << "DOF: " << joint->DOF() << std::endl;
+        ss << "Joint: " << joint->GetScopedName() << std::endl;
+        ss << "DOF: " << joint->DOF() << std::endl;
 
         for (int i = 0; i < joint->DOF(); i++) {
-          std::cout << "Position " << i << ":" << joint->Position(i)
+          ss << "Position " << i << ":" << joint->Position(i)
                     << std::endl;
-          std::cout << "Velocity " << i << ":" << joint->GetVelocity(i)
+          ss << "Velocity " << i << ":" << joint->GetVelocity(i)
                     << std::endl;
         }
       }
@@ -374,11 +377,12 @@ class World {
         gazebo::sensors::SensorManager::Instance();
 
     for (auto sensor : mgr->GetSensors()) {
-      std::cout << " sensor name: " << sensor->Name()
+      ss << " sensor name: " << sensor->Name()
                 << ", scoped name: " << sensor->ScopedName() << std::endl;
     }
 
-    std::cout << " === the end of world === " << std::endl;
+    ss << " === the end of world === " << std::endl;
+    return ss.str();
   }
 
   void InsertModelFromSdfString(const std::string& sdfString) {
@@ -390,15 +394,15 @@ class World {
   void Reset() { world_->Reset(); }
 };
 
-void Initialize(const std::vector<std::string>& args, int port = 0) {
+void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=false) {
   static std::once_flag flag;
   if (port != 0) {
     std::string uri = "localhost:" + std::to_string(port);
     setenv("GAZEBO_MASTER_URI", uri.c_str(), 1);
   }
 
-  std::call_once(flag, [&args]() {
-    gazebo::common::Console::SetQuiet(false);
+  std::call_once(flag, [&args, quiet]() {
+    gazebo::common::Console::SetQuiet(quiet);
     gazebo::setupServer(args);
     // gazebo::runWorld uses World::RunLoop(). RunLoop() starts LogWorker()
     // every time. LogWorker will always store something in the buffer when
@@ -459,7 +463,8 @@ PYBIND11_MODULE(pygazebo, m) {
         &Initialize,
         "Initialize",
         py::arg("args") = std::vector<std::string>(),
-        py::arg("port") = 0);
+        py::arg("port") = 0,
+        py::arg("quiet") = false);
 
   // Global functions
   m.def("new_world_from_string",
@@ -496,8 +501,8 @@ PYBIND11_MODULE(pygazebo, m) {
       .def(
           "get_model", &World::GetModel, "Get a model by name", py::arg("name"))
       .def("reset", &World::Reset, "Reset the world")
-      .def("model_list_info", &World::ModelListInfo, "print model list")
-      .def("info", &World::Info, "show debug info for the world");
+      .def("model_list_info", &World::ModelListInfo, "get model list")
+      .def("info", &World::Info, "get info for the world");
 
   py::class_<Model>(m, "Model")
       .def("get_pose",

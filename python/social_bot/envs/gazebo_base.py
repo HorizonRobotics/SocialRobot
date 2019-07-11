@@ -13,19 +13,24 @@
 # limitations under the License.
 
 import os
+import random
 
 import gym
+import gin
 
 import social_bot.pygazebo as gazebo
 
 
+@gin.configurable
 class GazeboEnvBase(gym.Env):
-    def __init__(self, port=None):
+    def __init__(self, port=None, quiet=False):
         if port is None:
             port = 0
         self._port = port
+        # to avoid different parallel simulation has the same randomness
+        random.seed(port)
         self._rendering_process = None
-        gazebo.initialize(port=port)
+        gazebo.initialize(port=port, quiet=quiet)
 
     def render(self, mode='human'):
         """Render the environment.

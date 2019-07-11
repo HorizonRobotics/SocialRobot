@@ -16,12 +16,12 @@ A simple enviroment for an agent play on a groceryground
 """
 import os
 import time
-import logging
 import numpy as np
 import random
 import json
 import PIL
 import itertools
+from absl import logging
 
 import gym
 from gym import spaces
@@ -35,8 +35,6 @@ from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
 from social_bot import teacher_tasks
 import social_bot.pygazebo as gazebo
-
-logger = logging.getLogger(__name__)
 
 
 class GroceryGroundGoalTask(teacher_tasks.GoalTask):
@@ -107,8 +105,8 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
             goal_loc = np.array(goal_loc)
             dist = np.linalg.norm(loc - goal_loc)
             if dist < self._success_distance_thresh:
-                logger.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
-                             "dist: " + str(dist))
+                logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
+                              "dist: " + str(dist))
                 agent_sentence = yield TeacherAction(
                     reward=10.0, sentence="well done", done=True)
                 steps_since_last_reward = 0
@@ -199,11 +197,12 @@ class GroceryGround(GazeboEnvBase):
         self._world = gazebo.new_world_from_string(world_string)
         self._world.step(20)
         self._insert_objects(self._object_list)
-        self._world.info()
         self._agent = self._world.get_agent()
-
+        logging.debug(self._world.info())
         agent_cfgs = json.load(
-            open(os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),'r'))
+            open(
+                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                'r'))
         agent_cfg = agent_cfgs[agent_type]
         self._agent_joints = agent_cfg['control_joints']
         joint_states = list(
@@ -221,8 +220,9 @@ class GroceryGround(GazeboEnvBase):
             self._agent_control_range = agent_cfg['pid_control_limit']
         else:
             self._agent_control_range = np.array(self._joints_limits)
-        logger.info("joints to control: %s" % self._agent_joints)
         self._agent_camera = agent_cfg['camera_sensor']
+
+        logging.debug("joints to control: %s" % self._agent_joints)
 
         self._with_language = with_language
         self._use_image_obs = use_image_obs
@@ -339,7 +339,8 @@ class GroceryGround(GazeboEnvBase):
         self._steps_in_this_episode += 1
         self._cum_reward += teacher_action.reward
         if teacher_action.done:
-            logger.debug("episode ends at cum reward:" + str(self._cum_reward))
+            logging.debug("episode ends at cum reward:" +
+                          str(self._cum_reward))
         return obs, teacher_action.reward, teacher_action.done, {}
 
     def _insert_agent_to_world_file(self, world_file, model):
@@ -354,7 +355,7 @@ class GroceryGround(GazeboEnvBase):
         for obj_id in range(len(object_list)):
             model_name = object_list[obj_id]
             self._world.insertModelFile('model://' + model_name)
-            logger.debug('model ' + model_name + ' inserted')
+            logging.debug('model ' + model_name + ' inserted')
             self._world.step(10)
             # Sleep for a while waiting for Gazebo server to finish the inserting
             # operation. Or the model may not be completely inserted, boost will
@@ -394,8 +395,8 @@ def main():
         obs, _, done, _ = env.step(actions)
         if with_language and (env._steps_in_this_episode == 1 or done):
             seq = obs["sequence"]
-            logger.info("sequence: " + str(seq))
-            logger.info("sentence: " + env._teacher.sequence_to_sentence(seq))
+            logging.info("sequence: " + str(seq))
+            logging.info("sentence: " + env._teacher.sequence_to_sentence(seq))
         if use_image_obs:
             if fig is None:
                 fig = plt.imshow(obs)
@@ -407,5 +408,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.set_verbosity(logging.DEBUG)
     main()
