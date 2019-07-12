@@ -235,6 +235,8 @@ def main():
         while True:
             obs, reward, done, _ = env.step(
                 dict(control=control, sentence="hello"))
+            if env._with_internal_states:
+                obs['image'] = obs['image'][0]
             if fig is None:
                 fig = plt.imshow(obs['image'])
             else:
