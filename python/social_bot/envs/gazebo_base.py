@@ -70,14 +70,14 @@ class GazeboEnvBase(gym.Env):
         """
         Args:
             obs_sample (dict) : a sample observation
-            vocab_size (int): the vocab size for the sequence space
+            vocab_size (int): the vocab size for the sentence sequence
         Returns:
-            Return a gym.spaces.Dict with keys 'image', 'states', 'sequence'
+            Return a gym.spaces.Dict with keys 'image', 'states', 'sentence'
             Possible situation:
                 image with internal states
-                image with language sequence
-                image with both internal states and language sequence
-                pure low-dimensional states with language sequence
+                image with language sentence
+                image with both internal states and language sentence
+                pure low-dimensional states with language sentence
         """
         ob_space_dict = dict()
         if 'image' in obs_sample.keys():
@@ -92,10 +92,10 @@ class GazeboEnvBase(gym.Env):
                 high=np.inf,
                 shape=obs_sample['states'].shape,
                 dtype=np.float32)
-        if 'sequence' in obs_sample.keys():
-            sequence_space = DiscreteSequence(vocab_size,
-                                              len(obs_sample['sequence']))
-            ob_space_dict['sequence'] = sequence_space
+        if 'sentence' in obs_sample.keys():
+            sentence_space = DiscreteSequence(vocab_size,
+                                              len(obs_sample['sentence']))
+            ob_space_dict['sentence'] = sentence_space
         ob_space = gym.spaces.Dict(ob_space_dict)
         return ob_space
 

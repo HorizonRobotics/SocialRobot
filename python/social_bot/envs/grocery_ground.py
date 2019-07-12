@@ -131,7 +131,7 @@ class GroceryGround(GazeboEnvBase):
     Joints of the agent are controllable by force or pid controller,
 
     The observation space is a numpy array or a dict with keys 'image', 
-    'states', 'sequence', depends on the configuration.
+    'states', 'sentence', depends on the configuration.
     If without language and internal_states, observation is a numpy array:
         pure image (use_image_observation=True)
         pure low-dimentional states (use_image_observation=False)
@@ -200,7 +200,7 @@ class GroceryGround(GazeboEnvBase):
         self._teacher.add_task_group(task_group)
         self._teacher.build_vocab_from_tasks()
         self._seq_length = 20
-        self._sequence_space = DiscreteSequence(self._teacher.vocab_size,
+        self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
 
         self._object_list = self._teacher_task.get_object_list()
@@ -259,7 +259,7 @@ class GroceryGround(GazeboEnvBase):
             dtype=np.float32)
         if self._with_language:
             self.action_space = gym.spaces.Dict(
-                control=self._control_space, sequence=self._sequence_space)
+                control=self._control_space, sentence=self._sentence_space)
         else:
             self.action_space = self._control_space
 
@@ -277,30 +277,31 @@ class GroceryGround(GazeboEnvBase):
         self._random_move_objects()
         self._world.step(50)
         self._teacher.reset(self._agent, self._world)
-        obs = self._get_observation("hello")
+        teacher_action = self._teacher.teach("")
+        obs = self._get_observation(teacher_action.sentence)
         return obs
 
     def step(self, action):
         """
         Args:
             action (dict|int): If with_language, action is a dictionary 
-                    with key "control" and "sequence".
+                    with key "control" and "sentence".
                     action['control'] is a vector whose dimention is
-                    len(_joint_names). action['sequence'] is a sentence.
+                    len(_joint_names). action['sentence'] is a sentence sequence.
                     If not with_language, it is an int for the action id.
         Returns:
-            If with_language, it is a dictionary with key 'data' and 'sequence'
+            If with_language, it is a dictionary with key 'data' and 'sentence'
             If not with_language, it is a numpy.array or image for observation
         """
         if self._with_language:
-            sequence = action.get('sequence', None)
-            sentence = self._teacher.sequence_to_sentence(sequence)
+            sentence_seq = action.get('sentence', None)
+            sentence_raw = self._teacher.sequence_to_sentence(sentence_seq)
             controls = action['control'] * self._agent_control_range
         else:
-            sentence = ''
+            sentence_raw = ''
             controls = action * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
-        teacher_action = self._teacher.teach(sentence)
+        teacher_action = self._teacher.teach(sentence_raw)
         self._agent.take_action(controls)
         self._world.step(10)
         obs = self._get_observation(teacher_action.sentence)
@@ -333,7 +334,7 @@ class GroceryGround(GazeboEnvBase):
             (goal_pos, agent_pose, agent_vel, internal_states), axis=0)
         return obs
 
-    def _create_observation_dict(self, sentence):
+    def _create_observation_dict(self, sentence_raw):
         obs = OrderedDict()
         if self._use_image_obs:
             obs['image'] = self._get_camera_observation()
@@ -343,14 +344,14 @@ class GroceryGround(GazeboEnvBase):
         else:
             obs['states'] = self._get_low_dim_full_states()
         if self._with_language:
-            obs['sequence'] = self._teacher.sentence_to_sequence(
-                sentence, self._seq_length)
+            obs['sentence'] = self._teacher.sentence_to_sequence(
+                sentence_raw, self._seq_length)
         return obs
 
-    def _get_observation(self, sentence):
+    def _get_observation(self, sentence_raw):
         if self._image_with_internal_states or self._with_language:
             # observation is an OrderedDict
-            obs = self._create_observation_dict(sentence)
+            obs = self._create_observation_dict(sentence_raw)
         elif self._use_image_obs:  # observation is pure image
             obs = self._get_camera_observation()
         else:  # observation is pure low-dimentional states
@@ -397,13 +398,13 @@ def main():
     while True:
         actions = np.array(np.random.randn(env._control_space.shape[0]))
         if with_language:
-            seq = env._teacher.sentence_to_sequence("hello", env._seq_length)
-            actions = dict(control=actions, sequence=seq)
+            sentence_seq = env._teacher.sentence_to_sequence("hello", env._seq_length)
+            actions = dict(control=actions, sentence=sentence_seq)
         obs, _, done, _ = env.step(actions)
         if with_language and (env._steps_in_this_episode == 1 or done):
-            seq = obs["sequence"]
-            logging.info("sequence: " + str(seq))
-            logging.info("sentence: " + env._teacher.sequence_to_sentence(seq))
+            seq = obs["sentence"]
+            logging.info("sentence_seq: " + str(seq))
+            logging.info("sentence_raw: " + env._teacher.sequence_to_sentence(seq))
         if use_image_obs:
             if with_language or image_with_internal_states:
                 obs = obs['image']

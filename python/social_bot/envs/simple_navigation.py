@@ -41,7 +41,7 @@ class SimpleNavigation(GazeboEnvBase):
     If it is moving away from the goal too much or still not close to the goal after max_steps,
     it will get reward -1.
 
-    The observation space is a numpy array or a dict with keys 'image', 'states', 'sequence'
+    The observation space is a numpy array or a dict with keys 'image', 'states', 'sentence'
     If without language and internal_states, observation is a numpy array contains the image
     Otherwise observation is a dict. Depends on the configuration, it could be :
         image with internal states (the states of agent joints)
@@ -93,7 +93,7 @@ class SimpleNavigation(GazeboEnvBase):
         self._teacher.add_task_group(task_group)
         self._teacher.build_vocab_from_tasks()
         self._seq_length = 20
-        self._sequence_space = DiscreteSequence(self._teacher.vocab_size,
+        self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
 
         self._with_language = with_language
@@ -121,7 +121,7 @@ class SimpleNavigation(GazeboEnvBase):
             dtype=np.float32)
         if with_language:
             self._action_space = gym.spaces.Dict(
-                control=control_space, sequence=self._sequence_space)
+                control=control_space, sentence=self._sentence_space)
         else:
             self._action_space = control_space
 
@@ -140,23 +140,23 @@ class SimpleNavigation(GazeboEnvBase):
     def step(self, action):
         """
         Args:
-            action (dict|int): If with_language, action is a dictionary with key "control" and "sequence".
+            action (dict|int): If with_language, action is a dictionary with key "control" and "sentence".
                     action['control'] is a vector whose dimention is
-                    len(_joint_names). action['sequence'] is a sequence.
+                    len(_joint_names). action['sentence'] is a sentence sequence.
                     If not with_language, it is an int for the action id.
         Returns:
-            If with_language, it is a dictionary with key 'obs' and 'sequence'
+            If with_language, it is a dictionary with key 'obs' and 'sentence'
             If not with_language, it is a numpy.array for observation
         """
         if self._with_language:
-            sequence = action.get('sequence', None)
-            sentence = self._teacher.sequence_to_sentence(sequence)
+            sentence_seq = action.get('sentence', None)
+            sentence_raw = self._teacher.sequence_to_sentence(sentence_seq)
             controls = action['control']
         else:
-            sentence = ''
+            sentence_raw = ''
             controls = action
         controls = dict(zip(self._joint_names, controls))
-        teacher_action = self._teacher.teach(sentence)
+        teacher_action = self._teacher.teach(sentence_raw)
         self._agent.take_action(controls)
         self._world.step(self.NUM_SIMULATION_STEPS)
         obs = self._get_observation(teacher_action.sentence)
@@ -165,7 +165,8 @@ class SimpleNavigation(GazeboEnvBase):
     def reset(self):
         self._teacher.reset(self._agent, self._world)
         self._world.step(self.NUM_SIMULATION_STEPS)
-        obs = self._get_observation('hello')
+        teacher_action = self._teacher.teach("")
+        obs = self._get_observation(teacher_action.sentence)
         return obs
 
     def _get_camera_observation(self):
@@ -180,7 +181,7 @@ class SimpleNavigation(GazeboEnvBase):
             image = np.transpose(image, [2, 0, 1])
         return image
 
-    def _get_observation(self, sentence):
+    def _get_observation(self, sentence_raw):
         img = self._get_camera_observation()
         if self._image_with_internal_states or self._with_language:
             # observation is an OrderedDict
@@ -190,8 +191,8 @@ class SimpleNavigation(GazeboEnvBase):
                 obs['states'] = self._get_internal_states(
                     self._agent, self._joint_names)
             if self._with_language:
-                obs['sequence'] = self._teacher.sentence_to_sequence(
-                    sentence, self._seq_length)
+                obs['sentence'] = self._teacher.sentence_to_sequence(
+                    sentence_raw, self._seq_length)
         else:  # observation is pure image
             obs = img
         return obs
@@ -231,7 +232,7 @@ def main():
         while True:
             seq = env._teacher.sentence_to_sequence("hello", env._seq_length)
             obs, reward, done, _ = env.step(
-                dict(control=control, sequence=seq))
+                dict(control=control, sentence=seq))
             if fig is None:
                 fig = plt.imshow(obs['image'])
             else:
@@ -239,7 +240,7 @@ def main():
             plt.pause(0.00001)
             if done:
                 logging.info("reward: " + str(reward) + "sent: " +
-                             str(obs["sequence"]))
+                             str(obs["sentence"]))
                 break
 
 
