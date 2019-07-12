@@ -126,11 +126,20 @@ class GroceryGround(GazeboEnvBase):
 
     The envionment support agent type of pr2_differential, pioneer2dx_noplugin, 
     turtlebot, and irobot create for now. Note that for the models without camera
-    sensor (pioneer, create), you can not use image as observation.
+    sensor (irobot create), you can not use image as observation.
 
-    Joints of the agent are controllable by force,
-    the observations are image or the internal states of the world, including the
-    position and rotation in world coordinate.
+    Joints of the agent are controllable by force or pid controller,
+
+    The observation space is a numpy array or a dict with keys 'image', 
+    'states', 'sequence', depends on the configuration.
+    If without language and internal_states, observation is a numpy array:
+        pure image (use_image_observation=True)
+        pure low-dimentional states (use_image_observation=False)
+    Otherwise observation is a dict, it could be:
+        image with internal states (part of the low-dimentional states)
+        image with language sequence
+        image with both internal states and language sequence
+        pure low-dimensional states with language sequence
 
     The objects are rearranged each time the environment is reseted.
     
@@ -141,7 +150,8 @@ class GroceryGround(GazeboEnvBase):
 
     def __init__(self,
                  with_language=False,
-                 use_image_obs=False,
+                 use_image_observation=False,
+                 image_with_internal_states=False,
                  random_goal=False,
                  use_pid=False,
                  agent_type='pioneer2dx_noplugin',
@@ -152,8 +162,11 @@ class GroceryGround(GazeboEnvBase):
         """
         Args:
             with_language (bool): The observation will be a dict with an extra sentence
-            use_image_obs (bool): Use image, or use internal states as observation
-                poses in internal states observation are in world coordinate
+            use_image_observation (bool): Use image, or use low-dimentional states as 
+                observation. Poses in the states observation are in world coordinate
+            image_with_internal_states (bool): If true, the agent's self internal states
+                i.e., joint position and velocities would be available together with image.
+                Only affect if use_image_observation is true
             random_goal (bool): If ture, teacher will randomly select goal from the 
                 object list each episode
             use_pid (bool): If ture, joints will be equipped with PID controller, action 
@@ -186,6 +199,9 @@ class GroceryGround(GazeboEnvBase):
         task_group.add_task(self._teacher_task)
         self._teacher.add_task_group(task_group)
         self._teacher.build_vocab_from_tasks()
+        self._seq_length = 20
+        self._sequence_space = DiscreteSequence(self._teacher.vocab_size,
+            self._seq_length)
 
         self._object_list = self._teacher_task.get_object_list()
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
@@ -215,43 +231,35 @@ class GroceryGround(GazeboEnvBase):
         logging.debug("joints to control: %s" % self._agent_joints)
 
         self._with_language = with_language
-        self._use_image_obs = use_image_obs
+        self._use_image_obs = use_image_observation
+        self._image_with_internal_states = self._use_image_obs and image_with_internal_states
         assert data_format in ('channels_first', 'channels_last')
         self._data_format = data_format
         self._resized_image_size = resized_image_size
 
-        obs_data = self._get_observation()
-        if self._use_image_obs:
-            obs_data_space = gym.spaces.Tuple([
-                gym.spaces.Box(
-                    low=0, high=1.0, shape=obs_data[0].shape, dtype=np.float32),
-                gym.spaces.Box(
-                    low=-np.inf,
-                    high=np.inf,
-                    shape=obs_data[1].shape,
-                    dtype=np.float32)
-            ])
+        self.reset()
+        obs_sample = self._get_observation("hello")
+        if self._with_language or self._image_with_internal_states:
+            self.observation_space = self._construct_dict_space(obs_sample,
+                self._teacher.vocab_size)
+        elif self._use_image_obs:
+            self.observation_space = gym.spaces.Box(
+                low=0, high=255, shape=obs_sample.shape, dtype=np.uint8)
         else:
-            obs_data_space = gym.spaces.Box(
-                low=-np.inf, high=np.inf, shape=obs_data.shape, dtype=np.float32)
+            self.observation_space = gym.spaces.Box(
+                low=-np.inf, high=np.inf, shape=obs_sample.shape, dtype=np.float32)
+
         self._control_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
             shape=[len(self._agent_joints)],
             dtype=np.float32)
         if self._with_language:
-            self._seq_length = 20
-            sequence_space = DiscreteSequence(self._teacher.vocab_size,
-                                              self._seq_length)
-            self.observation_space = gym.spaces.Dict(
-                data=obs_data_space, sequence=sequence_space)
             self.action_space = gym.spaces.Dict(
-                control=self._control_space, sequence=sequence_space)
+                control=self._control_space, sequence=self._sequence_space)
         else:
-            self.observation_space = obs_data_space
             self.action_space = self._control_space
-        self.reset()
-
+        
     def reset(self):
         """
         Args:
@@ -266,39 +274,7 @@ class GroceryGround(GazeboEnvBase):
         self._random_move_objects()
         self._world.step(50)
         self._teacher.reset(self._agent, self._world)
-        teacher_action = self._teacher.teach("")
-        if self._with_language:
-            obs_data = self._get_observation()
-            seq = self._teacher.sentence_to_sequence(teacher_action.sentence,
-                                                     self._seq_length)
-            obs = OrderedDict(data=obs_data, sequence=seq)
-        else:
-            obs = self._get_observation()
-        return obs
-
-    def _get_observation(self):
-        internal_states = self._get_internal_states(
-            self._agent, self._agent_joints)
-        if self._use_image_obs:
-            img = np.array(
-                self._agent.get_camera_observation(self._agent_camera),
-                copy=False)
-            if self._resized_image_size:
-                img = PIL.Image.fromarray(img).resize(
-                    self._resized_image_size, PIL.Image.ANTIALIAS)
-                img = np.array(img, copy=False)
-            if self._data_format == "channels_first":
-                img = np.transpose(img, [2, 0, 1])
-            img = img.astype(np.float32) / 255.
-            obs = (img, internal_states)
-        else:
-            goal = self._world.get_model(self._teacher_task.get_goal_name())
-            goal_pos = np.array(goal.get_pose()[0]).flatten()
-            agent_pose = np.array(self._agent.get_pose()).flatten()
-            agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
-            obs_data = np.concatenate(
-                (goal_pos, agent_pose, agent_vel, internal_states), axis=0)
-            obs = np.array(obs_data)
+        obs = self._get_observation("hello")
         return obs
 
     def step(self, action):
@@ -324,19 +300,61 @@ class GroceryGround(GazeboEnvBase):
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(10)
-        if self._with_language:
-            obs_data = self._get_observation()
-            seq = self._teacher.sentence_to_sequence(teacher_action.sentence,
-                                                     self._seq_length)
-            obs = OrderedDict(data=obs_data, sequence=seq)
-        else:
-            obs = self._get_observation()
+
+        obs = self._get_observation(teacher_action.sentence)
         self._steps_in_this_episode += 1
         self._cum_reward += teacher_action.reward
         if teacher_action.done:
             logging.debug("episode ends at cum reward:" +
                           str(self._cum_reward))
         return obs, teacher_action.reward, teacher_action.done, {}
+
+    def _get_camera_observation(self):
+        img = np.array(
+            self._agent.get_camera_observation(self._agent_camera),
+            copy=False)
+        if self._resized_image_size:
+            img = PIL.Image.fromarray(img).resize(
+                self._resized_image_size, PIL.Image.ANTIALIAS)
+            img = np.array(img, copy=False)
+        if self._data_format == "channels_first":
+            img = np.transpose(img, [2, 0, 1])
+        return img
+
+    def _get_low_dim_full_states(self):
+        goal = self._world.get_model(self._teacher_task.get_goal_name())
+        goal_pos = np.array(goal.get_pose()[0]).flatten()
+        agent_pose = np.array(self._agent.get_pose()).flatten()
+        agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
+        internal_states = self._get_internal_states(
+            self._agent, self._agent_joints)
+        obs = np.concatenate(
+            (goal_pos, agent_pose, agent_vel, internal_states), axis=0)
+        return obs
+
+    def _create_observation_dict(self, sentence):
+        obs = OrderedDict()
+        if self._use_image_obs:
+            obs['image'] = self._get_camera_observation()
+            if self._image_with_internal_states:
+                obs['states'] = self._get_internal_states(
+                    self._agent, self._agent_joints)
+        else:
+            obs['states'] = self._get_low_dim_full_states()
+        if self._with_language:
+            obs['sequence'] = self._teacher.sentence_to_sequence(
+                sentence, self._seq_length)
+        return obs
+
+    def _get_observation(self, sentence):
+        if self._image_with_internal_states or self._with_language:
+            # observation is an OrderedDict
+            obs = self._create_observation_dict(sentence)
+        elif self._use_image_obs:  # observation is pure image
+            obs = self._get_camera_observation()
+        else:  # observation is pure low-dimentional states
+            obs = self._get_low_dim_full_states()
+        return obs
 
     def _random_insert_objects(self):
         for obj_id in range(len(self._object_list)):
@@ -368,10 +386,12 @@ def main():
     with_language = True
     use_image_obs = True
     random_goal = True
+    image_with_internal_states = True
     fig = None
     env = GroceryGround(
         with_language=with_language,
-        use_image_obs=use_image_obs,
+        use_image_observation=use_image_obs,
+        image_with_internal_states=image_with_internal_states,
         random_goal=random_goal)
     while True:
         actions = np.array(np.random.randn(env._control_space.shape[0]))
@@ -384,12 +404,12 @@ def main():
             logging.info("sequence: " + str(seq))
             logging.info("sentence: " + env._teacher.sequence_to_sentence(seq))
         if use_image_obs:
-            if with_language:
-                obs = obs['data']
+            if with_language or image_with_internal_states:
+                obs = obs['image']
             if fig is None:
-                fig = plt.imshow(obs[0])
+                fig = plt.imshow(obs)
             else:
-                fig.set_data(obs[0])
+                fig.set_data(obs)
             plt.pause(0.00001)
         if done:
             env.reset()

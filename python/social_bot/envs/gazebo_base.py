@@ -20,6 +20,7 @@ import gin
 import numpy as np
 
 import social_bot.pygazebo as gazebo
+from social_bot.teacher import DiscreteSequence
 
 
 @gin.configurable
@@ -64,6 +65,32 @@ class GazeboEnvBase(gym.Env):
         joint_pos = (joint_pos + np.pi) % (2 * np.pi) - np.pi
         internal_states = np.concatenate((joint_pos, joint_vel), axis=0)
         return internal_states
+
+    def _construct_dict_space(self, obs_sample, vocab_size):
+        """
+        Args:
+            obs_sample (dict) : a sample observation
+            vocab_size (int): the vocab size for the sequence space
+        Returns:
+            Return a gym.spaces.Dict with keys 'image', 'states', 'sequence'
+            Possible situation:
+                image with internal states
+                image with language sequence
+                image with both internal states and language sequence
+                pure low-dimensional states with language sequence
+        """
+        ob_space_dict = dict()
+        if 'image' in obs_sample.keys():
+            ob_space_dict['image'] = gym.spaces.Box(
+                    low=0, high=255, shape=obs_sample['image'].shape, dtype=np.uint8)
+        if 'states' in obs_sample.keys():
+            ob_space_dict['states'] = gym.spaces.Box(
+                    low=-np.inf, high=np.inf, shape=obs_sample['states'].shape, dtype=np.float32)
+        if 'sequence' in obs_sample.keys():
+            sequence_space = DiscreteSequence(vocab_size, len(obs_sample['sequence']))
+            ob_space_dict['sequence'] = sequence_space
+        ob_space = gym.spaces.Dict(ob_space_dict)
+        return ob_space
 
     def __del__(self):
         if self._rendering_process is not None:
