@@ -89,7 +89,7 @@ class GoalTask(teacher.Task):
                     logging.debug("loc: " + str(loc) + " goal: " +
                                   str(goal_loc) + "dist: " + str(dist))
                     agent_sentence = yield TeacherAction(
-                        reward=1.0, sentence="Well done!", done=False)
+                        reward=1.0, sentence="well done", done=False)
                     steps_since_last_reward = 0
                     self._move_goal(goal, loc)
                 else:
@@ -97,12 +97,12 @@ class GoalTask(teacher.Task):
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                               "dist: " + str(dist))
-                yield TeacherAction(reward=-1.0, sentence="Failed", done=True)
+                yield TeacherAction(reward=-1.0, sentence="failed", done=True)
             else:
                 agent_sentence = yield TeacherAction()
         logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                       "dist: " + str(dist))
-        yield TeacherAction(reward=-1.0, sentence="Failed", done=True)
+        yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def _move_goal(self, goal, agent_loc):
         range = self._random_range

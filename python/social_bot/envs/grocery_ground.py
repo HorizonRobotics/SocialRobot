@@ -201,7 +201,7 @@ class GroceryGround(GazeboEnvBase):
         self._teacher.build_vocab_from_tasks()
         self._seq_length = 20
         self._sequence_space = DiscreteSequence(self._teacher.vocab_size,
-            self._seq_length)
+                                                self._seq_length)
 
         self._object_list = self._teacher_task.get_object_list()
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
@@ -240,14 +240,17 @@ class GroceryGround(GazeboEnvBase):
         self.reset()
         obs_sample = self._get_observation("hello")
         if self._with_language or self._image_with_internal_states:
-            self.observation_space = self._construct_dict_space(obs_sample,
-                self._teacher.vocab_size)
+            self.observation_space = self._construct_dict_space(
+                obs_sample, self._teacher.vocab_size)
         elif self._use_image_obs:
             self.observation_space = gym.spaces.Box(
                 low=0, high=255, shape=obs_sample.shape, dtype=np.uint8)
         else:
             self.observation_space = gym.spaces.Box(
-                low=-np.inf, high=np.inf, shape=obs_sample.shape, dtype=np.float32)
+                low=-np.inf,
+                high=np.inf,
+                shape=obs_sample.shape,
+                dtype=np.float32)
 
         self._control_space = gym.spaces.Box(
             low=-1.0,
@@ -259,7 +262,7 @@ class GroceryGround(GazeboEnvBase):
                 control=self._control_space, sequence=self._sequence_space)
         else:
             self.action_space = self._control_space
-        
+
     def reset(self):
         """
         Args:
@@ -300,7 +303,6 @@ class GroceryGround(GazeboEnvBase):
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(10)
-
         obs = self._get_observation(teacher_action.sentence)
         self._steps_in_this_episode += 1
         self._cum_reward += teacher_action.reward
@@ -311,11 +313,10 @@ class GroceryGround(GazeboEnvBase):
 
     def _get_camera_observation(self):
         img = np.array(
-            self._agent.get_camera_observation(self._agent_camera),
-            copy=False)
+            self._agent.get_camera_observation(self._agent_camera), copy=False)
         if self._resized_image_size:
-            img = PIL.Image.fromarray(img).resize(
-                self._resized_image_size, PIL.Image.ANTIALIAS)
+            img = PIL.Image.fromarray(img).resize(self._resized_image_size,
+                                                  PIL.Image.ANTIALIAS)
             img = np.array(img, copy=False)
         if self._data_format == "channels_first":
             img = np.transpose(img, [2, 0, 1])
@@ -326,8 +327,8 @@ class GroceryGround(GazeboEnvBase):
         goal_pos = np.array(goal.get_pose()[0]).flatten()
         agent_pose = np.array(self._agent.get_pose()).flatten()
         agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
-        internal_states = self._get_internal_states(
-            self._agent, self._agent_joints)
+        internal_states = self._get_internal_states(self._agent,
+                                                    self._agent_joints)
         obs = np.concatenate(
             (goal_pos, agent_pose, agent_vel, internal_states), axis=0)
         return obs

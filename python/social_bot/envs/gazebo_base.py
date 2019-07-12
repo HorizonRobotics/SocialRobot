@@ -82,12 +82,19 @@ class GazeboEnvBase(gym.Env):
         ob_space_dict = dict()
         if 'image' in obs_sample.keys():
             ob_space_dict['image'] = gym.spaces.Box(
-                    low=0, high=255, shape=obs_sample['image'].shape, dtype=np.uint8)
+                low=0,
+                high=255,
+                shape=obs_sample['image'].shape,
+                dtype=np.uint8)
         if 'states' in obs_sample.keys():
             ob_space_dict['states'] = gym.spaces.Box(
-                    low=-np.inf, high=np.inf, shape=obs_sample['states'].shape, dtype=np.float32)
+                low=-np.inf,
+                high=np.inf,
+                shape=obs_sample['states'].shape,
+                dtype=np.float32)
         if 'sequence' in obs_sample.keys():
-            sequence_space = DiscreteSequence(vocab_size, len(obs_sample['sequence']))
+            sequence_space = DiscreteSequence(vocab_size,
+                                              len(obs_sample['sequence']))
             ob_space_dict['sequence'] = sequence_space
         ob_space = gym.spaces.Dict(ob_space_dict)
         return ob_space
