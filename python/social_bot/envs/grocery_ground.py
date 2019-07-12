@@ -268,6 +268,7 @@ class GroceryGround(GazeboEnvBase):
         self._world.reset()
         self._teacher.reset(self._agent, self._world)
         self._random_move_objects()
+        self._world.step(100)
         teacher_action = self._teacher.teach("")
         if self._with_language:
             obs_data = self._get_observation()
@@ -328,7 +329,7 @@ class GroceryGround(GazeboEnvBase):
         controls = dict(zip(self._agent_joints, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
-        self._world.step(50)
+        self._world.step(100)
         if self._with_language:
             obs_data = self._get_observation()
             seq = self._teacher.sentence_to_sequence(teacher_action.sentence,
@@ -345,7 +346,8 @@ class GroceryGround(GazeboEnvBase):
 
     def _insert_agent_to_world_file(self, world_file, model):
         content = world_file.read()
-        insert_pos = content.find("<!-- Static Objects -->")
+        insert_pos = content.find("<!-- AGENT-INSERTION-POINT -->")
+        assert insert_pos != -1, "Can not found insertion point in world file"
         content = list(content)
         insert_str = "<include> <uri>model://"+model+"</uri> </include>\n"
         content.insert(insert_pos, insert_str)

@@ -25,6 +25,7 @@
     <include>
       <uri>model://sun</uri>
     </include>
+    <!-- AGENT-INSERTION-POINT -->
     <!-- Static Objects -->
     <model name='placing_table'>
       <static>1</static>

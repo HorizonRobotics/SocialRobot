@@ -16,7 +16,7 @@ A simple enviroment for iCub robot walking task
 """
 import gym
 import os
-import logging
+from absl import logging
 import numpy as np
 import random
 
@@ -24,8 +24,6 @@ from gym import spaces
 import social_bot
 from social_bot.envs.gazebo_base import GazeboEnvBase
 import social_bot.pygazebo as gazebo
-
-logger = logging.getLogger(__name__)
 
 
 class ICubWalk(GazeboEnvBase):
@@ -36,8 +34,7 @@ class ICubWalk(GazeboEnvBase):
     Observation is a single ndarray with internal joint states, and agent pose.
     Reward shaping:
         reward = not_fall_bonus + truncked_walk_velocity - ctrl_cost
-    This task is not solved yet. But examples/tain_icub_sac.py can help the agent
-        stand much longer.
+    Examples/tain_icub_sac.py solves this taks in about 400K episodes
     """
 
     def __init__(self, use_pid=False, obs_stack=True, sub_seteps=50,
@@ -55,9 +52,7 @@ class ICubWalk(GazeboEnvBase):
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "icub.world"))
         self._agent = self._world.get_agent('icub')
-        # to avoid different parallel simulation has the same randomness
-        random.seed(port)
-        self._world.info()
+        logging.debug(self._world.info())
 
         self._agent_joints = [
             'icub::iCub::l_leg::l_hip_pitch',
@@ -103,8 +98,7 @@ class ICubWalk(GazeboEnvBase):
         else:
             self._agent_control_range = np.array(self._joints_limits)
 
-        logger.info("joints to control: %s" % self._agent_joints)
-        logger.info("in range: %s" % str(self._joints_limits))
+        logging.info("joints to control: %s" % self._agent_joints)
 
         self.action_space = gym.spaces.Box(
             low=-1.0,
@@ -186,7 +180,7 @@ class ICubWalk(GazeboEnvBase):
     def step(self, action):
         """
         Args:
-            action (float):  action is a vector whose dimention is
+            action (np.array):  action is a vector whose dimention is
                     len(_joint_names).
         Returns:
             A numpy.array for observation
@@ -208,7 +202,7 @@ class ICubWalk(GazeboEnvBase):
         self._steps_in_this_episode += 1
         done = torso_pose[2] < 0.58
         if done:
-            logger.debug("episode ends at cum reward:" +
+            logging.debug("episode ends at cum reward:" +
                          str(self._cum_reward) + ", step:" +
                          str(self._steps_in_this_episode))
         if self._obs_stack:
@@ -236,5 +230,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.set_verbosity(logging.DEBUG)
     main()

@@ -289,11 +289,12 @@ class Agent : public Model {
                         double p,
                         double i,
                         double d,
+                        double i_max,
                         double max_force) {
     auto pid = gazebo::common::PID(p*max_force, i*max_force, d*max_force);
     pid.SetCmdMax(max_force);
     pid.SetCmdMin(-max_force);
-    pid.SetIMax(max_force * 0.1); // limit i term
+    pid.SetIMax(max_force * i_max); // limit i term
     auto controller = model_->GetJointController();
     if (pid_control_type == "force") {
       joints_control_type_[joint_name] = control_type_force_;
@@ -565,13 +566,15 @@ PYBIND11_MODULE(pygazebo, m) {
            "joint_name is the name for the joint"
            "pid_control_type is the type of pid controller, either 'velocity', "
            "or 'position' "
-           "p, i, and d are the parameters for the controller"
+           "p, i, and d are the parameters for the controller, i_max is the"
+           "max value of i term. They will be scaled by max_force"
            "max_force is the limit of PID contorller output",
            py::arg("joint_name"),
            py::arg("pid_control_type") = "velocity",
            py::arg("p") = 0.02,
            py::arg("i") = 0.00,
            py::arg("d") = 0.01,
+           py::arg("i_max") = 0.1,
            py::arg("max_force") = 2.0)
       .def("get_camera_observation",
            &Agent::GetCameraObservation,
