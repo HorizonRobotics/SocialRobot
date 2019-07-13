@@ -1,22 +1,84 @@
 {
     "pr2_differential": {
         "control_joints": ["pr2_differential::fl_caster_r_wheel_joint", "pr2_differential::fr_caster_l_wheel_joint"], 
-        "control_limit": 20.0,
-        "camera_sensor": "default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor"
+        "camera_sensor": "default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor",
+        "use_pid": false
     }, 
     "pioneer2dx_noplugin": {
         "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
-        "control_limit": 0.5, 
-        "camera_sensor": "default::pioneer2dx_noplugin::camera_link::camera"
+        "camera_sensor": "default::pioneer2dx_noplugin::camera_link::camera",
+        "use_pid": false
     },
     "turtlebot": {
         "control_joints": ["turtlebot::create::left_wheel", "turtlebot::create::right_wheel"], 
-        "control_limit": 0.5, 
-        "camera_sensor": "default::turtlebot::kinect::link::camera"
+        "camera_sensor": "default::turtlebot::kinect::link::camera",
+        "use_pid": false
     },
     "create": {
         "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
-        "control_limit": 0.5, 
-        "camera_sensor": " "
+        "camera_sensor": " ",
+        "use_pid": false
+    },
+    "icub_with_hands": {
+        "control_joints": [
+            "iCub::l_leg::l_hip_pitch",
+            "iCub::l_leg::l_hip_roll",
+            "iCub::l_leg::l_hip_yaw",
+            "iCub::l_leg::l_knee",
+            "iCub::l_leg::l_ankle_pitch",
+            "iCub::l_leg::l_ankle_roll",
+            "iCub::r_leg::r_hip_pitch",
+            "iCub::r_leg::r_hip_roll",
+            "iCub::r_leg::r_hip_yaw",
+            "iCub::r_leg::r_knee",
+            "iCub::r_leg::r_ankle_pitch",
+            "iCub::r_leg::r_ankle_roll",
+            "iCub::torso_yaw",
+            "iCub::torso_roll",
+            "iCub::torso_pitch",
+            "iCub::l_shoulder_pitch",
+            "iCub::l_shoulder_roll",
+            "iCub::l_shoulder_yaw",
+            "iCub::l_elbow",
+            "iCub::neck_pitch",
+            "iCub::neck_roll",
+            "iCub::r_shoulder_pitch",
+            "iCub::r_shoulder_roll",
+            "iCub::r_shoulder_yaw",
+            "iCub::r_elbow"],
+        "camera_sensor": "default::iCub::left_eye_link::left_camera",
+        "use_pid": true,
+        "pid_control_limit": 10
+    },
+    "icub": {
+        "control_joints": [
+            "iCub::l_leg::l_hip_pitch",
+            "iCub::l_leg::l_hip_roll",
+            "iCub::l_leg::l_hip_yaw",
+            "iCub::l_leg::l_knee",
+            "iCub::l_leg::l_ankle_pitch",
+            "iCub::l_leg::l_ankle_roll",
+            "iCub::r_leg::r_hip_pitch",
+            "iCub::r_leg::r_hip_roll",
+            "iCub::r_leg::r_hip_yaw",
+            "iCub::r_leg::r_knee",
+            "iCub::r_leg::r_ankle_pitch",
+            "iCub::r_leg::r_ankle_roll",
+            "iCub::torso_yaw",
+            "iCub::torso_roll",
+            "iCub::torso_pitch",
+            "iCub::l_shoulder_pitch",
+            "iCub::l_shoulder_roll",
+            "iCub::l_shoulder_yaw",
+            "iCub::l_elbow",
+            "iCub::neck_pitch",
+            "iCub::neck_roll",
+            "iCub::r_shoulder_pitch",
+            "iCub::r_shoulder_roll",
+            "iCub::r_shoulder_yaw",
+            "iCub::r_elbow"],
+        "camera_sensor": " ",
+        "use_pid": true,
+        "pid_control_limit": 10
     }
 }

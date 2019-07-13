@@ -51,12 +51,16 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
         self._reward_shaping = reward_shaping
         self._random_goal = random_goal
-        self._goal_name = 'cube_20k'
+        self._goal_name = 'coke_can_on_table'
+        self._static_object_list = [
+            'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
+            'hammer_on_table', 'cafe_table'
+        ]
         self._object_list = [
-            'coke_can', 'table', 'bookshelf', 'cube_20k', 'car_wheel',
+            'coke_can', 'table', 'bookshelf', 'car_wheel',
             'plastic_cup', 'beer', 'hammer'
         ]
-        self.task_vocab = self.task_vocab + self._object_list
+        self.task_vocab = self.task_vocab + self._static_object_list + self._object_list
 
     def get_object_list(self):
         """
@@ -147,15 +151,14 @@ class GroceryGround(GazeboEnvBase):
     can also be controlled by the teacher.
 
     """
-
+        
     def __init__(self,
                  with_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
                  random_goal=False,
-                 use_pid=False,
                  agent_type='pioneer2dx_noplugin',
-                 max_steps=160,
+                 max_steps=120,
                  port=None,
                  resized_image_size=(64, 64),
                  data_format='channels_last'):
@@ -169,10 +172,9 @@ class GroceryGround(GazeboEnvBase):
                 Only affect if use_image_observation is true
             random_goal (bool): If ture, teacher will randomly select goal from the 
                 object list each episode
-            use_pid (bool): If ture, joints will be equipped with PID controller, action 
-                is the target velocity. Otherwise joints are directly controlled by force.
             agent_type (string): Select the agent robot, supporting pr2_differential, 
-                pioneer2dx_noplugin, turtlebot, and irobot create for now
+                pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
+                note that 'agent_type' should be the same str as the model's name
             port: Gazebo port, need to specify when run multiple environment in parallel
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
@@ -184,9 +186,7 @@ class GroceryGround(GazeboEnvBase):
                 to images with shape `(channels, height, width)`.
         """
         super(GroceryGround, self).__init__(port=port)
-        self._world = gazebo.new_world_from_file(
-            os.path.join(social_bot.get_world_dir(), "grocery_ground.world"))
-
+        
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
         self._teacher_task = GroceryGroundGoalTask(
@@ -206,26 +206,36 @@ class GroceryGround(GazeboEnvBase):
         self._object_list = self._teacher_task.get_object_list()
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
-        self._world.info()
-        self._world.insertModelFile('model://' + agent_type)
+
+        wf_path = os.path.join(social_bot.get_world_dir(), "grocery_ground.world")
+        with open(wf_path, 'r+') as world_file:
+            world_string = self._insert_agent_to_world_file(world_file, agent_type)
+        self._world = gazebo.new_world_from_string(world_string)
         self._world.step(20)
-        time.sleep(0.1)  # Avoid 'px!=0' error
-        self._random_insert_objects()
-        logging.debug(self._world.model_list_info())
+        self._insert_objects(self._object_list)
+        self._agent = self._world.get_agent()
         logging.debug(self._world.info())
         agent_cfgs = json.load(
             open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r'))
         agent_cfg = agent_cfgs[agent_type]
-        self._agent = self._world.get_agent(agent_type)
         self._agent_joints = agent_cfg['control_joints']
-        if use_pid:
-            for _joint in self._agent_joints:
-                self._agent.set_pid_controller(_joint, 'velocity', d=0.005)
-            self._agent_control_range = 20.0
+        joint_states = list(
+            map(lambda s: self._agent.get_joint_state(s), self._agent_joints))
+        self._joints_limits = list(
+            map(lambda s: s.get_effort_limits()[0], joint_states))
+        if agent_cfg['use_pid']:
+            for joint_index in range(len(self._agent_joints)):
+                self._agent.set_pid_controller(
+                    self._agent_joints[joint_index],
+                    'velocity',
+                    p=0.02,
+                    d=0.00001,
+                    max_force=self._joints_limits[joint_index])
+            self._agent_control_range = agent_cfg['pid_control_limit']
         else:
-            self._agent_control_range = agent_cfg['control_limit']
+            self._agent_control_range = np.array(self._joints_limits)
         self._agent_camera = agent_cfg['camera_sensor']
 
         logging.debug("joints to control: %s" % self._agent_joints)
@@ -273,10 +283,10 @@ class GroceryGround(GazeboEnvBase):
         self._collision_cnt = 0
         self._cum_reward = 0.0
         self._steps_in_this_episode = 0
-        self._agent.reset()
-        self._random_move_objects()
-        self._world.step(50)
+        self._world.reset()
         self._teacher.reset(self._agent, self._world)
+        self._random_move_objects()
+        self._world.step(100)
         teacher_action = self._teacher.teach("")
         obs = self._get_observation(teacher_action.sentence)
         return obs
@@ -303,7 +313,7 @@ class GroceryGround(GazeboEnvBase):
         controls = dict(zip(self._agent_joints, controls))
         teacher_action = self._teacher.teach(sentence_raw)
         self._agent.take_action(controls)
-        self._world.step(10)
+        self._world.step(100)
         obs = self._get_observation(teacher_action.sentence)
         self._steps_in_this_episode += 1
         self._cum_reward += teacher_action.reward
@@ -311,6 +321,15 @@ class GroceryGround(GazeboEnvBase):
             logging.debug("episode ends at cum reward:" +
                           str(self._cum_reward))
         return obs, teacher_action.reward, teacher_action.done, {}
+
+    def _insert_agent_to_world_file(self, world_file, model):
+        content = world_file.read()
+        insert_pos = content.find("<!-- AGENT-INSERTION-POINT -->")
+        assert insert_pos != -1, "Can not found insertion point in world file"
+        content = list(content)
+        insert_str = "<include> <uri>model://"+model+"</uri> </include>\n"
+        content.insert(insert_pos, insert_str)
+        return "".join(content)
 
     def _get_camera_observation(self):
         img = np.array(
@@ -358,9 +377,11 @@ class GroceryGround(GazeboEnvBase):
             obs = self._get_low_dim_full_states()
         return obs
 
-    def _random_insert_objects(self):
-        for obj_id in range(len(self._object_list)):
-            model_name = self._object_list[obj_id]
+    def _insert_objects(self, object_list):
+        obj_num = len(object_list)
+        obj_pos_list = random.sample(self._pos_list, obj_num)
+        for obj_id in range(obj_num):
+            model_name = object_list[obj_id]
             self._world.insertModelFile('model://' + model_name)
             logging.debug('model ' + model_name + ' inserted')
             self._world.step(10)
@@ -368,6 +389,9 @@ class GroceryGround(GazeboEnvBase):
             # operation. Or the model may not be completely inserted, boost will
             # throw 'px!=0' error when set_pose/get_pose of the model is called
             time.sleep(0.1)
+            loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
+            pose = (np.array(loc), (0, 0, 0))
+            self._world.get_model(model_name).set_pose(pose)
 
     def _random_move_objects(self, random_range=10.0):
         obj_num = len(self._object_list)
@@ -377,7 +401,6 @@ class GroceryGround(GazeboEnvBase):
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
-            self._world.step(5)
 
 
 def main():
@@ -386,7 +409,7 @@ def main():
     """
     import matplotlib.pyplot as plt
     with_language = True
-    use_image_obs = True
+    use_image_obs = False
     random_goal = True
     image_with_internal_states = True
     fig = None
@@ -394,7 +417,9 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
+        agent_type='icub_with_hands',
         random_goal=random_goal)
+    env.render()
     while True:
         actions = np.array(np.random.randn(env._control_space.shape[0]))
         if with_language:

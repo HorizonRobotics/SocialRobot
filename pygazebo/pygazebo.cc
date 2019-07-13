@@ -289,10 +289,12 @@ class Agent : public Model {
                         double p,
                         double i,
                         double d,
+                        double i_max,
                         double max_force) {
-    auto pid = gazebo::common::PID(p, i, d);
+    auto pid = gazebo::common::PID(p*max_force, i*max_force, d*max_force);
     pid.SetCmdMax(max_force);
     pid.SetCmdMin(-max_force);
+    pid.SetIMax(max_force * i_max); // limit i term
     auto controller = model_->GetJointController();
     if (pid_control_type == "force") {
       joints_control_type_[joint_name] = control_type_force_;
@@ -423,10 +425,31 @@ void StartSensors() {
   std::call_once(flag, []() { gazebo::sensors::run_threads(); });
 }
 
-std::unique_ptr<World> NewWorldFromString(const std::string& std_string);
+std::unique_ptr<World> NewWorldFromString(const std::string& std_string) {
+  gazebo::physics::WorldPtr world;
+  sdf::SDFPtr worldSDF(new sdf::SDF);
+  worldSDF->SetFromString(std_string);
+  sdf::ElementPtr worldElem = worldSDF->Root()->GetElement("world");
+  world = gazebo::physics::create_world();
+  gazebo::physics::load_world(world, worldElem);
+  gazebo::physics::init_world(world);
+  gazebo::sensors::run_once(true);
+  StartSensors();
+  return std::make_unique<World>(world);
+}
 
 std::unique_ptr<World> NewWorldFromFile(const std::string& world_file) {
   gazebo::physics::WorldPtr world = gazebo::loadWorld(world_file);
+  gazebo::sensors::run_once(true);
+  StartSensors();
+  return std::make_unique<World>(world);
+}
+
+std::unique_ptr<World> NewWorldFromFileWithAgent(const std::string& world_file,
+                                                 const std::string& agent_name) {
+  gazebo::physics::WorldPtr world = gazebo::loadWorld(world_file);
+  world->InsertModelFile(agent_name);
+  world->UpdateStateSDF();
   gazebo::sensors::run_once(true);
   StartSensors();
   return std::make_unique<World>(world);
@@ -445,10 +468,21 @@ PYBIND11_MODULE(pygazebo, m) {
         py::arg("quiet") = false);
 
   // Global functions
+  m.def("new_world_from_string",
+        &NewWorldFromString,
+        "Create a world from sdf string",
+        py::arg("std_string"));
+
   m.def("new_world_from_file",
         &NewWorldFromFile,
         "Create a world from .world file",
         py::arg("world_file"));
+
+  m.def("new_world_from_file_with_agent",
+        &NewWorldFromFileWithAgent,
+        "Create a world from .world file, and insert the agent model in the mean time",
+        py::arg("world_file"),
+        py::arg("agent_name"));
 
   // World class
   py::class_<World>(m, "World")
@@ -532,13 +566,15 @@ PYBIND11_MODULE(pygazebo, m) {
            "joint_name is the name for the joint"
            "pid_control_type is the type of pid controller, either 'velocity', "
            "or 'position' "
-           "p, i, and d are the parameters for the controller"
+           "p, i, and d are the parameters for the controller, i_max is the"
+           "max value of i term. They will be scaled by max_force"
            "max_force is the limit of PID contorller output",
            py::arg("joint_name"),
            py::arg("pid_control_type") = "velocity",
            py::arg("p") = 0.02,
            py::arg("i") = 0.00,
            py::arg("d") = 0.01,
+           py::arg("i_max") = 0.1,
            py::arg("max_force") = 2.0)
       .def("get_camera_observation",
            &Agent::GetCameraObservation,

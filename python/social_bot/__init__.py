@@ -31,8 +31,20 @@ register(
 register(
     id='SocialBot-GroceryGround-v0',
     entry_point='social_bot.envs:GroceryGround',
+    max_episode_steps=120,
 )
 
+register(
+    id='SocialBot-ICubWalk-v0',
+    entry_point='social_bot.envs:ICubWalk',
+    max_episode_steps=200,
+)
+
+register(
+    id='SocialBot-ICubWalkPID-v0',
+    entry_point='social_bot.envs:ICubWalkPID',
+    max_episode_steps=200,
+)
 
 def get_world_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'worlds')
