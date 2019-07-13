@@ -161,7 +161,7 @@ class Pr2Gripper(GazeboEnvBase):
         else:
             self.observation_space = gym.spaces.Tuple([
                 gym.spaces.Box(
-                    low=0, high=1.0, shape=obs[0].shape, dtype=np.float32),
+                    low=0, high=255, shape=obs[0].shape, dtype=np.uint8),
                 gym.spaces.Box(
                     low=-np.inf,
                     high=np.inf,
@@ -213,7 +213,7 @@ class Pr2Gripper(GazeboEnvBase):
                 self._resized_image_size,
                 PIL.Image.ANTIALIAS)  #.convert('L') if only grey images
 
-            return np.array(img).astype(np.float32) / 255.
+            return np.array(img).astype(np.uint8)
 
         self._l_touch = self._finger_tip_contact(
             "r_gripper_l_finger_tip_contact_sensor",
