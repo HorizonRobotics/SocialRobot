@@ -140,10 +140,10 @@ class GroceryGround(GazeboEnvBase):
         pure image (use_image_observation=True)
         pure low-dimentional states (use_image_observation=False)
     Otherwise observation is a dict, it could be:
-        image with internal states (part of the low-dimentional states)
-        image with language sequence
-        image with both internal states and language sequence
-        pure low-dimensional states with language sequence
+        image and internal states (part of the low-dimentional states)
+        image and language sequence
+        image, internal states and language sequence
+        pure low-dimensional states and language sequence
 
     The objects are rearranged each time the environment is reseted.
     
@@ -379,7 +379,6 @@ class GroceryGround(GazeboEnvBase):
 
     def _insert_objects(self, object_list):
         obj_num = len(object_list)
-        obj_pos_list = random.sample(self._pos_list, obj_num)
         for obj_id in range(obj_num):
             model_name = object_list[obj_id]
             self._world.insertModelFile('model://' + model_name)
@@ -389,9 +388,6 @@ class GroceryGround(GazeboEnvBase):
             # operation. Or the model may not be completely inserted, boost will
             # throw 'px!=0' error when set_pose/get_pose of the model is called
             time.sleep(0.1)
-            loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
-            pose = (np.array(loc), (0, 0, 0))
-            self._world.get_model(model_name).set_pose(pose)
 
     def _random_move_objects(self, random_range=10.0):
         obj_num = len(self._object_list)

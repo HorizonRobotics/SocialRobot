@@ -44,9 +44,9 @@ class SimpleNavigation(GazeboEnvBase):
     The observation space is a numpy array or a dict with keys 'image', 'states', 'sentence'
     If without language and internal_states, observation is a numpy array contains the image
     Otherwise observation is a dict. Depends on the configuration, it could be :
-        image with internal states (the states of agent joints)
-        image with language sequence
-        image with both internal states and language sequence
+        image and internal states (the states of agent joints)
+        image and language sequence
+        image, internal states and language sequence
     """
 
     # number of physics simulation steps per step(). Each step() corresponds to
