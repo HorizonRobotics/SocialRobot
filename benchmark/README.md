@@ -7,7 +7,7 @@ The scene is a turtlebot with 2 randomly moving wheels and a camera sensor.
 Pybullet incompatible sensors and plugins were removed from the turtlebot urdf file. The model file contains 2 continuous joints and 30 fixed joints.
 
 
-# Test Result ( Core i7-6700HQ@2.6Ghz, GTX970M)
+# Test Result ( Core i7-6700HQ @ 2.6Ghz, GTX970M)
 Note there are 100 substeps per one step
 
 ```
