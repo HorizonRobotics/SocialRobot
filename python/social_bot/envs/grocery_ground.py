@@ -158,7 +158,7 @@ class GroceryGround(GazeboEnvBase):
                  image_with_internal_states=False,
                  random_goal=False,
                  agent_type='pioneer2dx_noplugin',
-                 max_steps=120,
+                 max_steps=200,
                  port=None,
                  resized_image_size=(64, 64),
                  data_format='channels_last'):
@@ -397,6 +397,45 @@ class GroceryGround(GazeboEnvBase):
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
+
+
+class GroceryGroundImage(GroceryGround):
+    def __init__(self, port=None):
+        super(GroceryGroundImage, self).__init__(
+            use_image_observation=True,
+            image_with_internal_states=False,
+            with_language=False,
+            port=port)
+
+
+class GroceryGroundLanguage(GroceryGround):
+    def __init__(self, port=None):
+        super(GroceryGroundLanguage, self).__init__(
+            use_image_observation=False,
+            image_with_internal_states=False,
+            with_language=True,
+            random_goal=True,
+            port=port)
+
+
+class GroceryGroundImageLanguage(GroceryGround):
+    def __init__(self, port=None):
+        super(GroceryGroundImageLanguage, self).__init__(
+            use_image_observation=True,
+            image_with_internal_states=False,
+            with_language=True,
+            random_goal=True,
+            port=port)
+
+
+class GroceryGroundImageSelfStatesLanguage(GroceryGround):
+    def __init__(self, port=None):
+        super(GroceryGroundImageSelfStatesLanguage, self).__init__(
+            use_image_observation=True,
+            image_with_internal_states=True,
+            with_language=True,
+            random_goal=True,
+            port=port)
 
 
 def main():
