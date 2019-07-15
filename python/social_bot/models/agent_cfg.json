@@ -1,7 +1,15 @@
 {
-    "pr2_differential": {
-        "control_joints": ["pr2_differential::fl_caster_r_wheel_joint", "pr2_differential::fr_caster_l_wheel_joint"], 
-        "camera_sensor": "default::pr2_differential::head_tilt_link::head_mount_prosilica_link_sensor",
+    "pr2_noplugin": {
+        "control_joints": [
+            "pr2::fl_caster_r_wheel_joint",
+            "pr2::fl_caster_l_wheel_joint",
+            "pr2::fr_caster_r_wheel_joint",
+            "pr2::fr_caster_l_wheel_joint",
+            "pr2::bl_caster_r_wheel_joint",
+            "pr2::bl_caster_l_wheel_joint",
+            "pr2::br_caster_r_wheel_joint",
+            "pr2::br_caster_l_wheel_joint"], 
+        "camera_sensor": "default::pr2::head_tilt_link::head_mount_prosilica_link_sensor",
         "use_pid": false
     }, 
     "pioneer2dx_noplugin": {

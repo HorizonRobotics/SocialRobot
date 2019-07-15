@@ -452,7 +452,7 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='icub_with_hands',
+        agent_type='pr2_noplugin',
         random_goal=random_goal)
     env.render()
     while True:
