@@ -27,7 +27,7 @@ ActorDistributionNetwork.activation_fn=@tf.nn.tanh
 ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwork
 NormalProjectionNetwork.init_means_output_factor=1e-10
 NormalProjectionNetwork.std_bias_initializer_value=0.0
-NormalProjectionNetwork.scale_distribution=True
+# NormalProjectionNetwork.scale_distribution=True
 ValueNetwork.activation_fn=@tf.nn.tanh
 
 create_ac_algorithm.actor_fc_layers=(128, 64)
@@ -36,7 +36,7 @@ create_ac_algorithm.learning_rate=3e-4
 
 # training config
 off_policy_trainer.train.mini_batch_length=1
-off_policy_trainer.train.num_steps_per_iter=16384
+off_policy_trainer.train.unroll_length=1024
 off_policy_trainer.train.mini_batch_size=4096
 off_policy_trainer.train.num_iterations=1000000
 off_policy_trainer.train.summary_interval=1
