@@ -79,7 +79,7 @@ class GroceryGround(GazeboEnvBase):
     object. The name of the object is provided in the constructor. In each 
     episode, the location of the goal object is randomly chosen
 
-    The envionment support agent type of pr2_differential, pioneer2dx_noplugin, 
+    The envionment support agent type of pr2_noplugin, pioneer2dx_noplugin, 
     turtlebot, and irobot create for now. Note that for the models without camera
     sensor (irobot create), you can not use image as observation.
 
@@ -123,7 +123,7 @@ class GroceryGround(GazeboEnvBase):
                 Only affect if use_image_observation is true
             random_goal (bool): If ture, teacher will randomly select goal from the 
                 object list each episode
-            agent_type (string): Select the agent robot, supporting pr2_differential, 
+            agent_type (string): Select the agent robot, supporting pr2_noplugin, 
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
             port: Gazebo port, need to specify when run multiple environment in parallel
