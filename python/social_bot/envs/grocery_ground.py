@@ -51,16 +51,16 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
         self._reward_shaping = reward_shaping
         self._random_goal = random_goal
-        self._goal_name = 'coke_can_on_table'
-        self._static_object_list = [
+        self._goal_name = 'ball'
+        self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
-            'hammer_on_table', 'cafe_table'
+            'hammer_on_table', 'cafe_table', 'ball'
         ]
-        self._object_list = [
+        self._objects_to_insert = [
             'coke_can', 'table', 'bookshelf', 'car_wheel',
             'plastic_cup', 'beer', 'hammer'
         ]
-        self.task_vocab = self.task_vocab + self._static_object_list + self._object_list
+        self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
 
     def get_object_list(self):
         """
@@ -69,56 +69,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         Returns:
             Object list defined by teacher task
         """
-        return self._object_list
-
-    def get_goal_name(self):
-        """
-        Args:
-            None
-        Returns:
-            Goal's name at this episode
-        """
-        return self._goal_name
-
-    def run(self, agent, world):
-        """
-        Start a teaching episode for this task.
-        Args:
-            agent (pygazebo.Agent): the learning agent 
-            world (pygazebo.World): the simulation world
-        """
-        agent_sentence = yield
-        agent.reset()
-        if self._random_goal:
-            random_id = random.randrange(len(self._object_list))
-            self._goal_name = self._object_list[random_id]
-        goal = world.get_agent(self._goal_name)
-        loc, dir = agent.get_pose()
-        loc = np.array(loc)
-        self._move_goal(goal, loc)
-        steps_since_last_reward = 0
-        while steps_since_last_reward < self._max_steps:
-            steps_since_last_reward += 1
-            loc, dir = agent.get_pose()
-            goal_loc, _ = goal.get_pose()
-            loc = np.array(loc)
-            goal_loc = np.array(goal_loc)
-            dist = np.linalg.norm(loc - goal_loc)
-            if dist < self._success_distance_thresh:
-                logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
-                              "dist: " + str(dist))
-                agent_sentence = yield TeacherAction(
-                    reward=10.0, sentence="well done", done=True)
-                steps_since_last_reward = 0
-            else:
-                if self._reward_shaping:
-                    reward = -dist / self._random_range
-                else:
-                    reward = 0.0
-                agent_sentence = yield TeacherAction(
-                    reward=reward, sentence=self._goal_name, done=False)
-        yield TeacherAction(
-            reward=0.0, sentence="failed to " + self._goal_name, done=True)
+        return self._objects_to_insert
 
 
 @gin.configurable
@@ -246,6 +197,7 @@ class GroceryGround(GazeboEnvBase):
         assert data_format in ('channels_first', 'channels_last')
         self._data_format = data_format
         self._resized_image_size = resized_image_size
+        self._random_goal = random_goal
 
         self.reset()
         obs_sample = self._get_observation("hello")
@@ -286,6 +238,9 @@ class GroceryGround(GazeboEnvBase):
         self._world.reset()
         self._teacher.reset(self._agent, self._world)
         self._random_move_objects()
+        if self._random_goal:
+            random_id = random.randrange(len(self._object_list))
+            self._teacher_task.set_goal_name(self._object_list[random_id])
         self._world.step(100)
         teacher_action = self._teacher.teach("")
         obs = self._get_observation(teacher_action.sentence)
@@ -405,6 +360,7 @@ class GroceryGroundImage(GroceryGround):
             use_image_observation=True,
             image_with_internal_states=False,
             with_language=False,
+            random_goal=False,
             port=port)
 
 

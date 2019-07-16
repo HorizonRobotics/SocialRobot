@@ -1,0 +1,45 @@
+
+# environment config
+import alf.environments.wrappers
+CHANNEL_ORDER='channels_last'
+FrameStack.channel_order=%CHANNEL_ORDER
+create_environment.env_name='SocialBot-GroceryGroundImage-v0'
+create_environment.env_load_fn=@suite_socialbot.load
+suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
+create_environment.num_parallel_environments=16
+GroceryGround.resized_image_size=(64, 64)
+
+# algorithm config
+train_eval.algorithm_ctor=@create_ac_algorithm
+ActorCriticLoss.entropy_regularization=0.002
+ActorCriticLoss.use_gae=True
+ActorCriticLoss.use_td_lambda_return=True
+
+ActorDistributionNetwork.activation_fn=@tf.nn.elu
+ActorDistributionNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
+ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwork
+NormalProjectionNetwork.init_means_output_factor=1e-10
+NormalProjectionNetwork.std_bias_initializer_value=0.0
+NormalProjectionNetwork.scale_distribution=True
+
+ValueNetwork.activation_fn=@tf.nn.elu
+ValueNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
+
+create_ac_algorithm.actor_fc_layers=(256,)
+create_ac_algorithm.value_fc_layers=(256,)
+create_ac_algorithm.learning_rate=2e-4
+
+ActorCriticAlgorithm.gradient_clipping=0.5
+
+GroceryGround.data_format=%CHANNEL_ORDER
+tf.keras.layers.Conv2D.data_format=%CHANNEL_ORDER
+
+# training config
+on_policy_trainer.train.num_iterations=1000000
+on_policy_trainer.train.summarize_grads_and_vars=1
+on_policy_trainer.train.summary_interval=1
+on_policy_trainer.train.train_interval=100
+on_policy_trainer.train.use_tf_functions=1
+
+PolicyDriver.observation_transformer=@image_scale_transformer
+train_eval.debug_summaries=True
