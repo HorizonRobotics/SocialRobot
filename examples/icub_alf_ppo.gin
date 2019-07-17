@@ -1,4 +1,4 @@
-# training & playiing with Agent Learning Framework (Alf)
+# training & playing with Agent Learning Framework (Alf)
 # python -m alf.bin.main --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin --alsologtostderr
 # python -m alf.bin.main --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin --play
 
@@ -8,7 +8,7 @@ import social_bot
 
 # environment config
 create_environment.env_name="SocialBot-ICubWalkPID-v0"
-create_environment.num_parallel_environments=16
+create_environment.num_parallel_environments=12
 create_environment.env_load_fn=@suite_socialbot.load
 
 # algorithm config

@@ -1,14 +1,14 @@
+# training & playing with Agent Learning Framework (Alf)
+# python -m alf.bin.main --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --alsologtostderr
+# python -m alf.bin.main --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --play
+
 import alf.algorithms.ppo_algorithm
 import alf.algorithms.ppo_loss
 import social_bot
 
-# training & playiing
-# python -m alf.bin.main --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --alsologtostderr
-# python -m alf.bin.main --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --play
-
 # environment config
 create_environment.env_name="SocialBot-GroceryGround-v0"
-create_environment.num_parallel_environments=16
+create_environment.num_parallel_environments=12
 create_environment.env_load_fn=@suite_socialbot.load
 
 # algorithm config

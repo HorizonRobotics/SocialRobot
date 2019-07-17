@@ -62,6 +62,12 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         ]
         self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
 
+    def run(self, agent, world):
+        if self._random_goal:
+            random_id = random.randrange(len(self._objects_to_insert))
+            self.set_goal_name(self._objects_to_insert[random_id])
+        yield super(GroceryGroundGoalTask, self).run(agent, world)
+
     def get_object_list(self):
         """
         Args:
@@ -238,9 +244,6 @@ class GroceryGround(GazeboEnvBase):
         self._world.reset()
         self._teacher.reset(self._agent, self._world)
         self._random_move_objects()
-        if self._random_goal:
-            random_id = random.randrange(len(self._object_list))
-            self._teacher_task.set_goal_name(self._object_list[random_id])
         self._world.step(100)
         teacher_action = self._teacher.teach("")
         obs = self._get_observation(teacher_action.sentence)
