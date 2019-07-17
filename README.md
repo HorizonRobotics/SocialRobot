@@ -36,6 +36,33 @@ To see the graphics, you can open another terminal and run
 GAZEBO_MODEL_PATH=`pwd`/../python/social_bot/models gzclient
 ```
 
+## Environments and Tasks
+
+### [Simple Navigation](python/social_bot/envs/simple_navigation.py)
+
+* [Goal task](python/social_bot/teacher_tasks.py). 
+    
+    To be updated
+
+### [Grocery Ground](python/social_bot/envs/grocery_ground.py)
+
+* [Goal task](python/social_bot/teacher_tasks.py). 
+
+    <img src="examples/grocery_ground_pioneer.gif" width="320" height="240" alt="pioneer"/>
+
+### [PR2 Gripping](python/social_bot/envs/pr2.py)
+
+* Gripping task
+
+    To be updated
+
+### [iCub Walking](python/social_bot/envs/icub_walk.py)
+
+* Humanoid walking task
+
+    <img src="examples/icub_walk.gif" width="320" height="240" alt="pioneer"/>
+
+
 ## Trouble shooting
 
 ### python
