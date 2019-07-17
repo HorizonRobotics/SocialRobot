@@ -27,7 +27,8 @@ ActorDistributionNetwork.activation_fn=@tf.nn.tanh
 ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwork
 NormalProjectionNetwork.init_means_output_factor=1e-10
 NormalProjectionNetwork.std_bias_initializer_value=0.0
-# NormalProjectionNetwork.scale_distribution=True
+NormalProjectionNetwork.scale_distribution=True
+estimated_entropy.assume_reparametrization=True
 ValueNetwork.activation_fn=@tf.nn.tanh
 
 create_ac_algorithm.actor_fc_layers=(128, 64)
