@@ -39,7 +39,10 @@ import social_bot.pygazebo as gazebo
 
 class GroceryGroundGoalTask(teacher_tasks.GoalTask):
     """
-    A simple teacher task to find a goal for env GroceryGround.
+    A simple task to find a goal on grocery ground.
+    The goal of this task is to train the agent to navigate to an object.
+    The name of the object is provided by the teacher. In each 
+    episode, the location of the goal object is randomly chosen.
     """
 
     def __init__(self, reward_shaping=False, random_goal=False, **kwargs):
@@ -81,13 +84,9 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
 @gin.configurable
 class GroceryGround(GazeboEnvBase):
     """
-    The goal of this task is to train the agent to navigate to a fixed type of 
-    object. The name of the object is provided in the constructor. In each 
-    episode, the location of the goal object is randomly chosen
-
     The envionment support agent type of pr2_noplugin, pioneer2dx_noplugin, 
-    turtlebot, and irobot create for now. Note that for the models without camera
-    sensor (irobot create), you can not use image as observation.
+    turtlebot, icub, and irobot create for now. Note that for the models without
+    camera sensor (like irobot create), you can not use image as observation.
 
     Joints of the agent are controllable by force or pid controller,
 
