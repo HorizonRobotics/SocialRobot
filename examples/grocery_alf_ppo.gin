@@ -1,0 +1,47 @@
+# training & playing with Agent Learning Framework (Alf)
+# python -m alf.bin.main --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --alsologtostderr
+# python -m alf.bin.main --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --play
+
+import alf.algorithms.ppo_algorithm
+import alf.algorithms.ppo_loss
+import social_bot
+
+# environment config
+create_environment.env_name="SocialBot-GroceryGround-v0"
+create_environment.num_parallel_environments=12
+create_environment.env_load_fn=@suite_socialbot.load
+
+# algorithm config
+train_eval.algorithm_ctor=@create_ppo_algorithm
+ActorCriticAlgorithm.loss_class=@PPOLoss
+ActorCriticAlgorithm.gradient_clipping=0.5
+ActorCriticAlgorithm.clip_by_global_norm=True
+
+PPOLoss.entropy_regularization=5e-3
+PPOLoss.gamma=0.99
+PPOLoss.normalize_advantages=True
+PPOLoss.td_lambda=0.95
+PPOLoss.td_error_loss_fn=@element_wise_squared_loss
+
+ActorDistributionNetwork.activation_fn=@tf.nn.tanh
+ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwork
+NormalProjectionNetwork.init_means_output_factor=1e-10
+NormalProjectionNetwork.std_bias_initializer_value=0.0
+ValueNetwork.activation_fn=@tf.nn.tanh
+
+create_ac_algorithm.actor_fc_layers=(128, 64)
+create_ac_algorithm.value_fc_layers=(128, 64)
+create_ac_algorithm.learning_rate=3e-4
+
+# training config
+off_policy_trainer.train.mini_batch_length=1
+off_policy_trainer.train.unroll_length=1024
+off_policy_trainer.train.mini_batch_size=4096
+off_policy_trainer.train.num_iterations=1000000
+off_policy_trainer.train.summary_interval=1
+off_policy_trainer.train.num_updates_per_train_step=20
+off_policy_trainer.train.eval_interval=100
+off_policy_trainer.train.summarize_grads_and_vars=True
+
+TFUniformReplayBuffer.max_length=2048
+train_eval.debug_summaries=True

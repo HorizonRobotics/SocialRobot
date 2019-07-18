@@ -39,7 +39,10 @@ import social_bot.pygazebo as gazebo
 
 class GroceryGroundGoalTask(teacher_tasks.GoalTask):
     """
-    A simple teacher task to find a goal for env GroceryGround.
+    A simple task to find a goal on grocery ground.
+    The goal of this task is to train the agent to navigate to an object.
+    The name of the object is provided by the teacher. In each 
+    episode, the location of the goal object is randomly chosen.
     """
 
     def __init__(self, reward_shaping=False, random_goal=False, **kwargs):
@@ -51,16 +54,22 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
         self._reward_shaping = reward_shaping
         self._random_goal = random_goal
-        self._goal_name = 'coke_can_on_table'
-        self._static_object_list = [
+        self._goal_name = 'ball'
+        self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
-            'hammer_on_table', 'cafe_table'
+            'hammer_on_table', 'cafe_table', 'ball'
         ]
-        self._object_list = [
+        self._objects_to_insert = [
             'coke_can', 'table', 'bookshelf', 'car_wheel',
             'plastic_cup', 'beer', 'hammer'
         ]
-        self.task_vocab = self.task_vocab + self._static_object_list + self._object_list
+        self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
+
+    def run(self, agent, world):
+        if self._random_goal:
+            random_id = random.randrange(len(self._objects_to_insert))
+            self.set_goal_name(self._objects_to_insert[random_id])
+        yield from super().run(agent, world)
 
     def get_object_list(self):
         """
@@ -69,68 +78,15 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         Returns:
             Object list defined by teacher task
         """
-        return self._object_list
-
-    def get_goal_name(self):
-        """
-        Args:
-            None
-        Returns:
-            Goal's name at this episode
-        """
-        return self._goal_name
-
-    def run(self, agent, world):
-        """
-        Start a teaching episode for this task.
-        Args:
-            agent (pygazebo.Agent): the learning agent 
-            world (pygazebo.World): the simulation world
-        """
-        agent_sentence = yield
-        agent.reset()
-        if self._random_goal:
-            random_id = random.randrange(len(self._object_list))
-            self._goal_name = self._object_list[random_id]
-        goal = world.get_agent(self._goal_name)
-        loc, dir = agent.get_pose()
-        loc = np.array(loc)
-        self._move_goal(goal, loc)
-        steps_since_last_reward = 0
-        while steps_since_last_reward < self._max_steps:
-            steps_since_last_reward += 1
-            loc, dir = agent.get_pose()
-            goal_loc, _ = goal.get_pose()
-            loc = np.array(loc)
-            goal_loc = np.array(goal_loc)
-            dist = np.linalg.norm(loc - goal_loc)
-            if dist < self._success_distance_thresh:
-                logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
-                              "dist: " + str(dist))
-                agent_sentence = yield TeacherAction(
-                    reward=10.0, sentence="well done", done=True)
-                steps_since_last_reward = 0
-            else:
-                if self._reward_shaping:
-                    reward = -dist / self._random_range
-                else:
-                    reward = 0.0
-                agent_sentence = yield TeacherAction(
-                    reward=reward, sentence=self._goal_name, done=False)
-        yield TeacherAction(
-            reward=0.0, sentence="failed to " + self._goal_name, done=True)
+        return self._objects_to_insert
 
 
 @gin.configurable
 class GroceryGround(GazeboEnvBase):
     """
-    The goal of this task is to train the agent to navigate to a fixed type of 
-    object. The name of the object is provided in the constructor. In each 
-    episode, the location of the goal object is randomly chosen
-
-    The envionment support agent type of pr2_differential, pioneer2dx_noplugin, 
-    turtlebot, and irobot create for now. Note that for the models without camera
-    sensor (irobot create), you can not use image as observation.
+    The envionment support agent type of pr2_noplugin, pioneer2dx_noplugin, 
+    turtlebot, icub, and irobot create for now. Note that for the models without
+    camera sensor (like irobot create), you can not use image as observation.
 
     Joints of the agent are controllable by force or pid controller,
 
@@ -172,7 +128,7 @@ class GroceryGround(GazeboEnvBase):
                 Only affect if use_image_observation is true
             random_goal (bool): If ture, teacher will randomly select goal from the 
                 object list each episode
-            agent_type (string): Select the agent robot, supporting pr2_differential, 
+            agent_type (string): Select the agent robot, supporting pr2_noplugin, 
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
             port: Gazebo port, need to specify when run multiple environment in parallel
@@ -246,6 +202,7 @@ class GroceryGround(GazeboEnvBase):
         assert data_format in ('channels_first', 'channels_last')
         self._data_format = data_format
         self._resized_image_size = resized_image_size
+        self._random_goal = random_goal
 
         self.reset()
         obs_sample = self._get_observation("hello")
@@ -405,6 +362,7 @@ class GroceryGroundImage(GroceryGround):
             use_image_observation=True,
             image_with_internal_states=False,
             with_language=False,
+            random_goal=False,
             port=port)
 
 
@@ -452,7 +410,7 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='pr2_noplugin',
+        agent_type='icub_with_hands',
         random_goal=random_goal)
     env.render()
     while True:

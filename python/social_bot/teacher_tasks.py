@@ -99,7 +99,7 @@ class GoalTask(teacher.Task):
                               "dist: " + str(dist))
                 yield TeacherAction(reward=-1.0, sentence="failed", done=True)
             else:
-                agent_sentence = yield TeacherAction()
+                agent_sentence = yield TeacherAction(sentence=self._goal_name)
         logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                       "dist: " + str(dist))
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
@@ -113,3 +113,21 @@ class GoalTask(teacher.Task):
             if self._initial_dist > self._success_distance_thresh:
                 break
         goal.set_pose((loc, (0, 0, 0)))
+
+    def get_goal_name(self):
+        """
+        Args:
+            None
+        Returns:
+            Goal's name at this episode
+        """
+        return self._goal_name
+
+    def set_goal_name(self, goal_name):
+        """
+        Args:
+            Goal's name
+        Returns:
+            None
+        """
+        self._goal_name = goal_name
