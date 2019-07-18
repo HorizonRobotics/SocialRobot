@@ -185,7 +185,7 @@ class ICubWalk(GazeboEnvBase):
         Returns:
             A numpy.array for observation
         """
-        controls = action * self._agent_control_range
+        controls = np.clip(action, -1.0, 1.0) * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
         self._agent.take_action(controls)
         self._world.step(self._sub_seteps)

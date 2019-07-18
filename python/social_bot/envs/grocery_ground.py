@@ -263,10 +263,11 @@ class GroceryGround(GazeboEnvBase):
         if self._with_language:
             sentence_seq = action.get('sentence', None)
             sentence_raw = self._teacher.sequence_to_sentence(sentence_seq)
-            controls = action['control'] * self._agent_control_range
+            controls = action['control']
         else:
             sentence_raw = ''
-            controls = action * self._agent_control_range
+            controls = action
+        controls = np.clip(controls, -1.0, 1.0) * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
         teacher_action = self._teacher.teach(sentence_raw)
         self._agent.take_action(controls)
