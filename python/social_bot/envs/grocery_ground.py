@@ -69,7 +69,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         if self._random_goal:
             random_id = random.randrange(len(self._objects_to_insert))
             self.set_goal_name(self._objects_to_insert[random_id])
-        yield super(GroceryGroundGoalTask, self).run(agent, world)
+        yield from super().run(agent, world)
 
     def get_object_list(self):
         """
@@ -410,7 +410,7 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='pr2_noplugin',
+        agent_type='icub_with_hands',
         random_goal=random_goal)
     env.render()
     while True:
