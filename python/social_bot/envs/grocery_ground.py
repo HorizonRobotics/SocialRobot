@@ -261,14 +261,15 @@ class GroceryGround(GazeboEnvBase):
             If not with_language, it is a numpy.array or image for observation
         """
         if self._with_language:
-            sentence_seq = action.get('sentence', None)
-            sentence_raw = self._teacher.sequence_to_sentence(sentence_seq)
+            sentence = action.get('sentence', None)
+            if type(sentence) != str:
+                sentence = self._teacher.sequence_to_sentence(sentence)
             controls = action['control'] * self._agent_control_range
         else:
-            sentence_raw = ''
+            sentence = ''
             controls = action * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
-        teacher_action = self._teacher.teach(sentence_raw)
+        teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(100)
         obs = self._get_observation(teacher_action.sentence)
@@ -416,8 +417,7 @@ def main():
     while True:
         actions = np.array(np.random.randn(env._control_space.shape[0]))
         if with_language:
-            sentence_seq = env._teacher.sentence_to_sequence("hello", env._seq_length)
-            actions = dict(control=actions, sentence=sentence_seq)
+            actions = dict(control=actions, sentence="hello")
         obs, _, done, _ = env.step(actions)
         if with_language and (env._steps_in_this_episode == 1 or done):
             seq = obs["sentence"]

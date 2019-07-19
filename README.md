@@ -1,4 +1,4 @@
-# SocialBot
+# Social Robot
 
 A python environment for developing interactive learning agent with language communication ability.
 
@@ -9,7 +9,7 @@ curl -sSL http://get.gazebosim.org | sh
 ```
 If you already have a gazebo in your system, please make sure its version is greater than 9.6. You can check gazebo version by running `gazebo --version`. SocialRobot had been tested with Gazebo 9.6 and Gazebo 10.0.
 
-You also need to add the models in this repp to GAZEBO_MODEL_PATH
+You might need to add the model path in this repp to GAZEBO_MODEL_PATH:
 ```bash
 export GAZEBO_MODEL_PATH=REPO_ROOT/python/social_bot/models:$GAZEBO_MODEL_PATH
 ```
@@ -47,41 +47,52 @@ python3 python/social_bot/envs/grocery_ground.py
 ```
 
 ## Environments and Tasks
+We provide OpenAI gym interfaces to easily integrated the environments into RL algorithms. The registered names for them are listed as below:
+
+    SocialBot-SimpleNavigation-v0
+    SocialBot-SimpleNavigationDiscreteAction-v0
+    SocialBot-SimpleNavigationLanguage-v0
+    SocialBot-SimpleNavigationSelfStatesLanguage-v0
+    SocialBot-GroceryGround-v0
+    SocialBot-GroceryGroundImage-v0
+    SocialBot-GroceryGroundLanguage-v0
+    SocialBot-GroceryGroundImageLanguage-v0
+    SocialBot-GroceryGroundImageSelfStatesLanguage-v0
+    SocialBot-Pr2Gripper-v0
+    SocialBot-ICubWalk-v0
+    SocialBot-ICubWalkPID-v0
+Some environments support the teacher-student learning procedure, in which the task is defined by the teacher, and an interaction to teacher by sentence is performed during each environment step. You could enable the procedure by using the environment whose name contains "language".
 
 ### [Simple Navigation](python/social_bot/envs/simple_navigation.py)
+A simple navigation task for a pioneer2dx agent.
 
 * [Goal task](python/social_bot/teacher_tasks.py). 
     
-    Gif to be updated    
+    Gif to be updated
 
 ### [Grocery Ground](python/social_bot/envs/grocery_ground.py)
+A playground with groceries on it. You could choose agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, irobot create, and icub for now. 
+[ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub that equipped with both cameras and dexterous hands.
 
-* [Goal task](python/social_bot/envs/grocery_ground.py). 
+* [Goal task](python/social_bot/envs/grocery_ground.py): A task to chase a goal. 
 
-    <img src="media/grocery_ground_pioneer.gif" width="320" height="240" alt="pioneer"/>
+    <img src="media/grocery_ground_pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/grocery_ground_icub.gif" width="360" height="240" alt="icub"/>
 
-    A task to chase a goal. 
-    
     The agent will receive reward 1 when it is close enough to the goal, and get -1 if moving away from the goal too much or timeout.
 
 ### [PR2 Gripping](python/social_bot/envs/pr2.py)
 
-* Gripping task
+* A task that the agent need to use its grippers or fingers to grip a beer.
 
     Gif To be updated
 
-    A task that the agent need to use its grippers or fingers to grip a beer.
-
     A simple reward shaping is used to guide the agent's gripper to get close to the target, open the gripper and lift the target up.
-
 
 ### [iCub Walking](python/social_bot/envs/icub_walk.py)
 
-* Humanoid walking task
+* A simple humainoid walking task.
 
-    <img src="media/icub_walk.gif" width="320" height="240" alt="pioneer"/>
-
-    A task that the agent learns how to walk. 
+    <img src="media/icub_walk.gif" width="320" height="240" alt="pioneer"/> 
     
     reward = not_fall_bonus + truncked_walk_velocity - ctrl_cost
  
@@ -110,7 +121,7 @@ Training with Alf:
 ```bash
 python -m alf.bin.main --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin --alsologtostderr
 ```
-Or you can train it with tf-agent SAC, which might be better at sample efficiency:
+Or you can try with tf-agent SAC, which might be better at sample efficiency:
 ```bash
 python examples/train_icub_walk_sac.py \
     --root_dir=~/tmp/ICubWalkSAC
