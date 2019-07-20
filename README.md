@@ -47,7 +47,7 @@ python3 python/social_bot/envs/grocery_ground.py
 ```
 
 ## Environments and Tasks
-We provide OpenAI gym interfaces to easily integrated the environments into RL algorithms. The registered names for them are listed as below:
+We provide OpenAI gym interfaces to easily apply different RL algorithms into these different environments. The registered names for them are listed as below:
 
     SocialBot-SimpleNavigation-v0
     SocialBot-SimpleNavigationDiscreteAction-v0
@@ -61,7 +61,7 @@ We provide OpenAI gym interfaces to easily integrated the environments into RL a
     SocialBot-Pr2Gripper-v0
     SocialBot-ICubWalk-v0
     SocialBot-ICubWalkPID-v0
-Some environments support the teacher-student learning procedure, in which the task is defined by the teacher, and an interaction to teacher by sentence is performed during each environment step. You could enable the procedure by using the environment whose name contains "language".
+Some environments support the teacher-student learning procedure, in which the task is defined by the teacher, and an interaction with the teacher via a sentence is performed during each environment step. You could enable the procedure by using the environment whose name contains "language".
 
 ### [Simple Navigation](python/social_bot/envs/simple_navigation.py)
 A simple navigation task for a pioneer2dx agent.
@@ -71,22 +71,22 @@ A simple navigation task for a pioneer2dx agent.
     Gif to be updated
 
 ### [Grocery Ground](python/social_bot/envs/grocery_ground.py)
-A playground with groceries on it. You could choose agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, irobot create, and icub for now. 
+A playground with groceries on it. You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, irobot create, and icub for now. 
 [ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub that equipped with both cameras and dexterous hands.
 
 * [Goal task](python/social_bot/envs/grocery_ground.py): A task to chase a goal. 
 
     <img src="media/grocery_ground_pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/grocery_ground_icub.gif" width="360" height="240" alt="icub"/>
 
-    The agent will receive reward 1 when it is close enough to the goal, and get -1 if moving away from the goal too much or timeout.
+    The agent will receive reward 1 when it is close enough to the goal, and get -1 it becomes too far away from the goal or timeout.
 
 ### [PR2 Gripping](python/social_bot/envs/pr2.py)
 
-* A task that the agent need to use its grippers or fingers to grip a beer.
+* A task where the agent needs to use its grippers or fingers to grip a beer.
 
     Gif To be updated
 
-    A simple reward shaping is used to guide the agent's gripper to get close to the target, open the gripper and lift the target up.
+    Some simple reward shaping is used to guide the agent's gripper to get close to the target, open the gripper and lift the target up.
 
 ### [iCub Walking](python/social_bot/envs/icub_walk.py)
 
@@ -104,6 +104,11 @@ Training with [Agent Learning Framework (Alf)](https://github.com/HorizonRobotic
 cd ALF_REPO_ROOT/examples/
 python -m alf.bin.main --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --alsologtostderr
 ```
+To play:
+```bash
+python -m alf.bin.main --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --play --gin_param='on_policy_trainer.play.num_episodes=100'
+```
+
 ### [PR2 Training Example](https://github.com/HorizonRobotics/alf/blob/master/alf/examples/ppo_pr2.gin)
 Training with Alf:
 ```bash
