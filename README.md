@@ -68,38 +68,32 @@ A simple navigation task for a pioneer2dx agent.
 
 * [Goal task](python/social_bot/teacher_tasks.py). 
     
-    Gif to be updated
+    A simple navigation task to chase a goal. The agent will receive reward 1 when it is close enough to the goal, and get -1 it becomes too far away from the goal or timeout.
 
 ### [Grocery Ground](python/social_bot/envs/grocery_ground.py)
 A playground with groceries on it. You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, irobot create, and icub for now. 
 [ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub that equipped with both cameras and dexterous hands.
 
-* [Goal task](python/social_bot/envs/grocery_ground.py): A task to chase a goal. 
+* [Goal task](python/social_bot/envs/grocery_ground.py): A task to chase a goal on the playground. The reward setting is the same as simple navigation goal task. A PPO training example can be found [here](examples/grocery_alf_ppo.gin).
 
     <img src="media/grocery_ground_pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/grocery_ground_icub.gif" width="360" height="240" alt="icub"/>
 
-    The agent will receive reward 1 when it is close enough to the goal, and get -1 it becomes too far away from the goal or timeout.
 
 ### [PR2 Gripping](python/social_bot/envs/pr2.py)
 
-* A task where the agent needs to use its grippers or fingers to grip a beer.
+* A task where the agent needs to use its grippers or fingers to grip a beer. Some simple reward shaping is used to guide the agent's gripper to get close to the target, open the gripper and lift the target up. A training example can be found [here](examples/ppo_pr2.gin).
 
     Gif To be updated
 
-    Some simple reward shaping is used to guide the agent's gripper to get close to the target, open the gripper and lift the target up.
-
+    
 ### [iCub Walking](python/social_bot/envs/icub_walk.py)
 
-* A simple humainoid walking task.
+* A simple humainoid walking task. reward = not_fall_bonus + truncked_walk_velocity - ctrl_cost. A PPO and SAC training example can be found [here](examples/).
 
     <img src="media/icub_walk.gif" width="320" height="240" alt="pioneer"/> 
-    
-    reward = not_fall_bonus + truncked_walk_velocity - ctrl_cost
  
-
-## Training Examples
-### [Simple Navigation Training Example](https://github.com/HorizonRobotics/alf/blob/master/alf/examples/ac_simple_navigation.gin)
-Training with [Agent Learning Framework (Alf)](https://github.com/HorizonRobotics/alf)
+### Training Examples with [Agent Learning Framework (Alf)](https://github.com/HorizonRobotics/alf)
+Train simple navigation task with [Alf actor-critic](examples/ac_simple_navigation.gin)
 ```bash
 cd ALF_REPO_ROOT/examples/
 python -m alf.bin.main --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --alsologtostderr
@@ -109,28 +103,8 @@ To play:
 python -m alf.bin.main --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --play --gin_param='on_policy_trainer.play.num_episodes=100'
 ```
 
-### [PR2 Training Example](https://github.com/HorizonRobotics/alf/blob/master/alf/examples/ppo_pr2.gin)
-Training with Alf:
-```bash
-python -m alf.bin.main --root_dir=~/tmp/pr2_gripping --gin_file=ALF_REPO_ROOT/examples/ppo_pr2.gin --alsologtostderr
-```
+You can find the gin config files for other tasks [here](examples). 
 
-### [Grocery Ground Training Example](examples/grocery_alf_ppo.gin)
-Training with Alf:
-```bash
-python -m alf.bin.main --root_dir=~/tmp/grocery_ppo --gin_file=grocery_alf_ppo.gin --alsologtostderr
-```
-
-### [iCub Walking Task Training Example](examples/icub_alf_ppo.gin)
-Training with Alf:
-```bash
-python -m alf.bin.main --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin --alsologtostderr
-```
-Or you can try with tf-agent SAC, which might be better at sample efficiency:
-```bash
-python examples/train_icub_walk_sac.py \
-    --root_dir=~/tmp/ICubWalkSAC
-```
 
 ## Trouble shooting
 
