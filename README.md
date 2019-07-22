@@ -72,7 +72,7 @@ A simple navigation task for a pioneer2dx agent.
 
 ### [Grocery Ground](python/social_bot/envs/grocery_ground.py)
 A playground with groceries on it. You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, irobot create, and icub for now. 
-[ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub that equipped with both cameras and dexterous hands.
+[ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub equipped with 2 cameras and dexterous hands.
 
 * [Goal task](python/social_bot/envs/grocery_ground.py): A task to chase a goal on the playground. The reward setting is the same as simple navigation goal task. A PPO training example can be found [here](examples/grocery_alf_ppo.gin).
 
@@ -95,7 +95,7 @@ A playground with groceries on it. You could choose the agent in the environment
 ### Training Examples with [Agent Learning Framework (Alf)](https://github.com/HorizonRobotics/alf)
 Train simple navigation task with [Alf actor-critic](examples/ac_simple_navigation.gin)
 ```bash
-cd ALF_REPO_ROOT/examples/
+cd REPO_ROOT/examples/
 python -m alf.bin.main --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --alsologtostderr
 ```
 To play:
