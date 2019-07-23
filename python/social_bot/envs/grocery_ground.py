@@ -264,10 +264,11 @@ class GroceryGround(GazeboEnvBase):
             sentence = action.get('sentence', None)
             if type(sentence) != str:
                 sentence = self._teacher.sequence_to_sentence(sentence)
-            controls = action['control'] * self._agent_control_range
+            controls = action['control']
         else:
             sentence = ''
-            controls = action * self._agent_control_range
+            controls = action
+        controls = np.clip(controls, -1.0, 1.0) * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
@@ -411,11 +412,11 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='icub_with_hands',
+        agent_type='pioneer2dx_noplugin',
         random_goal=random_goal)
     env.render()
     while True:
-        actions = np.array(np.random.randn(env._control_space.shape[0]))
+        actions = env._control_space.sample()
         if with_language:
             actions = dict(control=actions, sentence="hello")
         obs, _, done, _ = env.step(actions)

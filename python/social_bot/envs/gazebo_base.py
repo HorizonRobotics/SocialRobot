@@ -32,6 +32,7 @@ class GazeboEnvBase(gym.Env):
         # to avoid different parallel simulation has the same randomness
         random.seed(port)
         self._rendering_process = None
+        self._rendering_camera = None
         gazebo.initialize(port=port, quiet=quiet)
 
     def render(self, mode='human'):
@@ -48,6 +49,15 @@ class GazeboEnvBase(gym.Env):
                         'GAZEBO_MASTER_URI'] = "localhost:%s" % self._port
                 self._rendering_process = Popen(['gzclient'])
             return
+        if mode == 'rgb_array':
+            # TODO
+            if self._rendering_camera is None:
+                # insert a camera looking at origin point
+                self._rendering_camera = None
+            # set camera pose to track the agent
+            # get camera image
+            image = None
+            return np.array(image)
         raise NotImplementedError(
             "rendering mode 'rgb_array' is not implemented.")
 

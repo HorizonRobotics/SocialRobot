@@ -223,7 +223,7 @@ def main():
     env = ICubWalkPID(sub_seteps=50)
     env.render()
     while True:
-        actions = np.array(np.random.randn(env.action_space.shape[0]))
+        actions = np.array(env.action_space.sample())
         obs, _, done, _ = env.step(actions)
         if done or env._steps_in_this_episode > 100:
             env.reset()
