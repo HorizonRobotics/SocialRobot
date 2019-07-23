@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import time
 import random
 
 import gym
@@ -32,6 +33,7 @@ class GazeboEnvBase(gym.Env):
         # to avoid different parallel simulation has the same randomness
         random.seed(port)
         self._rendering_process = None
+        self._world = None
         self._rendering_camera = None
         gazebo.initialize(port=port, quiet=quiet)
 
@@ -39,7 +41,7 @@ class GazeboEnvBase(gym.Env):
         """Render the environment.
 
         Args:
-            mode (str): Currently only 'human' is supported.
+            mode (str): 'human' and 'rgb_array' is supported.
         """
         if mode == 'human':
             if self._rendering_process is None:
@@ -50,16 +52,30 @@ class GazeboEnvBase(gym.Env):
                 self._rendering_process = Popen(['gzclient'])
             return
         if mode == 'rgb_array':
-            # TODO
             if self._rendering_camera is None:
-                # insert a camera looking at origin point
-                self._rendering_camera = None
-            # set camera pose to track the agent
-            # get camera image
-            image = None
+                render_camera_sdf = """
+                <?xml version='1.0'?>
+                <sdf version ='1.4'>
+                <model name ='render_camera'>
+                    <static>1</static>
+                    <pose>-3 0 3 0 0.4 0</pose>
+                    <include>
+                        <uri>model://camera</uri>
+                    </include>
+                </model>
+                </sdf>
+                """
+                self._world.insertModelFromSdfString(render_camera_sdf)
+                time.sleep(0.2)
+                self._world.step(20)
+                self._rendering_camera = self._world.get_agent('render_camera')
+                print(self._world.info())
+            image = self._rendering_camera.get_camera_observation(
+                "default::render_camera::camera::link::camera")
             return np.array(image)
+
         raise NotImplementedError(
-            "rendering mode 'rgb_array' is not implemented.")
+            "rendering mode: " + mode + " is not implemented.")
 
     def _get_internal_states(self, agent, agent_joints):
         joint_pos = []

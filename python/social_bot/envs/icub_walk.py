@@ -220,11 +220,12 @@ def main():
     """
     Simple testing of this environment.
     """
+    import matplotlib.pyplot as plt
     env = ICubWalkPID(sub_seteps=50)
-    env.render()
     while True:
         actions = np.array(env.action_space.sample())
         obs, _, done, _ = env.step(actions)
+        plt.imshow(env.render('rgb_array'))
         if done or env._steps_in_this_episode > 100:
             env.reset()
 
