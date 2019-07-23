@@ -342,11 +342,11 @@ class GroceryGround(GazeboEnvBase):
             model_name = object_list[obj_id]
             self._world.insertModelFile('model://' + model_name)
             logging.debug('model ' + model_name + ' inserted')
-            self._world.step(10)
+            self._world.step(20)
             # Sleep for a while waiting for Gazebo server to finish the inserting
             # operation. Or the model may not be completely inserted, boost will
             # throw 'px!=0' error when set_pose/get_pose of the model is called
-            time.sleep(0.1)
+            time.sleep(0.2)
 
     def _random_move_objects(self, random_range=10.0):
         obj_num = len(self._object_list)

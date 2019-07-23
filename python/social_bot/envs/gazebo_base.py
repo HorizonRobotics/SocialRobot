@@ -59,9 +59,24 @@ class GazeboEnvBase(gym.Env):
                 <model name ='render_camera'>
                     <static>1</static>
                     <pose>-3 0 3 0 0.4 0</pose>
-                    <include>
-                        <uri>model://camera</uri>
-                    </include>
+                    <link name="link">
+                        <sensor name="camera" type="camera">
+                            <camera>
+                            <horizontal_fov>2.0944</horizontal_fov>
+                            <image>
+                                <width>640</width>
+                                <height>480</height>
+                            </image>
+                            <clip>
+                                <near>0.1</near>
+                                <far>100</far>
+                            </clip>
+                            </camera>
+                            <always_on>1</always_on>
+                            <update_rate>30</update_rate>
+                            <visualize>false</visualize>
+                        </sensor>
+                    </link>
                 </model>
                 </sdf>
                 """
@@ -69,9 +84,8 @@ class GazeboEnvBase(gym.Env):
                 time.sleep(0.2)
                 self._world.step(20)
                 self._rendering_camera = self._world.get_agent('render_camera')
-                print(self._world.info())
             image = self._rendering_camera.get_camera_observation(
-                "default::render_camera::camera::link::camera")
+                "default::render_camera::link::camera")
             return np.array(image)
 
         raise NotImplementedError(
