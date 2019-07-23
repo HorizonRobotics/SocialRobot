@@ -98,7 +98,7 @@ def main(options):
     for attr in dir(options):
         if not attr.startswith('__'):
             logging.info(" %s=%s" % (attr, options.__getattribute__(attr)))
-    env = gym.make("SocialBot-SimpleNavigationNoLanguage-v0")
+    env = gym.make("SocialBot-SimpleNavigation-v0")
     assert isinstance(env.action_space, gym.spaces.Box)
     assert isinstance(env.observation_space, gym.spaces.Box)
     image_shape = env.observation_space.shape

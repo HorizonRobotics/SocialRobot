@@ -10,7 +10,7 @@ import os
 
 
 def main():
-    env = gym.make("SocialBot-SimpleNavigation-v0")
+    env = gym.make("SocialBot-SimpleNavigationLanguage-v0")
     steps = 0
     t0 = time.time()
     proc = psutil.Process(os.getpid())
