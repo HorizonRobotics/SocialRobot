@@ -1,10 +1,14 @@
-include 'ppo.gin'
+# training with Agent Learning Framework (Alf)
+# python -m alf.bin.main --root_dir=~/tmp/ppo_pr2_griper --gin_file=ppo_pr2.gin
+
+import alf.algorithms.ppo_algorithm
+import alf.algorithms.ppo_loss
+train_eval.algorithm_ctor=@create_ppo_algorithm
+ActorCriticAlgorithm.loss_class=@PPOLoss
 
 # environment config
-
-# "SocialBot-ICubWalk-v0"
 create_environment.env_name="SocialBot-Pr2Gripper-v0"
-create_environment.num_parallel_environments=60
+create_environment.num_parallel_environments=30
 create_environment.env_load_fn=@suite_socialbot.load
 
 # algorithm config
@@ -27,7 +31,7 @@ ActorDistributionNetwork.activation_fn=@tf.nn.softsign
 
 create_ac_algorithm.actor_fc_layers=(100, 50, 25)
 create_ac_algorithm.value_fc_layers=(100, 50, 25)
-create_ac_algorithm.learning_rate=2e-4
+create_ac_algorithm.learning_rate=3e-4
 
 # training config
 off_policy_trainer.train.mini_batch_length=1

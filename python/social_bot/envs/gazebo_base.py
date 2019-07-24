@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import time
 import random
 
 import gym
@@ -25,6 +26,13 @@ from social_bot.teacher import DiscreteSequence
 
 @gin.configurable
 class GazeboEnvBase(gym.Env):
+    """
+    Base class for gazebo physics simulation
+    These environments create scenes behave like normal Gym environments.
+    """
+    
+    metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
+
     def __init__(self, port=None, quiet=False):
         if port is None:
             port = 0
@@ -32,13 +40,17 @@ class GazeboEnvBase(gym.Env):
         # to avoid different parallel simulation has the same randomness
         random.seed(port)
         self._rendering_process = None
+        self._world = None
+        self._rendering_camera = None
+        # the default camera pose for rendering rgb_array, could be override
+        self._rendering_cam_pose = "10 -10 6 0 0.4 2.4"
         gazebo.initialize(port=port, quiet=quiet)
 
     def render(self, mode='human'):
         """Render the environment.
 
         Args:
-            mode (str): Currently only 'human' is supported.
+            mode (str): 'human' and 'rgb_array' is supported.
         """
         if mode == 'human':
             if self._rendering_process is None:
@@ -48,8 +60,46 @@ class GazeboEnvBase(gym.Env):
                         'GAZEBO_MASTER_URI'] = "localhost:%s" % self._port
                 self._rendering_process = Popen(['gzclient'])
             return
+        if mode == 'rgb_array':
+            if self._rendering_camera is None:
+                render_camera_sdf = """
+                <?xml version='1.0'?>
+                <sdf version ='1.4'>
+                <model name ='render_camera'>
+                    <static>1</static>
+                    <pose>%s</pose>
+                    <link name="link">
+                        <sensor name="camera" type="camera">
+                            <camera>
+                            <horizontal_fov>0.95</horizontal_fov>
+                            <image>
+                                <width>640</width>
+                                <height>480</height>
+                            </image>
+                            <clip>
+                                <near>0.1</near>
+                                <far>100</far>
+                            </clip>
+                            </camera>
+                            <always_on>1</always_on>
+                            <update_rate>30</update_rate>
+                            <visualize>true</visualize>
+                        </sensor>
+                    </link>
+                </model>
+                </sdf>
+                """
+                render_camera_sdf = render_camera_sdf % self._rendering_cam_pose
+                self._world.insertModelFromSdfString(render_camera_sdf)
+                time.sleep(0.2)
+                self._world.step(20)
+                self._rendering_camera = self._world.get_agent('render_camera')
+            image = self._rendering_camera.get_camera_observation(
+                "default::render_camera::link::camera")
+            return np.array(image)
+
         raise NotImplementedError(
-            "rendering mode 'rgb_array' is not implemented.")
+            "rendering mode: " + mode + " is not implemented.")
 
     def _get_internal_states(self, agent, agent_joints):
         joint_pos = []

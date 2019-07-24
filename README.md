@@ -100,9 +100,12 @@ python -m alf.bin.main --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_n
 ```
 To play:
 ```bash
-python -m alf.bin.main --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --play --gin_param='on_policy_trainer.play.num_episodes=100'
+python -m alf.bin.main --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --play --gin_param='on_policy_trainer.play.num_episodes=20'
 ```
-
+The playing back can also be recorded to a video file like this:
+```bash
+python -m alf.bin.main --root_dir=~/tmp/grocery_goal_task --gin_file=grocery_alf_ppo.gin --play --gin_param="on_policy_trainer.play.record_file='grocery.mp4'"
+```
 You can find the gin config files for other tasks [here](examples). 
 
 
