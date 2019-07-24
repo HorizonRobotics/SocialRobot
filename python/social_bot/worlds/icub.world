@@ -12,7 +12,7 @@
     </physics>
     <!-- Ground -->
     <include>
-      <uri>model://ground_plane</uri>
+      <uri>model://texture_ground_plane</uri>
     </include>
     <!-- A global light source -->
     <include>

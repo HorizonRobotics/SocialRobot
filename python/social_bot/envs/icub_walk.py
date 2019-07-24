@@ -226,6 +226,7 @@ def main():
         actions = np.array(env.action_space.sample())
         obs, _, done, _ = env.step(actions)
         plt.imshow(env.render('rgb_array'))
+        plt.pause(0.00001)
         if done or env._steps_in_this_episode > 100:
             env.reset()
 

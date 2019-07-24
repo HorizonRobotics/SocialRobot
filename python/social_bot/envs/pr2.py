@@ -89,7 +89,7 @@ class Pr2Gripper(GazeboEnvBase):
         self._world = gazebo.new_world_from_file(
             os.path.join(social_bot.get_world_dir(), "pr2.world"))
         self._agent = self._world.get_agent()
-        #logger.info("joint names: %s" % self._agent.get_joint_names())
+        self._rendering_cam_pose = "3 -3 2 0 0.4 2.2"
 
         self._all_joints = self._agent.get_joint_names()
 
@@ -382,6 +382,8 @@ class Pr2Gripper(GazeboEnvBase):
         while True:
             actions = self.action_space.sample()
             obs, r, done, _ = self.step(actions * self._gripper_reward_dir)
+            #self.render('rgb_array')human
+            self.render('human')
             reward += r
 
             if not self._use_internal_states_only:

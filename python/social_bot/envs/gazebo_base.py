@@ -35,6 +35,8 @@ class GazeboEnvBase(gym.Env):
         self._rendering_process = None
         self._world = None
         self._rendering_camera = None
+        # the default camera pose for rendering rgb_array, could be override
+        self._rendering_cam_pose = "10 -10 6 0 0.4 2.4"
         gazebo.initialize(port=port, quiet=quiet)
 
     def render(self, mode='human'):
@@ -58,11 +60,11 @@ class GazeboEnvBase(gym.Env):
                 <sdf version ='1.4'>
                 <model name ='render_camera'>
                     <static>1</static>
-                    <pose>-3 0 3 0 0.4 0</pose>
+                    <pose>%s</pose>
                     <link name="link">
                         <sensor name="camera" type="camera">
                             <camera>
-                            <horizontal_fov>2.0944</horizontal_fov>
+                            <horizontal_fov>0.95</horizontal_fov>
                             <image>
                                 <width>640</width>
                                 <height>480</height>
@@ -74,12 +76,13 @@ class GazeboEnvBase(gym.Env):
                             </camera>
                             <always_on>1</always_on>
                             <update_rate>30</update_rate>
-                            <visualize>false</visualize>
+                            <visualize>true</visualize>
                         </sensor>
                     </link>
                 </model>
                 </sdf>
                 """
+                render_camera_sdf = render_camera_sdf % self._rendering_cam_pose
                 self._world.insertModelFromSdfString(render_camera_sdf)
                 time.sleep(0.2)
                 self._world.step(20)
