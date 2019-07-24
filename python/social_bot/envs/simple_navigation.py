@@ -82,6 +82,7 @@ class SimpleNavigation(GazeboEnvBase):
             os.path.join(social_bot.get_world_dir(),
                          "pioneer2dx_camera.world"))
         self._agent = self._world.get_agent()
+        self._rendering_cam_pose = "4 -4 3 0 0.4 2.3"
         assert self._agent is not None
         logging.debug("joint names: %s" % self._agent.get_joint_names())
         self._all_joints = self._agent.get_joint_names()

@@ -26,6 +26,13 @@ from social_bot.teacher import DiscreteSequence
 
 @gin.configurable
 class GazeboEnvBase(gym.Env):
+    """
+    Base class for gazebo physics simulation
+    These environments create scenes behave like normal Gym environments.
+    """
+    
+    metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
+
     def __init__(self, port=None, quiet=False):
         if port is None:
             port = 0
