@@ -382,7 +382,6 @@ class Pr2Gripper(GazeboEnvBase):
         while True:
             actions = self.action_space.sample()
             obs, r, done, _ = self.step(actions * self._gripper_reward_dir)
-            #self.render('rgb_array')human
             self.render('human')
             reward += r
 
