@@ -16,6 +16,7 @@ A simple enviroment for an agent play on a groceryground
 """
 import os
 import time
+import math
 import numpy as np
 import random
 import json
@@ -67,6 +68,15 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         self._pos_list.remove((0, 0))
         self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
 
+    def get_goal_name(self):
+        """
+        Args:
+            None
+        Returns:
+            Goal's name at this episode
+        """
+        return self._goal_name
+
     def setup(self, agent, world):
         """
         Setting things up during the initialization
@@ -77,13 +87,12 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
 
     def reset(self):
         """
-        Reset each time the environment is reseted
+        Reset each time after environment is reseted
         """
         self._random_move_objects()
         if self._random_goal:
             random_id = random.randrange(len(self._objects_to_insert))
             self.set_goal_name(self._objects_to_insert[random_id])
-
 
     def _insert_objects(self, object_list):
         obj_num = len(object_list)
@@ -105,29 +114,56 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
-
+    
+    def model_list_in_obs(self):
+        return 'ball'
 
 
 class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
     """
     A simple task to kick a ball to the goal.
     """
-
     def __init__(self, **kwargs):
         """
         Args:
             None
         """
         super(GroceryGroundKickBallTask, self).__init__(**kwargs)
-        self._goal_name = 'robocup_3d_goal'
+        self._goal_name = 'goal'
+        self._success_distance_thresh=0.5,
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
         ]
-        self._objects_to_insert = [
-            'robocup_3d_goal'
-        ]
-        self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
+        self.task_vocab = self.task_vocab + self._objects_in_world
+
+    def setup(self, agent, world):
+        """
+        Setting things up during the initialization
+        """
+        self._agent = agent
+        self._world = world
+        goal_sdf = """
+        <?xml version='1.0'?>
+        <sdf version ='1.4'>
+        <model name ='goal'>
+            <static>1</static>
+            <include>
+                <uri>model://robocup_3Dsim_goal</uri>
+            </include>
+            <pose frame=''>-5.0 0 0 0 -0 3.14159265</pose>
+        </model>
+        </sdf>
+        """
+        self._world.insertModelFromSdfString(goal_sdf)
+        time.sleep(0.2)
+        self._world.step(20)
+
+    def reset(self):
+        """
+        Reset each time the environment is reseted
+        """
+        pass
 
     def run(self, agent, world):
         """
@@ -139,25 +175,38 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
         agent_sentence = yield
         goal = world.get_agent(self._goal_name)
         ball = world.get_agent('ball')
-        loc, dir = agent.get_pose()
-        loc = np.array(loc)
-        self._move_goal(ball, loc)
-        steps_since_last_reward = 0
-        while steps_since_last_reward < self._max_steps:
-            steps_since_last_reward += 1
-            goal_loc, _ = goal.get_pose()
-            ball_loc, dir = ball.get_pose()
-            dist = np.linalg.norm(np.array(ball_loc) - np.array(goal_loc))
-            if dist < self._success_distance_thresh:
-                agent_sentence = yield TeacherAction(
-                    reward=1.0, sentence="well done", done=True)
-                steps_since_last_reward = 0
+        goal_loc, dir = goal.get_pose()
+        self._move_goal(ball, np.array(goal_loc))
+        steps = 0
+        hitted_ball = False
+        while steps < self._max_steps:
+            steps += 1
+            if not hitted_ball:
+                agent_loc, dir = agent.get_pose()
+                ball_loc, _ = ball.get_pose()
+                dist = np.linalg.norm(np.array(ball_loc) - np.array(agent_loc))
                 agent_sentence = yield TeacherAction(reward=-dist/self._random_range)
+                if dist < self._success_distance_thresh:
+                    dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
+                    goal_dir = (np.array(ball_loc[0:2]) - np.array(agent_loc[0:2])) / dist
+                    dot = sum(dir * goal_dir)
+                    if dot > 0.707:
+                        # within 45 degrees of the agent direction
+                        hitted_ball = True
+            else:
+                goal_loc, _ = goal.get_pose()
+                ball_loc, _ = ball.get_pose()
+                dist = np.linalg.norm(np.array(ball_loc) - np.array(goal_loc))
+                if dist < self._success_distance_thresh:
+                    agent_sentence = yield TeacherAction(
+                        reward=100.0, sentence="well done", done=True)
+                else:
+                    agent_sentence = yield TeacherAction(reward=-dist/self._random_range)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
 
 @gin.configurable
-class GroceryGroundBase(GazeboEnvBase):
+class GroceryGround(GazeboEnvBase):
     """
     The envionment support agent type of pr2_noplugin, pioneer2dx_noplugin, 
     turtlebot, icub, and irobot create for now. Note that for the models without
@@ -187,7 +236,7 @@ class GroceryGroundBase(GazeboEnvBase):
                  with_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
-                 task=None,
+                 task_name=None,
                  agent_type='pioneer2dx_noplugin',
                  port=None,
                  resized_image_size=(64, 64),
@@ -200,7 +249,9 @@ class GroceryGroundBase(GazeboEnvBase):
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
-            task (teacher task): the teacher task
+            task_name (string): the teacher task, now there are 2 tasks,
+                a simple goal task: 'goal'
+                a simple kicking ball task:'kickball'
             agent_type (string): Select the agent robot, supporting pr2_noplugin, 
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
@@ -214,11 +265,23 @@ class GroceryGroundBase(GazeboEnvBase):
                 `(height, width, channels)` while `channels_first` corresponds
                 to images with shape `(channels, height, width)`.
         """
-        super(GroceryGroundBase, self).__init__(port=port)
+        super(GroceryGround, self).__init__(port=port)
         
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
-        self._teacher_task = task
+        if task_name is None or task_name == 'goal':
+            self._teacher_task = GroceryGroundGoalTask(
+                max_steps=200,
+                success_distance_thresh=0.5,
+                fail_distance_thresh=3.0,
+                random_goal = with_language,
+                random_range=10.0)
+        elif task_name == 'kickball':
+            self._teacher_task = GroceryGroundKickBallTask(
+                max_steps=200,
+                random_range=7.0)
+        else:
+            logging.debug("upsupported task name: " + task_name)
         task_group.add_task(self._teacher_task)
         self._teacher.add_task_group(task_group)
         self._teacher.build_vocab_from_tasks()
@@ -365,7 +428,7 @@ class GroceryGroundBase(GazeboEnvBase):
         return img
 
     def _get_low_dim_full_states(self):
-        goal = self._world.get_model(self._teacher_task.get_goal_name())
+        goal = self._world.get_model(self._teacher_task.model_list_in_obs())
         goal_pos = np.array(goal.get_pose()[0]).flatten()
         agent_pose = np.array(self._agent.get_pose()).flatten()
         agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
@@ -400,78 +463,38 @@ class GroceryGroundBase(GazeboEnvBase):
         return obs
 
 
-class GroceryGround(GroceryGroundBase):
-    def __init__(self, port=None):
-        teacher_task = GroceryGroundGoalTask(
-            max_steps=200,
-            success_distance_thresh=0.5,
-            fail_distance_thresh=3.0,
-            random_goal = False,
-            random_range=10.0)
-        super(GroceryGround, self).__init__(
-            task=teacher_task,
-            port=port)
-
 class GroceryGroundImage(GroceryGround):
     def __init__(self, port=None):
-        teacher_task = GroceryGroundGoalTask(
-            max_steps=200,
-            success_distance_thresh=0.5,
-            fail_distance_thresh=3.0,
-            random_goal = False,
-            random_range=10.0)
         super(GroceryGroundImage, self).__init__(
             use_image_observation=True,
             image_with_internal_states=False,
             with_language=False,
-            task=teacher_task,
             port=port)
 
 class GroceryGroundLanguage(GroceryGround):
     def __init__(self, port=None):
-        teacher_task = GroceryGroundGoalTask(
-            max_steps=200,
-            success_distance_thresh=0.5,
-            fail_distance_thresh=3.0,
-            random_goal = True,
-            random_range=10.0)
         super(GroceryGroundLanguage, self).__init__(
             use_image_observation=False,
             image_with_internal_states=False,
             with_language=True,
-            task=teacher_task,
             port=port)
 
 
 class GroceryGroundImageLanguage(GroceryGround):
     def __init__(self, port=None):
-        teacher_task = GroceryGroundGoalTask(
-            max_steps=200,
-            success_distance_thresh=0.5,
-            fail_distance_thresh=3.0,
-            random_goal = True,
-            random_range=10.0)
         super(GroceryGroundImageLanguage, self).__init__(
             use_image_observation=True,
             image_with_internal_states=False,
             with_language=True,
-            task=teacher_task,
             port=port)
 
 
 class GroceryGroundImageSelfStatesLanguage(GroceryGround):
     def __init__(self, port=None):
-        teacher_task = GroceryGroundGoalTask(
-            max_steps=200,
-            success_distance_thresh=0.5,
-            fail_distance_thresh=3.0,
-            random_goal = True,
-            random_range=10.0)
         super(GroceryGroundImageSelfStatesLanguage, self).__init__(
             use_image_observation=True,
             image_with_internal_states=True,
             with_language=True,
-            task=teacher_task,
             port=port)
 
 
@@ -482,21 +505,14 @@ def main():
     import matplotlib.pyplot as plt
     with_language = True
     use_image_obs = False
-    random_goal = False
     image_with_internal_states = True
     fig = None
-    teacher_task = GroceryGroundGoalTask(
-        max_steps=120,
-        success_distance_thresh=0.5,
-        fail_distance_thresh=3.0,
-        random_goal = random_goal,
-        random_range=10.0)
-    env = GroceryGroundBase(
+    env = GroceryGround(
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
         agent_type='pioneer2dx_noplugin',
-        task=teacher_task)
+        task_name='kickball')
     env.render()
     while True:
         actions = env._control_space.sample()

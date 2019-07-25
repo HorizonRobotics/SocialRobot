@@ -131,3 +131,12 @@ class GoalTask(teacher.Task):
             None
         """
         self._goal_name = goal_name
+    
+    def model_list_in_obs(self):
+        """
+        Args:
+            None
+        Returns:
+            Goal's name at this episode
+        """
+        return self._goal_name
