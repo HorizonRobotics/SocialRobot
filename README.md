@@ -64,15 +64,21 @@ We provide OpenAI gym interfaces to easily apply different RL algorithms into th
 Some environments support the teacher-student learning procedure, in which the task is defined by the teacher, and an interaction with the teacher via a sentence is performed during each environment step. You could enable the procedure by using the environment whose name contains "language".
 
 ### [Simple Navigation](python/social_bot/envs/simple_navigation.py)
-A simple navigation task for a pioneer2dx agent.
+A simple navigation task for a pioneer2dx agent with camera image as observation.
 
-* [Goal task](python/social_bot/teacher_tasks.py). 
-    
+* [Goal task](python/social_bot/teacher_tasks.py).
+
     A simple navigation task to chase a goal. The agent will receive reward 1 when it is close enough to the goal, and get -1 it becomes too far away from the goal or timeout.
 
+    <img src="media/ac_simple_navigation.gif" width="320" height="240" alt="simple_navigation"/>
+
 ### [Grocery Ground](python/social_bot/envs/grocery_ground.py)
-A playground with groceries on it. You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, irobot create, and icub for now. 
-[ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub equipped with 2 cameras and dexterous hands.
+A playground with groceries on it. You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, irobot create, and icub for now.
+[ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub equipped with 2 cameras and dexterous hands. The following are images of these 5 robots:
+
+<img src="media/pioneer.jpg" width="160" height="240" alt="pioneer"/> <img src="media/pr2.jpg" width="160" height="240" alt="pr2"/> <img src="media/turtlebot.jpg" width="160" height="240" alt="turtlebot"/> <img src="media/irobot_create.jpg" width="160" height="240" alt="irobot_create"/> <img src="media/icub.jpg" width="160" height="240" alt="icub"/>
+
+The observation of the robots include internal states, target pose or camera image, and optional language instruction.
 
 * [Goal task](python/social_bot/envs/grocery_ground.py): A task to chase a goal on the playground. The reward setting is the same as simple navigation goal task. A PPO training example can be found [here](examples/grocery_alf_ppo.gin).
 
@@ -81,17 +87,16 @@ A playground with groceries on it. You could choose the agent in the environment
 
 ### [PR2 Gripping](python/social_bot/envs/pr2.py)
 
-* A task where the agent needs to use its grippers or fingers to grip a beer. Some simple reward shaping is used to guide the agent's gripper to get close to the target, open the gripper and lift the target up. A training example can be found [here](examples/ppo_pr2.gin).
+* A task where the agent needs to use its grippers or fingers to grip a beer. The observation includes robot internal states and target pose/camera image. Some simple reward shaping is used to guide the agent's gripper to get close to the target, open the gripper and lift the target up. A training example can be found [here](examples/ppo_pr2.gin).
 
-    Gif To be updated
+  <img src="media/ppo_pr2.gif" width="320" height="240" alt="pr2"/>
 
-    
 ### [iCub Walking](python/social_bot/envs/icub_walk.py)
 
 * A simple humainoid walking task. reward = not_fall_bonus + truncked_walk_velocity - ctrl_cost. A PPO and SAC training example can be found [here](examples/).
 
-    <img src="media/icub_walk.gif" width="320" height="240" alt="pioneer"/> 
- 
+    <img src="media/icub_walk.gif" width="320" height="240" alt="pioneer"/>
+
 ### Training Examples with [Agent Learning Framework (Alf)](https://github.com/HorizonRobotics/alf)
 Train simple navigation task with [Alf actor-critic](examples/ac_simple_navigation.gin)
 ```bash
@@ -106,7 +111,7 @@ The playing back can also be recorded to a video file like this:
 ```bash
 python -m alf.bin.main --root_dir=~/tmp/grocery_goal_task --gin_file=grocery_alf_ppo.gin --play --gin_param="on_policy_trainer.play.record_file='grocery.mp4'"
 ```
-You can find the gin config files for other tasks [here](examples). 
+You can find the gin config files for other tasks [here](examples).
 
 
 ## Trouble shooting
