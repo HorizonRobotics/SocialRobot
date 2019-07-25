@@ -78,7 +78,7 @@ A playground with groceries on it. You could choose the agent in the environment
 
 <img src="media/pioneer.jpg" width="160" height="240" alt="pioneer"/> <img src="media/pr2.jpg" width="160" height="240" alt="pr2"/> <img src="media/turtlebot.jpg" width="160" height="240" alt="turtlebot"/> <img src="media/irobot_create.jpg" width="160" height="240" alt="irobot_create"/> <img src="media/icub.jpg" width="160" height="240" alt="icub"/>
 
-The observation of the robots include internal states, target pose or camera image, and language instruction.
+The observation of the robots include internal states, target pose or camera image, and optional language instruction.
 
 * [Goal task](python/social_bot/envs/grocery_ground.py): A task to chase a goal on the playground. The reward setting is the same as simple navigation goal task. A PPO training example can be found [here](examples/grocery_alf_ppo.gin).
 
