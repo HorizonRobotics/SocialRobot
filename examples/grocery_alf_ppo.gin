@@ -10,7 +10,7 @@ import social_bot
 
 # environment config
 create_environment.env_name="SocialBot-GroceryGround-v0"
-create_environment.num_parallel_environments=12
+create_environment.num_parallel_environments=16
 create_environment.env_load_fn=@suite_socialbot.load
 
 # algorithm config
@@ -33,7 +33,7 @@ ValueNetwork.activation_fn=@tf.nn.tanh
 
 create_ac_algorithm.actor_fc_layers=(128, 64)
 create_ac_algorithm.value_fc_layers=(128, 64)
-create_ac_algorithm.learning_rate=3e-4
+create_ac_algorithm.learning_rate=5e-4
 
 # training config
 off_policy_trainer.train.mini_batch_length=1
@@ -44,6 +44,7 @@ off_policy_trainer.train.summary_interval=1
 off_policy_trainer.train.num_updates_per_train_step=20
 off_policy_trainer.train.eval_interval=100
 off_policy_trainer.train.summarize_grads_and_vars=True
+off_policy_trainer.train.checkpoint_interval=20
 
 TFUniformReplayBuffer.max_length=2048
 train_eval.debug_summaries=True

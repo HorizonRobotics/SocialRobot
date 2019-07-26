@@ -132,11 +132,11 @@ class GoalTask(teacher.Task):
         """
         self._goal_name = goal_name
     
-    def model_list_in_obs(self):
+    def obs_model_list(self):
         """
         Args:
             None
         Returns:
-            Goal's name at this episode
+            Models should be added into observation, for the non-image case
         """
-        return self._goal_name
+        return [self._goal_name,]

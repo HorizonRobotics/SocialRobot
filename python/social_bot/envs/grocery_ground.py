@@ -114,9 +114,6 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
-    
-    def model_list_in_obs(self):
-        return 'ball'
 
 
 class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
@@ -185,14 +182,14 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
                 agent_loc, dir = agent.get_pose()
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(np.array(ball_loc) - np.array(agent_loc))
-                agent_sentence = yield TeacherAction(reward=-dist/self._random_range)
-                if dist < self._success_distance_thresh:
+                if dist < 0.35:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
                     goal_dir = (np.array(ball_loc[0:2]) - np.array(agent_loc[0:2])) / dist
                     dot = sum(dir * goal_dir)
                     if dot > 0.707:
                         # within 45 degrees of the agent direction
                         hitted_ball = True
+                agent_sentence = yield TeacherAction(reward=-dist/self._random_range)
             else:
                 goal_loc, _ = goal.get_pose()
                 ball_loc, _ = ball.get_pose()
@@ -201,8 +198,11 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
                     agent_sentence = yield TeacherAction(
                         reward=100.0, sentence="well done", done=True)
                 else:
-                    agent_sentence = yield TeacherAction(reward=-dist/self._random_range)
+                    agent_sentence = yield TeacherAction(reward=1.0-dist/self._random_range)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
+
+    def obs_model_list(self):
+        return ['ball', self._goal_name,]
 
 
 @gin.configurable
@@ -428,14 +428,22 @@ class GroceryGround(GazeboEnvBase):
         return img
 
     def _get_low_dim_full_states(self):
-        goal = self._world.get_model(self._teacher_task.model_list_in_obs())
-        goal_pos = np.array(goal.get_pose()[0]).flatten()
+        model_list = self._teacher_task.obs_model_list()
+        model_poss = []
+        model_vels = []
+        for model_id in range(len(model_list)):
+            model = self._world.get_model(model_list[model_id])
+            model_poss.append(model.get_pose()[0])
+            model_vels.append(model.get_velocities()[0])
+        model_poss = np.array(model_poss).flatten()
+        model_vels = np.array(model_vels).flatten()
         agent_pose = np.array(self._agent.get_pose()).flatten()
         agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
         internal_states = self._get_internal_states(self._agent,
                                                     self._agent_joints)
         obs = np.concatenate(
-            (goal_pos, agent_pose, agent_vel, internal_states), axis=0)
+            (model_poss, model_vels, agent_pose, agent_vel, internal_states),
+            axis=0)
         return obs
 
     def _create_observation_dict(self, sentence_raw):
