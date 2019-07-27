@@ -37,7 +37,7 @@ ValueNetwork.activation_fn=@tf.nn.tanh
 
 create_ac_algorithm.actor_fc_layers=(128, 64)
 create_ac_algorithm.value_fc_layers=(128, 64)
-create_ac_algorithm.learning_rate=5e-4
+create_ac_algorithm.learning_rate=3e-4
 
 # training config
 off_policy_trainer.train.mini_batch_length=1
