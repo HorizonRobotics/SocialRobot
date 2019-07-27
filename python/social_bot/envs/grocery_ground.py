@@ -68,15 +68,6 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         self._pos_list.remove((0, 0))
         self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
 
-    def get_goal_name(self):
-        """
-        Args:
-            None
-        Returns:
-            Goal's name at this episode
-        """
-        return self._goal_name
-
     def setup(self, agent, world):
         """
         Setting things up during the initialization
@@ -118,7 +109,8 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
 
 class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
     """
-    A simple task to kick a ball to the goal.
+    A simple task to kick a ball to the goal. Simple reward shaping is used to 
+    guide the agent run to the ball first.
     """
     def __init__(self, **kwargs):
         """
@@ -249,9 +241,10 @@ class GroceryGround(GazeboEnvBase):
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
-            task_name (string): the teacher task, now there are 2 tasks,
+            task_name (string): the teacher task, now there are 3 tasks,
                 a simple goal task: 'goal'
-                a simple kicking ball task:'kickball'
+                a simple kicking ball task: 'kickball'
+                a simple pure curiosity-driven task, no reward is provided: 'curiosity'
             agent_type (string): Select the agent robot, supporting pr2_noplugin, 
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name

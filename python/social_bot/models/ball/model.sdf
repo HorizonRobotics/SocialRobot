@@ -37,7 +37,7 @@
         </geometry>
         <surface>
           <bounce>
-            <restitution_coefficient>0.15937</restitution_coefficient>
+            <restitution_coefficient>0.6</restitution_coefficient>
             <threshold>0</threshold>
           </bounce>
           <contact>
