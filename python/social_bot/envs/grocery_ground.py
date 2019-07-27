@@ -197,6 +197,77 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
         return ['ball', self._goal_name,]
 
 
+class GroceryGroundCuriosityTask(teacher_tasks.GoalTask):
+    """
+    A simple task to test pure curiosity-driven algorithms, no reward is provided.
+    """
+    def __init__(self, **kwargs):
+        """
+        Args:
+            None
+        """
+        super(GroceryGroundCuriosityTask, self).__init__(**kwargs)
+        self._objects_in_world = [
+            'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
+            'hammer_on_table', 'cafe_table', 'ball'
+        ]
+        self._objects_to_insert = [
+            'coke_can', 'table', 'bookshelf', 'car_wheel',
+            'plastic_cup', 'beer', 'hammer'
+        ]
+        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._pos_list.remove((0, 0))
+        self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
+
+    def setup(self, agent, world):
+        """
+        Setting things up during the initialization
+        """
+        self._agent = agent
+        self._world = world
+        self._insert_objects(self._objects_to_insert)
+
+    def reset(self):
+        """
+        Reset each time after environment is reseted
+        """
+        self._random_move_objects()
+
+    def run(self, agent, world):
+        """
+        Start a teaching episode for this task.
+        Args:
+            agent (pygazebo.Agent): the learning agent 
+            world (pygazebo.World): the simulation world
+        """
+        steps = 0
+        while steps < self._max_steps:
+            steps += 1
+            yield TeacherAction(reward=0, sentence="", done=False)
+        yield TeacherAction(reward=0, sentence="", done=True)
+
+    def _insert_objects(self, object_list):
+        obj_num = len(object_list)
+        for obj_id in range(obj_num):
+            model_name = object_list[obj_id]
+            self._world.insertModelFile('model://' + model_name)
+            logging.debug('model ' + model_name + ' inserted')
+            self._world.step(20)
+            time.sleep(0.2)
+
+    def _random_move_objects(self, random_range=10.0):
+        obj_num = len(self._objects_to_insert)
+        obj_pos_list = random.sample(self._pos_list, obj_num)
+        for obj_id in range(obj_num):
+            model_name = self._objects_to_insert[obj_id]
+            loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
+            pose = (np.array(loc), (0, 0, 0))
+            self._world.get_model(model_name).set_pose(pose)
+
+    def obs_model_list(self):
+        return self._objects_in_world + self._objects_to_insert
+
+
 @gin.configurable
 class GroceryGround(GazeboEnvBase):
     """
