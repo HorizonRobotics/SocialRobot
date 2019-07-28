@@ -43,7 +43,7 @@ on_policy_trainer.train.summarize_grads_and_vars=1
 on_policy_trainer.train.train_interval=32
 on_policy_trainer.train.summary_interval=1
 on_policy_trainer.train.use_tf_functions=1
-on_policy_trainer.train.checkpoint_interval=200
+on_policy_trainer.train.checkpoint_interval=50
 
 PolicyDriver.observation_transformer=@image_scale_transformer
 train_eval.debug_summaries=1
