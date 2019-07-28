@@ -340,10 +340,12 @@ class GroceryGround(GazeboEnvBase):
                 fail_distance_thresh=3.0,
                 random_goal = with_language,
                 random_range=10.0)
-        elif task_name == 'kickball':
+        elif task_name == 'kickball': 
             self._teacher_task = GroceryGroundKickBallTask(
                 max_steps=200,
                 random_range=7.0)
+        elif task_name == 'curiosity':
+            self._teacher_task = GroceryGroundCuriosityTask(max_steps=200)
         else:
             logging.debug("upsupported task name: " + task_name)
         task_group.add_task(self._teacher_task)
