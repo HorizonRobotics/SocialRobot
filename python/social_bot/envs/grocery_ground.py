@@ -106,6 +106,17 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
 
+    def task_specific_observation(self):
+        """
+        Args:
+            None
+        Returns:
+            Besides self states, the extra observations should be added into the
+            env observation, for the non-image case
+        """
+        goal = self._world.get_model(self._goal_name)
+        return np.array(goal.get_pose()[0]).flatten()
+
 
 class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
     """
@@ -193,8 +204,17 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
                     agent_sentence = yield TeacherAction(reward=1.0-dist/self._random_range)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
-    def obs_model_list(self):
-        return ['ball', self._goal_name,]
+    def task_specific_observation(self):
+        model_list = ['ball', self._goal_name,]
+        model_poss = []
+        model_vels = []
+        for model_id in range(len(model_list)):
+            model = self._world.get_model(model_list[model_id])
+            model_poss.append(model.get_pose()[0])
+            model_vels.append(model.get_velocities()[0])
+        model_poss = np.array(model_poss).flatten()
+        model_vels = np.array(model_vels).flatten()
+        return np.concatenate((model_poss, model_vels), axis=0)
 
 
 class GroceryGroundCuriosityTask(teacher_tasks.GoalTask):
@@ -268,6 +288,21 @@ class GroceryGroundCuriosityTask(teacher_tasks.GoalTask):
     def obs_model_list(self):
         return self._objects_in_world + self._objects_to_insert
 
+    def task_specific_observation(self):
+        agent_pose = np.array(
+            self._agent.get_link_pose('iCub::root_link')).flatten()
+        chest_pose = np.array(
+            self._agent.get_link_pose('iCub::chest')).flatten()
+        l_foot_pose = np.array(
+            self._agent.get_link_pose('iCub::l_leg::l_foot')).flatten()
+        r_foot_pose = np.array(
+            self._agent.get_link_pose('iCub::r_leg::r_foot')).flatten()
+        average_pos = np.sum([
+            agent_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
+        ], axis=0) / 4.0
+        extra_poses = np.concatenate((average_pos, agent_pose, chest_pose,
+                                      l_foot_pose, r_foot_pose), axis=0)
+        return extra_poses
 
 @gin.configurable
 class GroceryGround(GazeboEnvBase):
@@ -495,21 +530,14 @@ class GroceryGround(GazeboEnvBase):
         return img
 
     def _get_low_dim_full_states(self):
-        model_list = self._teacher_task.obs_model_list()
-        model_poss = []
-        model_vels = []
-        for model_id in range(len(model_list)):
-            model = self._world.get_model(model_list[model_id])
-            model_poss.append(model.get_pose()[0])
-            model_vels.append(model.get_velocities()[0])
-        model_poss = np.array(model_poss).flatten()
-        model_vels = np.array(model_vels).flatten()
+        if hasattr(self._teacher_task, 'task_specific_observation'):
+            task_specific_ob = self._teacher_task.task_specific_observation()
         agent_pose = np.array(self._agent.get_pose()).flatten()
         agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
         internal_states = self._get_internal_states(self._agent,
                                                     self._agent_joints)
         obs = np.concatenate(
-            (model_poss, model_vels, agent_pose, agent_vel, internal_states),
+            (task_specific_ob, agent_pose, agent_vel, internal_states),
             axis=0)
         return obs
 
@@ -587,7 +615,7 @@ def main():
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
         agent_type='pioneer2dx_noplugin',
-        task_name='kickball')
+        task_name='curiosity')
     env.render()
     while True:
         actions = env._control_space.sample()
