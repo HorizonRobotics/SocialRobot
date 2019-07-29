@@ -12,7 +12,7 @@
       <ode>
         <solver>quick</solver>
         <constraints>
-          <contact_max_correcting_vel>2</contact_max_correcting_vel>
+          <contact_max_correcting_vel>1</contact_max_correcting_vel>
           <contact_surface_layer>0.001</contact_surface_layer>
         </constraints>
       </ode>

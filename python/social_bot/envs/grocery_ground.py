@@ -200,6 +200,7 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
 class GroceryGroundCuriosityTask(teacher_tasks.GoalTask):
     """
     A simple task to test pure curiosity-driven algorithms, no reward is provided.
+    Agent for this task is supposed to be icub or icub_with_hands
     """
     def __init__(self, **kwargs):
         """
