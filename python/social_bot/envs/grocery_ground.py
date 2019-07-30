@@ -106,6 +106,17 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
 
+    def task_specific_observation(self):
+        """
+        Args:
+            None
+        Returns:
+            Besides self states, the extra observations should be added into the
+            env observation, for the non-image case
+        """
+        goal = self._world.get_model(self._goal_name)
+        return np.array(goal.get_pose()[0]).flatten()
+
 
 class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
     """
@@ -193,9 +204,105 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
                     agent_sentence = yield TeacherAction(reward=1.0-dist/self._random_range)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
-    def obs_model_list(self):
-        return ['ball', self._goal_name,]
+    def task_specific_observation(self):
+        model_list = ['ball', self._goal_name,]
+        model_poss = []
+        model_vels = []
+        for model_id in range(len(model_list)):
+            model = self._world.get_model(model_list[model_id])
+            model_poss.append(model.get_pose()[0])
+            model_vels.append(model.get_velocities()[0])
+        model_poss = np.array(model_poss).flatten()
+        model_vels = np.array(model_vels).flatten()
+        return np.concatenate((model_poss, model_vels), axis=0)
 
+
+class GroceryGroundCuriosityTask(teacher_tasks.GoalTask):
+    """
+    A simple task to test pure curiosity-driven algorithms, no reward is provided.
+    Agent for this task is supposed to be icub or icub_with_hands
+    """
+    def __init__(self, **kwargs):
+        """
+        Args:
+            None
+        """
+        super(GroceryGroundCuriosityTask, self).__init__(**kwargs)
+        self._objects_in_world = [
+            'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
+            'hammer_on_table', 'cafe_table', 'ball'
+        ]
+        self._objects_to_insert = [
+            'coke_can', 'table', 'bookshelf', 'car_wheel',
+            'plastic_cup', 'beer', 'hammer'
+        ]
+        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._pos_list.remove((0, 0))
+        self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
+
+    def setup(self, agent, world):
+        """
+        Setting things up during the initialization
+        """
+        self._agent = agent
+        self._world = world
+        self._insert_objects(self._objects_to_insert)
+
+    def reset(self):
+        """
+        Reset each time after environment is reseted
+        """
+        self._random_move_objects()
+
+    def run(self, agent, world):
+        """
+        Start a teaching episode for this task.
+        Args:
+            agent (pygazebo.Agent): the learning agent 
+            world (pygazebo.World): the simulation world
+        """
+        steps = 0
+        while steps < self._max_steps:
+            steps += 1
+            yield TeacherAction(reward=0, sentence="", done=False)
+        yield TeacherAction(reward=0, sentence="", done=True)
+
+    def _insert_objects(self, object_list):
+        obj_num = len(object_list)
+        for obj_id in range(obj_num):
+            model_name = object_list[obj_id]
+            self._world.insertModelFile('model://' + model_name)
+            logging.debug('model ' + model_name + ' inserted')
+            self._world.step(20)
+            time.sleep(0.2)
+
+    def _random_move_objects(self, random_range=10.0):
+        obj_num = len(self._objects_to_insert)
+        obj_pos_list = random.sample(self._pos_list, obj_num)
+        for obj_id in range(obj_num):
+            model_name = self._objects_to_insert[obj_id]
+            loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
+            pose = (np.array(loc), (0, 0, 0))
+            self._world.get_model(model_name).set_pose(pose)
+
+    def obs_model_list(self):
+        return self._objects_in_world + self._objects_to_insert
+
+    def task_specific_observation(self):
+        agent_pose = np.array(
+            self._agent.get_link_pose('iCub::root_link')).flatten()
+        chest_pose = np.array(
+            self._agent.get_link_pose('iCub::chest')).flatten()
+        l_foot_pose = np.array(
+            self._agent.get_link_pose('iCub::l_leg::l_foot')).flatten()
+        r_foot_pose = np.array(
+            self._agent.get_link_pose('iCub::r_leg::r_foot')).flatten()
+        average_pos = np.sum([
+            agent_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
+        ], axis=0) / 4.0
+        extra_poses = np.concatenate((average_pos, agent_pose, chest_pose,
+                                      l_foot_pose, r_foot_pose), axis=0)
+        return extra_poses
 
 @gin.configurable
 class GroceryGround(GazeboEnvBase):
@@ -269,10 +376,12 @@ class GroceryGround(GazeboEnvBase):
                 fail_distance_thresh=3.0,
                 random_goal = with_language,
                 random_range=10.0)
-        elif task_name == 'kickball':
+        elif task_name == 'kickball': 
             self._teacher_task = GroceryGroundKickBallTask(
                 max_steps=200,
                 random_range=7.0)
+        elif task_name == 'curiosity':
+            self._teacher_task = GroceryGroundCuriosityTask(max_steps=200)
         else:
             logging.debug("upsupported task name: " + task_name)
         task_group.add_task(self._teacher_task)
@@ -421,21 +530,14 @@ class GroceryGround(GazeboEnvBase):
         return img
 
     def _get_low_dim_full_states(self):
-        model_list = self._teacher_task.obs_model_list()
-        model_poss = []
-        model_vels = []
-        for model_id in range(len(model_list)):
-            model = self._world.get_model(model_list[model_id])
-            model_poss.append(model.get_pose()[0])
-            model_vels.append(model.get_velocities()[0])
-        model_poss = np.array(model_poss).flatten()
-        model_vels = np.array(model_vels).flatten()
+        if hasattr(self._teacher_task, 'task_specific_observation'):
+            task_specific_ob = self._teacher_task.task_specific_observation()
         agent_pose = np.array(self._agent.get_pose()).flatten()
         agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
         internal_states = self._get_internal_states(self._agent,
                                                     self._agent_joints)
         obs = np.concatenate(
-            (model_poss, model_vels, agent_pose, agent_vel, internal_states),
+            (task_specific_ob, agent_pose, agent_vel, internal_states),
             axis=0)
         return obs
 
@@ -513,7 +615,7 @@ def main():
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
         agent_type='pioneer2dx_noplugin',
-        task_name='kickball')
+        task_name='curiosity')
     env.render()
     while True:
         actions = env._control_space.sample()
