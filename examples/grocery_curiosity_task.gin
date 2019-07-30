@@ -17,8 +17,10 @@ create_ac_algorithm.learning_rate=5e-5
 create_ac_algorithm.use_icm=1
 create_ac_algorithm.actor_fc_layers=(256,128)
 create_ac_algorithm.value_fc_layers=(256,128)
+create_ac_algorithm.encoding_fc_layers=(256,)
 
-ICMAlgorithm.hidden_size=256
+ICMAlgorithm.hidden_size=64
+EncodingNetwork.activation_fn=@tf.nn.tanh
 
 # value network layers
 ValueNetwork.activation_fn=@tf.nn.tanh

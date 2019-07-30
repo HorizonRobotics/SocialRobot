@@ -54,6 +54,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
         self._agent = None
         self._world = None
+        self._agent_name = None
         self._random_goal = random_goal
         self._goal_name = 'ball'
         self._objects_in_world = [
@@ -68,12 +69,13 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         self._pos_list.remove((0, 0))
         self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
 
-    def setup(self, agent, world):
+    def setup(self, world, agent_name):
         """
         Setting things up during the initialization
         """
-        self._agent = agent
         self._world = world
+        self._agent_name = agent_name
+        self._agent = self._world.get_agent()
         self._insert_objects(self._objects_to_insert)
 
     def reset(self):
@@ -129,6 +131,9 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
             None
         """
         super(GroceryGroundKickBallTask, self).__init__(**kwargs)
+        self._agent = None
+        self._world = None
+        self._agent_name = None
         self._goal_name = 'goal'
         self._success_distance_thresh=0.5,
         self._objects_in_world = [
@@ -137,12 +142,13 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
         ]
         self.task_vocab = self.task_vocab + self._objects_in_world
 
-    def setup(self, agent, world):
+    def setup(self, world, agent_name):
         """
         Setting things up during the initialization
         """
-        self._agent = agent
         self._world = world
+        self._agent_name = agent_name
+        self._agent = self._world.get_agent()
         goal_sdf = """
         <?xml version='1.0'?>
         <sdf version ='1.4'>
@@ -228,24 +234,29 @@ class GroceryGroundCuriosityTask(teacher_tasks.GoalTask):
             None
         """
         super(GroceryGroundCuriosityTask, self).__init__(**kwargs)
+        self._agent = None
+        self._world = None
+        self._agent_name = None
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
         ]
         self._objects_to_insert = [
             'coke_can', 'table', 'bookshelf', 'car_wheel',
-            'plastic_cup', 'beer', 'hammer'
+            'plastic_cup', 'beer', 'hammer', 'ball'
         ]
-        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._pos_list = list(itertools.product(range(-3, 3), range(-3, 3)))
         self._pos_list.remove((0, 0))
+        self.obs_stacking = True
         self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
 
-    def setup(self, agent, world):
+    def setup(self, world, agent_name):
         """
         Setting things up during the initialization
         """
-        self._agent = agent
         self._world = world
+        self._agent_name = agent_name
+        self._agent = self._world.get_agent()
         self._insert_objects(self._objects_to_insert)
 
     def reset(self):
@@ -276,7 +287,7 @@ class GroceryGroundCuriosityTask(teacher_tasks.GoalTask):
             self._world.step(20)
             time.sleep(0.2)
 
-    def _random_move_objects(self, random_range=10.0):
+    def _random_move_objects(self):
         obj_num = len(self._objects_to_insert)
         obj_pos_list = random.sample(self._pos_list, obj_num)
         for obj_id in range(obj_num):
@@ -285,24 +296,32 @@ class GroceryGroundCuriosityTask(teacher_tasks.GoalTask):
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
 
-    def obs_model_list(self):
-        return self._objects_in_world + self._objects_to_insert
-
     def task_specific_observation(self):
-        agent_pose = np.array(
-            self._agent.get_link_pose('iCub::root_link')).flatten()
-        chest_pose = np.array(
-            self._agent.get_link_pose('iCub::chest')).flatten()
-        l_foot_pose = np.array(
-            self._agent.get_link_pose('iCub::l_leg::l_foot')).flatten()
-        r_foot_pose = np.array(
-            self._agent.get_link_pose('iCub::r_leg::r_foot')).flatten()
-        average_pos = np.sum([
-            agent_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
-        ], axis=0) / 4.0
-        extra_poses = np.concatenate((average_pos, agent_pose, chest_pose,
-                                      l_foot_pose, r_foot_pose), axis=0)
-        return extra_poses
+        model_list = self._objects_to_insert
+        model_poss = []
+        model_vels = []
+        for model_id in range(len(model_list)):
+            model = self._world.get_model(model_list[model_id])
+            model_poss.append(model.get_pose()[0])
+            model_vels.append(model.get_velocities()[0])
+        model_poss = np.array(model_poss).flatten()
+        model_vels = np.array(model_vels).flatten()
+        model_states = np.concatenate((model_poss, model_vels), axis=0)
+        if self._agent_name.find('icub') != -1:
+            agent_pose = np.array(
+                self._agent.get_link_pose('iCub::root_link')).flatten()
+            chest_pose = np.array(
+                self._agent.get_link_pose('iCub::chest')).flatten()
+            l_foot_pose = np.array(
+                self._agent.get_link_pose('iCub::l_leg::l_foot')).flatten()
+            r_foot_pose = np.array(
+                self._agent.get_link_pose('iCub::r_leg::r_foot')).flatten()
+            obs = np.concatenate((agent_pose, chest_pose, l_foot_pose,
+                                r_foot_pose, model_states), axis=0)
+        else:
+            obs = model_states
+        return obs
+
 
 @gin.configurable
 class GroceryGround(GazeboEnvBase):
@@ -397,7 +416,7 @@ class GroceryGround(GazeboEnvBase):
         self._world = gazebo.new_world_from_string(world_string)
         self._world.step(20)
         self._agent = self._world.get_agent()
-        self._teacher_task.setup(self._agent, self._world)
+        self._teacher_task.setup(self._world, agent_type)
 
         logging.debug(self._world.info())
         agent_cfgs = json.load(
@@ -473,6 +492,7 @@ class GroceryGround(GazeboEnvBase):
         self._teacher_task.reset()
         self._world.step(100)
         teacher_action = self._teacher.teach("")
+        self._obs_prev = None
         obs = self._get_observation(teacher_action.sentence)
         return obs
 
@@ -539,6 +559,13 @@ class GroceryGround(GazeboEnvBase):
         obs = np.concatenate(
             (task_specific_ob, agent_pose, agent_vel, internal_states),
             axis=0)
+        if hasattr(self._teacher_task, 'obs_stacking'):
+            if self._teacher_task.obs_stacking == True:
+                if self._obs_prev is None:
+                    self._obs_prev = obs
+                stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
+                self._obs_prev = obs
+                return stacked_obs
         return obs
 
     def _create_observation_dict(self, sentence_raw):
@@ -614,7 +641,7 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='pioneer2dx_noplugin',
+        agent_type='icub',
         task_name='curiosity')
     env.render()
     while True:
