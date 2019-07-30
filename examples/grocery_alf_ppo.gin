@@ -2,6 +2,7 @@
 # python -m alf.bin.main --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --alsologtostderr
 # python -m alf.bin.main --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --play --gin_param="on_policy_trainer.play.record_file='grocery.mp4'"
 
+import alf.trainers.off_policy_trainer
 import alf.algorithms.ppo_algorithm
 import alf.algorithms.ppo_loss
 import social_bot
@@ -12,7 +13,7 @@ create_environment.num_parallel_environments=12
 create_environment.env_load_fn=@suite_socialbot.load
 
 # algorithm config
-train_eval.algorithm_ctor=@create_ppo_algorithm
+
 ActorCriticAlgorithm.loss_class=@PPOLoss
 ActorCriticAlgorithm.gradient_clipping=0.5
 ActorCriticAlgorithm.clip_by_global_norm=True
@@ -34,14 +35,16 @@ create_ac_algorithm.value_fc_layers=(128, 64)
 create_ac_algorithm.learning_rate=3e-4
 
 # training config
-off_policy_trainer.train.mini_batch_length=1
-off_policy_trainer.train.unroll_length=1024
-off_policy_trainer.train.mini_batch_size=4096
-off_policy_trainer.train.num_iterations=1000000
-off_policy_trainer.train.summary_interval=1
-off_policy_trainer.train.num_updates_per_train_step=20
-off_policy_trainer.train.eval_interval=100
-off_policy_trainer.train.summarize_grads_and_vars=True
+TrainerConfig.trainer=@sync_off_policy_trainer
+TrainerConfig.algorithm_ctor=@create_ppo_algorithm
+TrainerConfig.mini_batch_length=1
+TrainerConfig.unroll_length=1024
+TrainerConfig.mini_batch_size=4096
+TrainerConfig.num_iterations=1000000
+TrainerConfig.summary_interval=1
+TrainerConfig.num_updates_per_train_step=20
+TrainerConfig.eval_interval=100
+TrainerConfig.summarize_grads_and_vars=True
+TrainerConfig.debug_summaries=True
 
 TFUniformReplayBuffer.max_length=2048
-train_eval.debug_summaries=True
