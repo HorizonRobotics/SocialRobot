@@ -220,9 +220,7 @@ def main():
     """
     Simple testing of this environment.
     """
-    import matplotlib
     import matplotlib.pyplot as plt
-    matplotlib.use('TkAgg')     
     env = ICubWalkPID(sub_seteps=50)
     while True:
         actions = np.array(env.action_space.sample())

@@ -198,7 +198,7 @@
         <xyz>0 1 0</xyz>
         <use_parent_model_frame>true</use_parent_model_frame>
         <limit>
-          <effort>2</effort>
+          <effort>1</effort>
           <velocity>100</velocity>
         </limit>
       </axis>
@@ -211,7 +211,7 @@
         <xyz>0 1 0</xyz>
         <use_parent_model_frame>true</use_parent_model_frame>
         <limit>
-          <effort>2</effort>
+          <effort>1</effort>
           <velocity>100</velocity>
         </limit>
       </axis>
