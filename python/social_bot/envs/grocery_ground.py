@@ -223,6 +223,107 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
         return np.concatenate((model_poss, model_vels), axis=0)
 
 
+class GroceryGroundCuriosityTask(teacher_tasks.GoalTask):
+    """
+    A simple task to test pure curiosity-driven algorithms, no reward is provided.
+    Agent for this task is supposed to be icub or icub_with_hands
+    """
+    def __init__(self, **kwargs):
+        """
+        Args:
+            None
+        """
+        super(GroceryGroundCuriosityTask, self).__init__(**kwargs)
+        self._agent = None
+        self._world = None
+        self._agent_name = None
+        self._objects_in_world = [
+            'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
+            'hammer_on_table', 'cafe_table', 'ball'
+        ]
+        self._objects_to_insert = [
+            'coke_can', 'table', 'bookshelf', 'car_wheel',
+            'plastic_cup', 'beer', 'hammer'
+        ]
+        self._objects_to_move = self._objects_to_insert + ['coke_can_on_table', 'ball']
+        self._pos_list = list(itertools.product(range(-3, 3), range(-3, 3)))
+        self._pos_list.remove((0, 0))
+        self.obs_stacking = True
+        self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
+
+    def setup(self, world, agent_name):
+        """
+        Setting things up during the initialization
+        """
+        self._world = world
+        self._agent_name = agent_name
+        self._agent = self._world.get_agent()
+        self._insert_objects(self._objects_to_insert)
+
+    def reset(self):
+        """
+        Reset each time after environment is reseted
+        """
+        self._random_move_objects()
+
+    def run(self, agent, world):
+        """
+        Start a teaching episode for this task.
+        Args:
+            agent (pygazebo.Agent): the learning agent 
+            world (pygazebo.World): the simulation world
+        """
+        steps = 0
+        while steps < self._max_steps:
+            steps += 1
+            yield TeacherAction(reward=0, sentence="", done=False)
+        yield TeacherAction(reward=0, sentence="", done=True)
+
+    def _insert_objects(self, object_list):
+        obj_num = len(object_list)
+        for obj_id in range(obj_num):
+            model_name = object_list[obj_id]
+            self._world.insertModelFile('model://' + model_name)
+            logging.debug('model ' + model_name + ' inserted')
+            self._world.step(20)
+            time.sleep(0.2)
+
+    def _random_move_objects(self):
+        obj_num = len(self._objects_to_move)
+        obj_pos_list = random.sample(self._pos_list, obj_num)
+        for obj_id in range(obj_num):
+            model_name = self._objects_to_move[obj_id]
+            loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
+            pose = (np.array(loc), (0, 0, 0))
+            self._world.get_model(model_name).set_pose(pose)
+
+    def task_specific_observation(self):
+        model_list = self._objects_to_move
+        model_poss = []
+        model_vels = []
+        for model_id in range(len(model_list)):
+            model = self._world.get_model(model_list[model_id])
+            model_poss.append(model.get_pose()[0])
+            model_vels.append(model.get_velocities()[0])
+        model_poss = np.array(model_poss).flatten()
+        model_vels = np.array(model_vels).flatten()
+        model_states = np.concatenate((model_poss, model_vels), axis=0)
+        if self._agent_name.find('icub') != -1:
+            agent_pose = np.array(
+                self._agent.get_link_pose('iCub::root_link')).flatten()
+            chest_pose = np.array(
+                self._agent.get_link_pose('iCub::chest')).flatten()
+            l_foot_pose = np.array(
+                self._agent.get_link_pose('iCub::l_leg::l_foot')).flatten()
+            r_foot_pose = np.array(
+                self._agent.get_link_pose('iCub::r_leg::r_foot')).flatten()
+            obs = np.concatenate((agent_pose, chest_pose, l_foot_pose,
+                                r_foot_pose, model_states), axis=0)
+        else:
+            obs = model_states
+        return obs
+
+
 @gin.configurable
 class GroceryGround(GazeboEnvBase):
     """
@@ -298,6 +399,8 @@ class GroceryGround(GazeboEnvBase):
             self._teacher_task = GroceryGroundKickBallTask(
                 max_steps=200,
                 random_range=7.0)
+        elif task_name == 'curiosity':
+            self._teacher_task = GroceryGroundCuriosityTask(max_steps=200)
         else:
             logging.debug("upsupported task name: " + task_name)
         task_group.add_task(self._teacher_task)
@@ -539,7 +642,7 @@ def main():
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
         agent_type='icub',
-        task_name='kickball')
+        task_name='curiosity')
     env.render()
     while True:
         actions = env._control_space.sample()

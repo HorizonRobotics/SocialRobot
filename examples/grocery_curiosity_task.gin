@@ -1,6 +1,7 @@
-# training & playing with Agent Learning Framework (Alf)
-# python -m alf.bin.main --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin --alsologtostderr
-# python -m alf.bin.main --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin --play
+# Training curiosity task with Agent Learning Framework (Alf) ICMAlgorithm using pure intrinsic reward
+# DISPLAY=null python -m alf.bin.main --root_dir=~/tmp/gro_icm --gin_file=grocery_curiosity_task.gin --alsologtostderr --gin_param="GroceryGround.task_name='curiosity'"
+# Training with agent iCub:
+# DISPLAY=null python -m alf.bin.main --root_dir=~/tmp/gro_icm_icub --gin_file=grocery_curiosity_task.gin --alsologtostderr --gin_param="GroceryGround.task_name='curiosity'" --gin_param="GroceryGround.agent_type='icub'"
 
 import alf.trainers.off_policy_trainer
 import alf.algorithms.ppo_algorithm
@@ -8,8 +9,8 @@ import alf.algorithms.ppo_loss
 import social_bot
 
 # environment config
-create_environment.env_name="SocialBot-ICubWalkPID-v0"
-create_environment.num_parallel_environments=12
+create_environment.env_name="SocialBot-GroceryGround-v0"
+create_environment.num_parallel_environments=16
 create_environment.env_load_fn=@suite_socialbot.load
 
 # algorithm config
@@ -33,6 +34,15 @@ ValueNetwork.activation_fn=@tf.nn.tanh
 create_ac_algorithm.actor_fc_layers=(256, 128)
 create_ac_algorithm.value_fc_layers=(256, 128)
 create_ac_algorithm.learning_rate=2e-4
+
+# icm config
+create_ac_algorithm.use_icm=1
+ICMAlgorithm.hidden_size=64
+create_ac_algorithm.encoding_fc_layers=(256,)
+EncodingNetwork.activation_fn=@tf.nn.tanh
+# use only intrinsic reward for training policy
+ActorCriticAlgorithm.extrinsic_reward_coef=0.0
+ActorCriticAlgorithm.intrinsic_reward_coef=1.0
 
 # training config
 TrainerConfig.trainer=@sync_off_policy_trainer
