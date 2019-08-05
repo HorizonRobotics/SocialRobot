@@ -46,5 +46,5 @@ TrainerConfig.algorithm_ctor=@create_sac_algorithm
 TrainerConfig.debug_summaries=1
 TrainerConfig.evaluate=1
 
-TFUniformReplayBuffer.max_length=10000
+TFUniformReplayBuffer.max_length=1000000
 
