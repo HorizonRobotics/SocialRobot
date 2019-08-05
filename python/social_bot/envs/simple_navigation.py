@@ -55,8 +55,8 @@ class SimpleNavigation(GazeboEnvBase):
     NUM_SIMULATION_STEPS = 20
 
     def __init__(self,
-                 with_language=True,
-                 image_with_internal_states=True,
+                 with_language=False,
+                 image_with_internal_states=False,
                  port=None,
                  resized_image_size=None,
                  data_format='channels_last'):
@@ -82,6 +82,7 @@ class SimpleNavigation(GazeboEnvBase):
             os.path.join(social_bot.get_world_dir(),
                          "pioneer2dx_camera.world"))
         self._agent = self._world.get_agent()
+        self._rendering_cam_pose = "4 -4 3 0 0.4 2.3"
         assert self._agent is not None
         logging.debug("joint names: %s" % self._agent.get_joint_names())
         self._all_joints = self._agent.get_joint_names()
@@ -149,14 +150,15 @@ class SimpleNavigation(GazeboEnvBase):
             If not with_language, it is a numpy.array for observation
         """
         if self._with_language:
-            sentence_seq = action.get('sentence', None)
-            sentence_raw = self._teacher.sequence_to_sentence(sentence_seq)
+            sentence = action.get('sentence', None)
+            if type(sentence) != str:
+                sentence = self._teacher.sequence_to_sentence(sentence)
             controls = action['control']
         else:
-            sentence_raw = ''
+            sentence = ''
             controls = action
         controls = dict(zip(self._joint_names, controls))
-        teacher_action = self._teacher.teach(sentence_raw)
+        teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(self.NUM_SIMULATION_STEPS)
         obs = self._get_observation(teacher_action.sentence)
@@ -198,22 +200,28 @@ class SimpleNavigation(GazeboEnvBase):
         return obs
 
 
-class SimpleNavigationNoLanguage(SimpleNavigation):
+class SimpleNavigationDiscreteAction(SimpleNavigation):
     def __init__(self, port=None):
-        super(SimpleNavigationNoLanguage, self).__init__(
-            with_language=False, port=port)
-
-
-class SimpleNavigationNoLanguageDiscreteAction(SimpleNavigationNoLanguage):
-    def __init__(self, port=None):
-        super(SimpleNavigationNoLanguageDiscreteAction,
+        super(SimpleNavigationDiscreteAction,
               self).__init__(port=port)
         self._action_space = gym.spaces.Discrete(25)
 
     def step(self, action):
         control = [0.05 * (action // 5) - 0.1, 0.05 * (action % 5) - 0.1]
-        return super(SimpleNavigationNoLanguageDiscreteAction,
+        return super(SimpleNavigationDiscreteAction,
                      self).step(control)
+
+
+class SimpleNavigationLanguage(SimpleNavigation):
+    def __init__(self, port=None):
+        super(SimpleNavigationLanguage, self).__init__(
+            with_language=True, port=port)
+
+
+class SimpleNavigationSelfStatesLanguage(SimpleNavigation):
+    def __init__(self, port=None):
+        super(SimpleNavigationSelfStatesLanguage, self).__init__(
+            with_language=True, image_with_internal_states=True, port=port)
 
 
 def main():
@@ -221,7 +229,7 @@ def main():
     Simple testing of this enviroenment.
     """
     import matplotlib.pyplot as plt
-    env = SimpleNavigation()
+    env = SimpleNavigationSelfStatesLanguage()
     for _ in range(10000000):
         obs = env.reset()
         control = [random.random() * 0.2, random.random() * 0.2]
@@ -230,9 +238,8 @@ def main():
         plt.show()
         fig = None
         while True:
-            seq = env._teacher.sentence_to_sequence("hello", env._seq_length)
             obs, reward, done, _ = env.step(
-                dict(control=control, sentence=seq))
+                dict(control=control, sentence="hello"))
             if fig is None:
                 fig = plt.imshow(obs['image'])
             else:

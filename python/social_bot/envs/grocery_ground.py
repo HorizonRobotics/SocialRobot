@@ -261,14 +261,16 @@ class GroceryGround(GazeboEnvBase):
             If not with_language, it is a numpy.array or image for observation
         """
         if self._with_language:
-            sentence_seq = action.get('sentence', None)
-            sentence_raw = self._teacher.sequence_to_sentence(sentence_seq)
-            controls = action['control'] * self._agent_control_range
+            sentence = action.get('sentence', None)
+            if type(sentence) != str:
+                sentence = self._teacher.sequence_to_sentence(sentence)
+            controls = action['control']
         else:
-            sentence_raw = ''
-            controls = action * self._agent_control_range
+            sentence = ''
+            controls = action
+        controls = np.clip(controls, -1.0, 1.0) * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
-        teacher_action = self._teacher.teach(sentence_raw)
+        teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(100)
         obs = self._get_observation(teacher_action.sentence)
@@ -340,11 +342,11 @@ class GroceryGround(GazeboEnvBase):
             model_name = object_list[obj_id]
             self._world.insertModelFile('model://' + model_name)
             logging.debug('model ' + model_name + ' inserted')
-            self._world.step(10)
+            self._world.step(20)
             # Sleep for a while waiting for Gazebo server to finish the inserting
             # operation. Or the model may not be completely inserted, boost will
             # throw 'px!=0' error when set_pose/get_pose of the model is called
-            time.sleep(0.1)
+            time.sleep(0.2)
 
     def _random_move_objects(self, random_range=10.0):
         obj_num = len(self._object_list)
@@ -410,14 +412,13 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='icub_with_hands',
+        agent_type='pioneer2dx_noplugin',
         random_goal=random_goal)
     env.render()
     while True:
-        actions = np.array(np.random.randn(env._control_space.shape[0]))
+        actions = env._control_space.sample()
         if with_language:
-            sentence_seq = env._teacher.sentence_to_sequence("hello", env._seq_length)
-            actions = dict(control=actions, sentence=sentence_seq)
+            actions = dict(control=actions, sentence="hello")
         obs, _, done, _ = env.step(actions)
         if with_language and (env._steps_in_this_episode == 1 or done):
             seq = obs["sentence"]

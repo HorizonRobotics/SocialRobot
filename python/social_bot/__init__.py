@@ -9,13 +9,18 @@ register(
 )
 
 register(
-    id='SocialBot-SimpleNavigationNoLanguage-v0',
-    entry_point='social_bot.envs:SimpleNavigationNoLanguage',
+    id='SocialBot-SimpleNavigationDiscreteAction-v0',
+    entry_point='social_bot.envs:SimpleNavigationDiscreteAction',
 )
 
 register(
-    id='SocialBot-SimpleNavigationNoLanguageDiscreteAction-v0',
-    entry_point='social_bot.envs:SimpleNavigationNoLanguageDiscreteAction',
+    id='SocialBot-SimpleNavigationLanguage-v0',
+    entry_point='social_bot.envs:SimpleNavigationLanguage',
+)
+
+register(
+    id='SocialBot-SimpleNavigationSelfStatesLanguage-v0',
+    entry_point='social_bot.envs:SimpleNavigationSelfStatesLanguage',
 )
 
 register(

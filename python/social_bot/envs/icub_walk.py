@@ -28,13 +28,13 @@ import social_bot.pygazebo as gazebo
 
 class ICubWalk(GazeboEnvBase):
     """
-    The goal of this task is to make the agent icub standing and walking.
+    The goal of this task is to make the agent learn how to walk.
     Joints are controllable with force, or with target velocity if the internal
         pid controller is used.
     Observation is a single ndarray with internal joint states, and agent pose.
     Reward shaping:
         reward = not_fall_bonus + truncked_walk_velocity - ctrl_cost
-    Examples/tain_icub_sac.py solves this taks in about 400K episodes
+    Examples/tain_icub_sac.py solves this taks in about 400K episodes.
     """
 
     def __init__(self, use_pid=False, obs_stack=True, sub_seteps=50,
@@ -220,11 +220,13 @@ def main():
     """
     Simple testing of this environment.
     """
+    import matplotlib.pyplot as plt
     env = ICubWalkPID(sub_seteps=50)
-    env.render()
     while True:
-        actions = np.array(np.random.randn(env.action_space.shape[0]))
+        actions = np.array(env.action_space.sample())
         obs, _, done, _ = env.step(actions)
+        plt.imshow(env.render('rgb_array'))
+        plt.pause(0.00001)
         if done or env._steps_in_this_episode > 100:
             env.reset()
 

@@ -3,7 +3,7 @@
 import unittest
 import multiprocessing
 from multiprocessing import Process, Value
-from simple_navigation import SimpleNavigation
+from simple_navigation import SimpleNavigationLanguage
 import random
 import os
 
@@ -16,7 +16,7 @@ class Agent(Process):
 
     def run(self):
         port = os.environ.get('PYGAZEBO_PORT', 11345)
-        env = SimpleNavigation(port=port + self.agent_id + 1)
+        env = SimpleNavigationLanguage(port=port + self.agent_id + 1)
         env.reset()
         for _ in range(1000):
             control = [
@@ -32,7 +32,7 @@ class Agent(Process):
 
 class TestMultiProcess(unittest.TestCase):
     def test_multiprocessing(self):
-        env = SimpleNavigation()
+        env = SimpleNavigationLanguage()
         env.reset()
         agents = [Agent(i) for i in range(2)]
         for agent in agents:

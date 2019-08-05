@@ -10,8 +10,8 @@ material TextureGroundPlane/Image
 
             texture_unit
             {
-                texture ground_texture.png
-                scale 0.1 0.1
+                texture ground_texture.jpeg
+                scale 0.05 0.05
             }
         }
     }
