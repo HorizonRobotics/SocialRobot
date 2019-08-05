@@ -1,6 +1,8 @@
 # training & playing with Agent Learning Framework (Alf)
 # python -m alf.bin.main --root_dir=~/tmp/icub_sac --gin_file=icub_alf_sac.gin --alsologtostderr
+# /opt/workspace/jiangtao.li/tblog/icub/icub_alfsac
 
+import alf.trainers.off_policy_trainer
 import alf.algorithms.sac_algorithm
 import alf.utils.common
 import social_bot
@@ -8,6 +10,7 @@ import social_bot
 # environment config
 create_environment.env_name="SocialBot-ICubWalkPID-v0"
 create_environment.num_parallel_environments=12
+create_environment.env_load_fn=@suite_socialbot.load
 
 # algorithm config
 create_sac_algorithm.actor_fc_layers=(256, 128)
@@ -25,21 +28,23 @@ NormalProjectionNetwork.scale_distribution=True
 NormalProjectionNetwork.std_transform=@common.std_clip_transform
 
 # training config
-off_policy_trainer.train.initial_collect_steps=2000
-off_policy_trainer.train.mini_batch_length=2
-off_policy_trainer.train.unroll_length=1
-off_policy_trainer.train.mini_batch_size=256
-off_policy_trainer.train.num_iterations=10000000
-off_policy_trainer.train.summary_interval=1000
-off_policy_trainer.train.eval_interval=10000
-off_policy_trainer.train.checkpoint_interval=100000
-off_policy_trainer.train.num_updates_per_train_step=1
-off_policy_trainer.train.summarize_grads_and_vars=0
-off_policy_trainer.train.summaries_flush_secs=10
-off_policy_trainer.train.clear_replay_buffer=False
+TrainerConfig.initial_collect_steps=2000
+TrainerConfig.mini_batch_length=2
+TrainerConfig.unroll_length=1
+TrainerConfig.mini_batch_size=256
+TrainerConfig.num_iterations=10000000
+TrainerConfig.summary_interval=1000
+TrainerConfig.eval_interval=5000
+TrainerConfig.checkpoint_interval=5000
+TrainerConfig.num_updates_per_train_step=1
+TrainerConfig.summarize_grads_and_vars=0
+TrainerConfig.summaries_flush_secs=10
+TrainerConfig.clear_replay_buffer=False
 
-TFUniformReplayBuffer.max_length=1000000
+TrainerConfig.trainer=@sync_off_policy_trainer
+TrainerConfig.algorithm_ctor=@create_sac_algorithm
+TrainerConfig.debug_summaries=1
+TrainerConfig.evaluate=1
 
-train_eval.algorithm_ctor=@sac_algorithm.create_sac_algorithm
-train_eval.debug_summaries=1
-train_eval.evaluate=1
+TFUniformReplayBuffer.max_length=10000
+
