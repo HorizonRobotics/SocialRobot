@@ -123,7 +123,12 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
 class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
     """
     A simple task to kick a ball to the goal. Simple reward shaping is used to 
-    guide the agent run to the ball first.
+    guide the agent run to the ball first: 
+        Agent will receive 100 when succefully kick the ball into the goal;
+        Agent will receive negative normalized distance from agent to ball before
+            touching the ball within 45 degrees of agent direction;
+        Agent will receive negative normalized distance from ball to goal plus 1
+            after before touching the ball within the direction;
     """
     def __init__(self, **kwargs):
         """
@@ -135,7 +140,7 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
         self._world = None
         self._agent_name = None
         self._goal_name = 'goal'
-        self._success_distance_thresh=0.5,
+        self._success_distance_thresh = 0.5,
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
@@ -254,7 +259,7 @@ class GroceryGround(GazeboEnvBase):
                  with_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
-                 task_name=None,
+                 task_name='goal',
                  agent_type='pioneer2dx_noplugin',
                  port=None,
                  resized_image_size=(64, 64),
@@ -389,7 +394,6 @@ class GroceryGround(GazeboEnvBase):
         self._teacher_task.reset()
         self._world.step(100)
         teacher_action = self._teacher.teach("")
-        self._obs_prev = None
         obs = self._get_observation(teacher_action.sentence)
         return obs
 
@@ -456,13 +460,6 @@ class GroceryGround(GazeboEnvBase):
         obs = np.concatenate(
             (task_specific_ob, agent_pose, agent_vel, internal_states),
             axis=0)
-        if hasattr(self._teacher_task, 'obs_stacking'):
-            if self._teacher_task.obs_stacking == True:
-                if self._obs_prev is None:
-                    self._obs_prev = obs
-                stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
-                self._obs_prev = obs
-                return stacked_obs
         return obs
 
     def _create_observation_dict(self, sentence_raw):
