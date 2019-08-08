@@ -30,7 +30,7 @@ from social_bot import teacher
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
-from social_bot.teacher_tasks import GoalTask
+from social_bot.teacher_tasks import GoalBaseTask
 import social_bot.pygazebo as gazebo
 
 
@@ -90,7 +90,7 @@ class SimpleNavigation(GazeboEnvBase):
             filter(lambda s: s.find('wheel') != -1, self._all_joints))
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
-        task_group.add_task(GoalTask())
+        task_group.add_task(GoalBaseTask())
         self._teacher.add_task_group(task_group)
         self._teacher.build_vocab_from_tasks()
         self._seq_length = 20

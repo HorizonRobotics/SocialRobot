@@ -38,7 +38,7 @@ from social_bot import teacher_tasks
 import social_bot.pygazebo as gazebo
 
 
-class GroceryGroundGoalTask(teacher_tasks.GoalTask):
+class GroceryGroundGoalTask(teacher_tasks.GoalBaseTask):
     """
     A simple task to find a goal on grocery ground.
     The goal of this task is to train the agent to navigate to an object.
@@ -52,9 +52,6 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
         """
         super(GroceryGroundGoalTask, self).__init__(**kwargs)
-        self._agent = None
-        self._world = None
-        self._agent_name = None
         self._random_goal = random_goal
         self._goal_name = 'ball'
         self._objects_in_world = [
@@ -73,19 +70,15 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
         """
         Setting things up during the initialization
         """
-        self._world = world
-        self._agent = self._world.get_agent()
-        self._agent_name = agent_name
+        super().setup(world, agent_name)
         self._insert_objects(self._objects_to_insert)
 
-    def reset(self):
-        """
-        Reset each time after environment is reseted
-        """
+    def run(self, agent, world):
         self._random_move_objects()
         if self._random_goal:
             random_id = random.randrange(len(self._objects_to_insert))
             self.set_goal_name(self._objects_to_insert[random_id])
+        yield from super().run(agent, world)
 
     def _insert_objects(self, object_list):
         obj_num = len(object_list)
@@ -108,19 +101,8 @@ class GroceryGroundGoalTask(teacher_tasks.GoalTask):
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
 
-    def task_specific_observation(self):
-        """
-        Args:
-            None
-        Returns:
-            Besides self states, the extra observations should be added into the
-            env observation, for the non-image case
-        """
-        goal = self._world.get_model(self._goal_name)
-        return np.array(goal.get_pose()[0]).flatten()
 
-
-class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
+class GroceryGroundKickBallTask(teacher_tasks.GoalBaseTask):
     """
     A simple task to kick a ball to the goal. Simple reward shaping is used to 
     guide the agent run to the ball first: 
@@ -136,9 +118,6 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
             None
         """
         super(GroceryGroundKickBallTask, self).__init__(**kwargs)
-        self._agent = None
-        self._world = None
-        self._agent_name = None
         self._goal_name = 'goal'
         self._success_distance_thresh = 0.5,
         self._objects_in_world = [
@@ -151,9 +130,7 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
         """
         Setting things up during the initialization
         """
-        self._world = world
-        self._agent_name = agent_name
-        self._agent = self._world.get_agent()
+        super().setup(world, agent_name)
         goal_sdf = """
         <?xml version='1.0'?>
         <sdf version ='1.4'>
@@ -169,12 +146,6 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalTask):
         self._world.insertModelFromSdfString(goal_sdf)
         time.sleep(0.2)
         self._world.step(20)
-
-    def reset(self):
-        """
-        Reset each time the environment is reseted
-        """
-        pass
 
     def run(self, agent, world):
         """
@@ -391,9 +362,9 @@ class GroceryGround(GazeboEnvBase):
         self._steps_in_this_episode = 0
         self._world.reset()
         self._teacher.reset(self._agent, self._world)
-        self._teacher_task.reset()
-        self._world.step(100)
+        # the first call of "teach() after "done" will reset the task
         teacher_action = self._teacher.teach("")
+        self._world.step(100)
         obs = self._get_observation(teacher_action.sentence)
         return obs
 
@@ -494,6 +465,7 @@ class GroceryGroundImage(GroceryGround):
             image_with_internal_states=False,
             with_language=False,
             port=port)
+
 
 class GroceryGroundLanguage(GroceryGround):
     def __init__(self, port=None):
