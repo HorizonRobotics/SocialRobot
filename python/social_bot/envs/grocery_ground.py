@@ -16,6 +16,7 @@ A simple enviroment for an agent play on a groceryground
 """
 import os
 import time
+from abc import abstractmethod
 import math
 import numpy as np
 import random
@@ -34,11 +35,47 @@ from social_bot import teacher
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
-from social_bot import teacher_tasks
+from social_bot.teacher_tasks import GoalTask
 import social_bot.pygazebo as gazebo
 
 
-class GroceryGroundGoalTask(teacher_tasks.GoalBaseTask):
+class GroceryGroundTaskBase(teacher.Task):
+    """
+    A base task for grocery ground environment.
+    """
+    def __init__(self):
+        self._agent = None
+        self._world = None
+        self._agent_name = None
+
+    def setup(self, world, agent_name):
+        """
+        Setting things up during the initialization
+        """
+        self._world = world
+        self._agent = self._world.get_agent()
+        self._agent_name = agent_name
+
+    @abstractmethod
+    def run(self):
+        """
+        run() use yield to generate TeacherAction
+        """
+        pass
+
+    @abstractmethod
+    def task_specific_observation(self):
+        """
+        Args:
+            None
+        Returns:
+            np.array of the extra observations should be added into the
+            observation besides self states, for the non-image case
+        """
+        pass
+
+
+class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
     """
     A simple task to find a goal on grocery ground.
     The goal of this task is to train the agent to navigate to an object.
@@ -46,12 +83,30 @@ class GroceryGroundGoalTask(teacher_tasks.GoalBaseTask):
     episode, the location of the goal object is randomly chosen.
     """
 
-    def __init__(self, random_goal=False, **kwargs):
+    def __init__(self,
+                 max_steps=500,
+                 goal_name="goal",
+                 success_distance_thresh=0.5,
+                 fail_distance_thresh=0.5,
+                 random_range=2.0,
+                 random_goal=False):
         """
         Args:
+            max_steps (int): episode will end if not reaching gaol in so many steps
+            goal_name (string): name of the goal in the world
+            success_distance_thresh (float): the goal is reached if it's within this distance to the agent
+            fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
+                it's considered a failure and is givne reward -1
+            random_range (float): the goal's random position range
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
         """
-        super(GroceryGroundGoalTask, self).__init__(**kwargs)
+        GoalTask.__init__(self,
+            max_steps=max_steps,
+            goal_name=goal_name,
+            success_distance_thresh=success_distance_thresh,
+            fail_distance_thresh=fail_distance_thresh,
+            random_range=random_range)
+        GroceryGroundTaskBase.__init__(self)
         self._random_goal = random_goal
         self._goal_name = 'ball'
         self._objects_in_world = [
@@ -70,7 +125,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalBaseTask):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name)
+        GroceryGroundTaskBase.setup(self, world, agent_name)
         self._insert_objects(self._objects_to_insert)
 
     def run(self, agent, world):
@@ -78,7 +133,7 @@ class GroceryGroundGoalTask(teacher_tasks.GoalBaseTask):
         if self._random_goal:
             random_id = random.randrange(len(self._objects_to_insert))
             self.set_goal_name(self._objects_to_insert[random_id])
-        yield from super().run(agent, world)
+        yield from GoalTask.run(self, agent, world)
 
     def _insert_objects(self, object_list):
         obj_num = len(object_list)
@@ -101,8 +156,19 @@ class GroceryGroundGoalTask(teacher_tasks.GoalBaseTask):
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
 
+    def task_specific_observation(self):
+        """
+        Args:
+            None
+        Returns:
+            np.array of the extra observations should be added into the
+            observation besides self states, for the non-image case
+        """
+        goal = self._world.get_model(self._goal_name)
+        return np.array(goal.get_pose()[0]).flatten()
 
-class GroceryGroundKickBallTask(teacher_tasks.GoalBaseTask):
+
+class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
     """
     A simple task to kick a ball to the goal. Simple reward shaping is used to 
     guide the agent run to the ball first: 
@@ -112,12 +178,28 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalBaseTask):
         Agent will receive negative normalized distance from ball to goal plus 1
             after before touching the ball within the direction;
     """
-    def __init__(self, **kwargs):
+    def __init__(self,
+                 max_steps=500,
+                 goal_name="goal",
+                 success_distance_thresh=0.5,
+                 fail_distance_thresh=0.5,
+                 random_range=2.0):
         """
         Args:
-            None
+            max_steps (int): episode will end if not reaching gaol in so many steps
+            goal_name (string): name of the goal in the world
+            success_distance_thresh (float): the goal is reached if it's within this distance to the agent
+            fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
+                it's considered a failure and is givne reward -1
+            random_range (float): the goal's random position range
         """
-        super(GroceryGroundKickBallTask, self).__init__(**kwargs)
+        GoalTask.__init__(self,
+            max_steps=max_steps,
+            goal_name=goal_name,
+            success_distance_thresh=success_distance_thresh,
+            fail_distance_thresh=fail_distance_thresh,
+            random_range=random_range)
+        GroceryGroundTaskBase.__init__(self)
         self._goal_name = 'goal'
         self._success_distance_thresh = 0.5,
         self._objects_in_world = [
@@ -130,7 +212,7 @@ class GroceryGroundKickBallTask(teacher_tasks.GoalBaseTask):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name)
+        GroceryGroundTaskBase.setup(self, world, agent_name)
         goal_sdf = """
         <?xml version='1.0'?>
         <sdf version ='1.4'>
@@ -422,8 +504,7 @@ class GroceryGround(GazeboEnvBase):
         return img
 
     def _get_low_dim_full_states(self):
-        if hasattr(self._teacher_task, 'task_specific_observation'):
-            task_specific_ob = self._teacher_task.task_specific_observation()
+        task_specific_ob = self._teacher_task.task_specific_observation()
         agent_pose = np.array(self._agent.get_pose()).flatten()
         agent_vel = np.array(self._agent.get_velocities()[0]).flatten()
         internal_states = self._get_internal_states(self._agent,
@@ -507,7 +588,7 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='icub',
+        agent_type='icub_with_hands',
         task_name='kickball')
     env.render()
     while True:

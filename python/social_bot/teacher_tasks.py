@@ -28,7 +28,7 @@ import social_bot.pygazebo as gazebo
 from absl import logging
 
 
-class GoalBaseTask(teacher.Task):
+class GoalTask(teacher.Task):
     """
     A simple teacher task to find a goal.
     For this task, the agent will receive reward 1 when it is close enough to the goal.
@@ -51,23 +51,12 @@ class GoalBaseTask(teacher.Task):
                 it's considered a failure and is givne reward -1
             random_range (float): the goal's random position range
         """
-        self._agent = None
-        self._world = None
-        self._agent_name = None
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._max_steps = max_steps
         self._random_range = random_range
         self.task_vocab = ['hello', 'goal', 'well', 'done', 'failed', 'to']
-
-    def setup(self, world, agent_name):
-        """
-        Setting things up during the initialization
-        """
-        self._world = world
-        self._agent = self._world.get_agent()
-        self._agent_name = agent_name
 
     def run(self, agent, world):
         """
@@ -142,14 +131,3 @@ class GoalBaseTask(teacher.Task):
             None
         """
         self._goal_name = goal_name
-
-    def task_specific_observation(self):
-        """
-        Args:
-            None
-        Returns:
-            Besides self states, the extra observations should be added into the
-            env observation, for the non-image case
-        """
-        goal = self._world.get_model(self._goal_name)
-        return np.array(goal.get_pose()[0]).flatten()
