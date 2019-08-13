@@ -193,9 +193,11 @@ class ICubWalk(GazeboEnvBase):
         walk_vel = (obs[0] - self._obs_prev[0]) * (1000.0 / self._sub_seteps)
         stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
         self._obs_prev = obs
-        torso_pose = np.array(self._agent.get_link_pose('icub::iCub::chest')).flatten()
+        torso_pose = np.array(
+            self._agent.get_link_pose('icub::iCub::chest')).flatten()
         action_cost = np.sum(np.square(action)) / action.shape[0]
-        movement_cost = np.sum(np.abs(self.joint_pos)) / self.joint_pos.shape[0]
+        movement_cost = np.sum(np.abs(
+            self.joint_pos)) / self.joint_pos.shape[0]
         ctrl_cost = action_cost + 0.5 * movement_cost
         reward = 1.0 + 6.0 * min(walk_vel, 1.0) - 1.0 * ctrl_cost
         self._cum_reward += reward
@@ -203,8 +205,8 @@ class ICubWalk(GazeboEnvBase):
         done = torso_pose[2] < 0.58
         if done:
             logging.debug("episode ends at cum reward:" +
-                         str(self._cum_reward) + ", step:" +
-                         str(self._steps_in_this_episode))
+                          str(self._cum_reward) + ", step:" +
+                          str(self._steps_in_this_episode))
         if self._obs_stack:
             obs = stacked_obs
         return obs, reward, done, {}

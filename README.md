@@ -84,6 +84,9 @@ The observation of the robots include internal states, target pose or camera ima
 
     <img src="media/grocery_ground_pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/grocery_ground_icub.gif" width="360" height="240" alt="icub"/>
 
+* [Ball task](python/social_bot/envs/grocery_ground.py): A task to kick a ball to the goal. Simple reward shaping is used to guide the agent run to the ball first.
+
+    <img src="media/grocery_ground_ball.gif" width="320" height="240" alt="ball"/>
 
 ### [PR2 Gripping](python/social_bot/envs/pr2.py)
 

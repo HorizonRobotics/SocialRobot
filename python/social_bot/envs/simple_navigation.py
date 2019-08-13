@@ -202,14 +202,12 @@ class SimpleNavigation(GazeboEnvBase):
 
 class SimpleNavigationDiscreteAction(SimpleNavigation):
     def __init__(self, port=None):
-        super(SimpleNavigationDiscreteAction,
-              self).__init__(port=port)
+        super(SimpleNavigationDiscreteAction, self).__init__(port=port)
         self._action_space = gym.spaces.Discrete(25)
 
     def step(self, action):
         control = [0.05 * (action // 5) - 0.1, 0.05 * (action % 5) - 0.1]
-        return super(SimpleNavigationDiscreteAction,
-                     self).step(control)
+        return super(SimpleNavigationDiscreteAction, self).step(control)
 
 
 class SimpleNavigationLanguage(SimpleNavigation):
