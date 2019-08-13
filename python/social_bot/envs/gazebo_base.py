@@ -30,8 +30,11 @@ class GazeboEnvBase(gym.Env):
     Base class for gazebo physics simulation
     These environments create scenes behave like normal Gym environments.
     """
-    
-    metadata = {'render.modes': ['human', 'rgb_array'], 'video.frames_per_second': 30}
+
+    metadata = {
+        'render.modes': ['human', 'rgb_array'],
+        'video.frames_per_second': 30
+    }
 
     def __init__(self, port=None, quiet=False):
         if port is None:
@@ -98,8 +101,8 @@ class GazeboEnvBase(gym.Env):
                 "default::render_camera::link::camera")
             return np.array(image)
 
-        raise NotImplementedError(
-            "rendering mode: " + mode + " is not implemented.")
+        raise NotImplementedError("rendering mode: " + mode +
+                                  " is not implemented.")
 
     def _get_internal_states(self, agent, agent_joints):
         joint_pos = []

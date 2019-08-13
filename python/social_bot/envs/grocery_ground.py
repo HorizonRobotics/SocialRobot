@@ -43,6 +43,7 @@ class GroceryGroundTaskBase(teacher.Task):
     """
     A base task for grocery ground environment.
     """
+
     def __init__(self):
         self._agent = None
         self._world = None
@@ -100,7 +101,8 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             random_range (float): the goal's random position range
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
         """
-        GoalTask.__init__(self,
+        GoalTask.__init__(
+            self,
             max_steps=max_steps,
             goal_name=goal_name,
             success_distance_thresh=success_distance_thresh,
@@ -114,8 +116,8 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             'hammer_on_table', 'cafe_table', 'ball'
         ]
         self._objects_to_insert = [
-            'coke_can', 'table', 'bookshelf', 'car_wheel',
-            'plastic_cup', 'beer', 'hammer'
+            'coke_can', 'table', 'bookshelf', 'car_wheel', 'plastic_cup',
+            'beer', 'hammer'
         ]
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
@@ -178,6 +180,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         Agent will receive negative normalized distance from ball to goal plus 1
             after before touching the ball within the direction;
     """
+
     def __init__(self,
                  max_steps=500,
                  goal_name="goal",
@@ -193,7 +196,8 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                 it's considered a failure and is givne reward -1
             random_range (float): the goal's random position range
         """
-        GoalTask.__init__(self,
+        GoalTask.__init__(
+            self,
             max_steps=max_steps,
             goal_name=goal_name,
             success_distance_thresh=success_distance_thresh,
@@ -251,12 +255,14 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                 dist = np.linalg.norm(np.array(ball_loc) - np.array(agent_loc))
                 if dist < 0.35:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
-                    goal_dir = (np.array(ball_loc[0:2]) - np.array(agent_loc[0:2])) / dist
+                    goal_dir = (np.array(ball_loc[0:2]) - np.array(
+                        agent_loc[0:2])) / dist
                     dot = sum(dir * goal_dir)
                     if dot > 0.707:
                         # within 45 degrees of the agent direction
                         hitted_ball = True
-                agent_sentence = yield TeacherAction(reward=-dist/self._random_range)
+                agent_sentence = yield TeacherAction(
+                    reward=-dist / self._random_range)
             else:
                 goal_loc, _ = goal.get_pose()
                 ball_loc, _ = ball.get_pose()
@@ -265,11 +271,15 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                     agent_sentence = yield TeacherAction(
                         reward=100.0, sentence="well done", done=True)
                 else:
-                    agent_sentence = yield TeacherAction(reward=1.0-dist/self._random_range)
+                    agent_sentence = yield TeacherAction(
+                        reward=1.0 - dist / self._random_range)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def task_specific_observation(self):
-        model_list = ['ball', self._goal_name,]
+        model_list = [
+            'ball',
+            self._goal_name,
+        ]
         model_poss = []
         model_vels = []
         for model_id in range(len(model_list)):
@@ -307,7 +317,7 @@ class GroceryGround(GazeboEnvBase):
     can also be controlled by the teacher.
 
     """
-        
+
     def __init__(self,
                  with_language=False,
                  use_image_observation=False,
@@ -342,7 +352,7 @@ class GroceryGround(GazeboEnvBase):
                 to images with shape `(channels, height, width)`.
         """
         super(GroceryGround, self).__init__(port=port)
-        
+
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
         if task_name is None or task_name == 'goal':
@@ -350,12 +360,11 @@ class GroceryGround(GazeboEnvBase):
                 max_steps=200,
                 success_distance_thresh=0.5,
                 fail_distance_thresh=3.0,
-                random_goal = with_language,
+                random_goal=with_language,
                 random_range=10.0)
-        elif task_name == 'kickball': 
+        elif task_name == 'kickball':
             self._teacher_task = GroceryGroundKickBallTask(
-                max_steps=200,
-                random_range=7.0)
+                max_steps=200, random_range=7.0)
         else:
             logging.debug("upsupported task name: " + task_name)
         task_group.add_task(self._teacher_task)
@@ -365,9 +374,11 @@ class GroceryGround(GazeboEnvBase):
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
 
-        wf_path = os.path.join(social_bot.get_world_dir(), "grocery_ground.world")
+        wf_path = os.path.join(social_bot.get_world_dir(),
+                               "grocery_ground.world")
         with open(wf_path, 'r+') as world_file:
-            world_string = self._insert_agent_to_world_file(world_file, agent_type)
+            world_string = self._insert_agent_to_world_file(
+                world_file, agent_type)
         self._world = gazebo.new_world_from_string(world_string)
         self._world.step(20)
         self._agent = self._world.get_agent()
@@ -488,7 +499,7 @@ class GroceryGround(GazeboEnvBase):
         insert_pos = content.find("<!-- AGENT-INSERTION-POINT -->")
         assert insert_pos != -1, "Can not found insertion point in world file"
         content = list(content)
-        insert_str = "<include> <uri>model://"+model+"</uri> </include>\n"
+        insert_str = "<include> <uri>model://" + model + "</uri> </include>\n"
         content.insert(insert_pos, insert_str)
         return "".join(content)
 
@@ -510,8 +521,7 @@ class GroceryGround(GazeboEnvBase):
         internal_states = self._get_internal_states(self._agent,
                                                     self._agent_joints)
         obs = np.concatenate(
-            (task_specific_ob, agent_pose, agent_vel, internal_states),
-            axis=0)
+            (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
         return obs
 
     def _create_observation_dict(self, sentence_raw):
@@ -599,7 +609,8 @@ def main():
         if with_language and (env._steps_in_this_episode == 1 or done):
             seq = obs["sentence"]
             logging.info("sentence_seq: " + str(seq))
-            logging.info("sentence_raw: " + env._teacher.sequence_to_sentence(seq))
+            logging.info("sentence_raw: " +
+                         env._teacher.sequence_to_sentence(seq))
         if use_image_obs:
             if with_language or image_with_internal_states:
                 obs = obs['image']
