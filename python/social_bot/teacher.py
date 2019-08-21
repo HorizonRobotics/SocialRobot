@@ -73,11 +73,12 @@ class Task(object):
 
 
 class TaskGroup(object):
-    _tasks = []
-    _current_task = None
-    _agent = None
-    _world = None
-    _is_idle = True
+    def __init__(self):
+        self._tasks = []
+        self._current_task = None
+        self._agent = None
+        self._world = None
+        self._is_idle = True
 
     def add_task(self, task):
         """
@@ -123,6 +124,8 @@ class TaskGroup(object):
             self._current_task.send(None)
         return self._current_task
 
+    def get_tasks(self):
+        return self._tasks
 
 class Teacher(object):
     """
@@ -146,6 +149,9 @@ class Teacher(object):
     def add_task_group(self, task_group, weight=1):
         self._task_groups.append(task_group)
         self._weights.append(weight)
+
+    def get_task_group(self):
+        return self._task_groups
 
     def build_vocab_from_tasks(self):
         # Initialize vocab with '0' by index 0, which is used for padding
