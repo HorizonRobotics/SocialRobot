@@ -173,11 +173,18 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
 
 class ICubStandingTask(GroceryGroundTaskBase):
     """
-    A simple task spicified for iCub, to keep the agent from falling down.
+    An auxiliary task spicified for iCub, to keep the agent from falling down.
     """
     
-    def __init__(self):
+    def __init__(self,
+                 reward_scale=0.1):
+        """
+        Args:
+            reward_scale (float): the scale of the reward, should be tuned
+                accroding to reward range of other tasks 
+        """
         super().__init__()
+        self._reward_scale = reward_scale
         self.task_vocab = ['icub', 'walk']
 
     def _get_contacts_to_ground(self, contacts_sensor):
@@ -197,8 +204,9 @@ class ICubStandingTask(GroceryGroundTaskBase):
         while True:
             torso_pose = agent.get_link_pose('iCub::chest')
             agent_height = np.array(torso_pose).flatten()[2]
-            done = agent_height < 0.58
-            agent_sentence = yield TeacherAction(reward=agent_height-0.58, done=done)
+            done = agent_height < 0.5
+            reward = (agent_height - 0.5) * self._reward_scale
+            agent_sentence = yield TeacherAction(reward=reward, done=done)
 
     def task_specific_observation(self):
         """
@@ -317,7 +325,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                         # within 45 degrees of the agent direction
                         hitted_ball = True
                 agent_sentence = yield TeacherAction(
-                    reward=-dist / self._random_range)
+                    reward=-dist / self._random_range + 0.5)
             else:
                 goal_loc, _ = goal.get_pose()
                 ball_loc, _ = ball.get_pose()
@@ -368,7 +376,7 @@ class GroceryGround(GazeboEnvBase):
 
     The objects are rearranged each time the environment is reseted.
 
-    Agent will receive a reward provided by the teacher. The goal's position is
+    Agent will receive a reward provided by the teacher. The goal's position
     can also be controlled by the teacher.
 
     """
