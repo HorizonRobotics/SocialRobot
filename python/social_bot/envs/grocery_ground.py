@@ -81,7 +81,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
     """
     A simple task to find a goal on grocery ground.
     The goal of this task is to train the agent to navigate to an object.
-    The name of the object is provided by the teacher. In each 
+    The name of the object is provided by the teacher. In each
     episode, the location of the goal object is randomly chosen.
     """
 
@@ -177,7 +177,7 @@ class ICubStandingTask(GroceryGroundTaskBase):
     """
     
     def __init__(self):
-        super()
+        super().__init__()
         self.task_vocab = ['icub', 'walk']
 
     def _get_contacts_to_ground(self, contacts_sensor):
@@ -227,8 +227,8 @@ class ICubStandingTask(GroceryGroundTaskBase):
 
 class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
     """
-    A simple task to kick a ball to the goal. Simple reward shaping is used to 
-    guide the agent run to the ball first: 
+    A simple task to kick a ball to the goal. Simple reward shaping is used to
+    guide the agent run to the ball first:
         Agent will receive 100 when succefully kick the ball into the goal;
         Agent will receive negative normalized distance from agent to ball before
             touching the ball within 45 degrees of agent direction;
@@ -292,7 +292,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         """
         Start a teaching episode for this task.
         Args:
-            agent (pygazebo.Agent): the learning agent 
+            agent (pygazebo.Agent): the learning agent
             world (pygazebo.World): the simulation world
         """
         agent_sentence = yield
@@ -349,13 +349,13 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
 @gin.configurable
 class GroceryGround(GazeboEnvBase):
     """
-    The envionment support agent type of pr2_noplugin, pioneer2dx_noplugin, 
+    The envionment support agent type of pr2_noplugin, pioneer2dx_noplugin,
     turtlebot, icub, and irobot create for now. Note that for the models without
     camera sensor (like irobot create), you can not use image as observation.
 
     Joints of the agent are controllable by force or pid controller,
 
-    The observation space is a numpy array or a dict with keys 'image', 
+    The observation space is a numpy array or a dict with keys 'image',
     'states', 'sentence', depends on the configuration.
     If without language and internal_states, observation is a numpy array:
         pure image (use_image_observation=True)
@@ -367,7 +367,7 @@ class GroceryGround(GazeboEnvBase):
         pure low-dimensional states and language sequence
 
     The objects are rearranged each time the environment is reseted.
-    
+
     Agent will receive a reward provided by the teacher. The goal's position is
     can also be controlled by the teacher.
 
@@ -385,7 +385,7 @@ class GroceryGround(GazeboEnvBase):
         """
         Args:
             with_language (bool): The observation will be a dict with an extra sentence
-            use_image_observation (bool): Use image, or use low-dimentional states as 
+            use_image_observation (bool): Use image, or use low-dimentional states as
                 observation. Poses in the states observation are in world coordinate
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
@@ -393,7 +393,7 @@ class GroceryGround(GazeboEnvBase):
             task_name (string): the teacher task, now there are 2 tasks,
                 a simple goal task: 'goal'
                 a simple kicking ball task: 'kickball'
-            agent_type (string): Select the agent robot, supporting pr2_noplugin, 
+            agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
             port: Gazebo port, need to specify when run multiple environment in parallel
@@ -425,11 +425,10 @@ class GroceryGround(GazeboEnvBase):
         main_task_group.add_task(grocery_task)
         self._teacher.add_task_group(main_task_group)
         if agent_type.find('icub') != -1:
-            aux_task_group = TaskGroup()
+            icub_aux_task_group = TaskGroup()
             icub_standing_task = ICubStandingTask()
-            aux_task_group.add_task(icub_standing_task)
-            self._teacher.add_task_group(aux_task_group)
-        self._teacher.build_vocab_from_tasks()
+            icub_aux_task_group.add_task(icub_standing_task)
+            self._teacher.add_task_group(icub_aux_task_group)
         self._seq_length = 20
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
@@ -442,7 +441,7 @@ class GroceryGround(GazeboEnvBase):
         self._world = gazebo.new_world_from_string(world_string)
         self._world.step(20)
         self._agent = self._world.get_agent()
-        for task_group in self._teacher.get_task_group():
+        for task_group in self._teacher.get_task_groups():
             for gro_task in task_group.get_tasks():
                 gro_task.setup(self._world, agent_type)
 
@@ -526,7 +525,7 @@ class GroceryGround(GazeboEnvBase):
     def step(self, action):
         """
         Args:
-            action (dict|int): If with_language, action is a dictionary 
+            action (dict|int): If with_language, action is a dictionary
                     with key "control" and "sentence".
                     action['control'] is a vector whose dimention is
                     len(_joint_names). action['sentence'] is a sentence sequence.
@@ -578,7 +577,7 @@ class GroceryGround(GazeboEnvBase):
 
     def _get_low_dim_full_states(self):
         task_specific_ob = np.array([])
-        for task_group in self._teacher.get_task_group():
+        for task_group in self._teacher.get_task_groups():
             for gro_task in task_group.get_tasks():
                 task_specific_ob = np.append(task_specific_ob,
                     gro_task.task_specific_observation())

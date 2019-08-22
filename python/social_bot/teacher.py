@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Teacher framework."""
 
 from abc import abstractmethod
 import numpy as np
@@ -31,17 +32,15 @@ class DiscreteSequence(gym.Space):
             vocab_size (int): number of different tokens
             max_length (int): maximal length of the sequence
         """
-        super()
+        super().__init__(shape=(max_length, ), dtype=np.int32)
         self._vocab_size = vocab_size
         self._max_length = max_length
-        self.dtype = np.int32
-        self.shape = (max_length)
 
 
 class TeacherAction(object):
     def __init__(self, reward=0.0, sentence="", done=False, is_idle=False):
         """
-        Arguments
+        Args:
             done: end of an episode if true
         """
         self.reward = reward
@@ -51,28 +50,44 @@ class TeacherAction(object):
 
 
 class Task(object):
+    """Base class for Task.
+
+    A Task is for teaching a single task.
+    """
+
     @abstractmethod
     def run(self):
         """
         run() use yield to generate TeacherAction
         Structure of run():
-
+        ```python
         def run(self, agent, world):
           ...
-          # agent_sentence is provided by Teacher using send() in TaskGroup.run_stage()
+          # agent_sentence is provided by Teacher using send() in TaskGroup.teach()
           agent_sentence = yield  # the first yielded value is ignored
           ...
-          # TeacherAction will be passed to Teacher as the return value of send() in TaskGroup.run_stage()
+          # TeacherAction will be passed to Teacher as the return value of send() in TaskGroup.teach()
           agent_sentence = yield TeacherAction(...)
           ...
           agent_sentence = yield TeacherAction(...)
           ...
           yield TeacherAction(done=True)
+        ```
+
+        Returns:
+            None
         """
         pass
 
 
 class TaskGroup(object):
+    """A group of tasks.
+
+    Each task group consists of one or more tasks. Within one task group, one
+    task can run at one time. A random task is chosen after the current task is
+    finished.
+    """
+    
     def __init__(self):
         self._tasks = []
         self._current_task = None
@@ -81,14 +96,23 @@ class TaskGroup(object):
         self._is_idle = True
 
     def add_task(self, task):
-        """
-        Add a task to the group
-        Arguments:
-            task: an instance of Task
+        """Add a task to the group.
+
+        Args:
+            task (Task): an instance of Task
+        Returns:
+            None
         """
         self._tasks.append(task)
 
-    def run_stage(self, agent_sentence):
+    def teach(self, agent_sentence):
+        """Generate TeacherAction.
+
+        Args:
+            agent_sentence (str): sentence from the agent
+        Returns:
+            TeacherAction
+        """
         task = self._get_current_task()
         try:
             # teacher_action is the value yielded in task
@@ -110,6 +134,16 @@ class TaskGroup(object):
         return self._is_idle
 
     def reset(self, agent, world):
+        """Reset the task group.
+
+        Current task will be closed and a random new one will be chosen.
+
+        Args:
+            agent (pygazebo.Agent): the learning agent in the world
+            world (pygazebo.World): the world containing the agent
+        Returns:
+            None
+        """
         self._agent = agent
         self._world = world
         if self._current_task is not None:
@@ -120,7 +154,8 @@ class TaskGroup(object):
         if self._current_task is None:
             tid = random.randint(0, len(self._tasks) - 1)
             self._current_task = self._tasks[tid].run(self._agent, self._world)
-            # run() will execute until the first yield. We ignore the first yielded value.
+            # This send will cause self._current_task to execute until the first
+            # yield. We ignore the first yielded value.
             self._current_task.send(None)
         return self._current_task
 
@@ -128,15 +163,26 @@ class TaskGroup(object):
         return self._tasks
 
 class Teacher(object):
-    """
+    """Teacher is for teaching the agent.
+
+    It is responsible for:
+    1. Giving reward
+    2. Arranging the environment
+    3. Generating sentences
+    4. Interpreting sentences from the agent
+
     A teacher has several task groups. At each step
-    * task_groups_exclusive is True
-    Only one task group will run at the same time. After the active become idle,
-    another one will be chosen randomly.
-    * task_groups_exclusive is False
-    All the task groups run concurrently. The reward are sum together. The first
-    nonempty sentence will be used. If one of the action has done=True, the
-    resulted done will be True.
+    * If task_groups_exclusive is True
+      Only one task group will run at the same time. After the active become
+      idle, another one will be chosen randomly.
+    * If task_groups_exclusive is False
+      All the task groups run concurrently. The reward are sum together. The
+      first nonempty sentence will be used. If one of the action has done=True,
+      the resulted done will be True.
+
+    Each task group consists of one or more tasks. Within one task group, one
+    task can run at one time. A random task is chosen after the current task is
+    finished.
     """
     _task_groups = []
     _weights = []
@@ -144,16 +190,33 @@ class Teacher(object):
     vocab_size = 0
 
     def __init__(self, task_groups_exclusive=True):
+        """Create a Teacher instance.
+
+        Args:
+            task_groups_exclusive (bool): If True, only one task group is active
+                at one time. Otherwise, multiple task groups run concurrently.
+        """
         self._task_groups_exclusive = task_groups_exclusive
+        self._vocab_list = None
 
     def add_task_group(self, task_group, weight=1):
+        """Add a task group to teacher.
+
+        Args:
+            task_group (TaskGroup): TaskGroup to be added
+            weight (float): In task_groups_exclusive=True mode, the probability
+                of a TaskGroup being chosen is proportional to this value.
+        Returns:
+            None
+        """
         self._task_groups.append(task_group)
         self._weights.append(weight)
 
-    def get_task_group(self):
+    def get_task_groups(self):
         return self._task_groups
 
-    def build_vocab_from_tasks(self):
+    def _build_vocab_from_tasks(self):
+        """Build vocabulary table."""
         # Initialize vocab with '0' by index 0, which is used for padding
         vocab_list = [
             0,
@@ -168,6 +231,20 @@ class Teacher(object):
             zip(self._vocab_list, list(range(0, self.vocab_size))))
 
     def sentence_to_sequence(self, sentence, max_sequence_length):
+        """Convert sentence string to numpy integer sequence.
+
+        Args:
+            sentence (str): string for the sentence. Note the currently, the
+                tokenization is case-sensitive. For example, "This" and "this"
+                are treated as word.
+            max_sequence_length (int): The length of the generated numpy array.
+                If number of words in sentence is smaller than this value, 0 is
+                padded at the end.
+        Returns:
+            numpy.array
+        """
+        if self._vocab_list is None:
+            self._build_vocab_from_tasks()
         word_list = sentence.split()
         for word in word_list:
             assert word in self._vocab_dict.keys(), \
@@ -181,16 +258,40 @@ class Teacher(object):
         return np.pad(sequence, (0, padding_num), 'constant')
 
     def sequence_to_sentence(self, sequence):
+        """Convert integer sequence to str based on vocabulary table.
+
+        Values after the first 0 in the sequence are ignored. In the generated
+        string, words are separated by space ' '.
+
+        Args:
+            sequence (int[]): integer sequence
+        Returns:
+            str
+        """
+        if self._vocab_list is None:
+            self._build_vocab_from_tasks()
         for seq_index in range(len(sequence)):
             assert sequence[seq_index] < self.vocab_size, \
                 "Unknown word id: " + str(sequence[seq_index]) + \
                 ", during decoding sequence to sentence"
-            if sequence[seq_index] == 0: break
+            if sequence[seq_index] == 0:
+                break
         word_list = list(
             map(lambda x: self._vocab_list[x], sequence[:seq_index]))
         return " ".join(word_list)
 
     def reset(self, agent, world):
+        """Reset teacher.
+
+        All the task group will be reset, that is, current task in each task
+        group is closed and a random new one will be chosen.
+
+        Args:
+            agent (pygazebo.Agent): the learning agent in the world
+            world (pygazebo.World): the world containing the agent
+        Returns:
+            None
+        """
         for g in self._task_groups:
             g.reset(agent, world)
         self._switch_task_group()
@@ -200,10 +301,17 @@ class Teacher(object):
             self._task_groups, p=np.array(self._weights) / sum(self._weights))
 
     def teach(self, agent_sentence):
+        """Generate TeacherAction.
+
+        Args:
+            agent_sentence (str): sentence from the agent
+        Returns:
+            TeacherAction
+        """
         if self._task_groups_exclusive:
             if self._current_task_group.is_idle():
                 self._switch_task_group()
-            return self._current_task_group.run_stage(agent_sentence)
+            return self._current_task_group.teach(agent_sentence)
         else:
             final_sentence = ''
             final_reward = 0.
@@ -211,7 +319,7 @@ class Teacher(object):
             active_group_id = -1
             # run all groups in parallel
             for i, g in enumerate(self._task_groups):
-                teacher_action = g.run_stage(agent_sentence)
+                teacher_action = g.teach(agent_sentence)
                 if teacher_action.done:
                     done = True
                 final_reward += teacher_action.reward
