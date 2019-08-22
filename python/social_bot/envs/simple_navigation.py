@@ -65,7 +65,7 @@ class SimpleNavigation(GazeboEnvBase):
         Args:
             with_language (bool): whether to generate language for observation
             image_with_internal_states (bool): If true, the agent's self internal
-                states i.e., joint position and velocities would be available 
+                states i.e., joint position and velocities would be available
                 together with the image.
             port (int): TCP/IP port for the simulation server
             resized_image_size (None|tuple): If None, use the original image size
@@ -92,7 +92,6 @@ class SimpleNavigation(GazeboEnvBase):
         task_group = teacher.TaskGroup()
         task_group.add_task(GoalTask())
         self._teacher.add_task_group(task_group)
-        self._teacher.build_vocab_from_tasks()
         self._seq_length = 20
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
