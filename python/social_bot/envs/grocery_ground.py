@@ -170,7 +170,7 @@ class ICubStandingTask(GroceryGroundTaskBase):
         """
         super().__init__()
         self.reward_weight = reward_weight
-        self.task_vocab = ['icub', 'walk']
+        self.task_vocab = ['icub']
 
     def _get_contacts_to_ground(self, contacts_sensor):
         contacts = self._agent.get_collisions(contacts_sensor)
@@ -386,7 +386,8 @@ class GroceryGround(GazeboEnvBase):
                  agent_type='pioneer2dx_noplugin',
                  port=None,
                  resized_image_size=(64, 64),
-                 data_format='channels_last'):
+                 data_format='channels_last',
+                 vocab_sequence_length=20):
         """
         Args:
             with_language (bool): The observation will be a dict with an extra sentence
@@ -415,26 +416,26 @@ class GroceryGround(GazeboEnvBase):
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
-            grocery_task = GroceryGroundGoalTask(
+            main_task = GroceryGroundGoalTask(
                 max_steps=200,
                 success_distance_thresh=0.5,
                 fail_distance_thresh=3.0,
                 random_goal=with_language,
                 random_range=10.0)
         elif task_name == 'kickball':
-            grocery_task = GroceryGroundKickBallTask(
+            main_task = GroceryGroundKickBallTask(
                 max_steps=200, random_range=7.0)
         else:
             logging.debug("upsupported task name: " + task_name)
         main_task_group = TaskGroup()
-        main_task_group.add_task(grocery_task)
+        main_task_group.add_task(main_task)
         self._teacher.add_task_group(main_task_group)
         if agent_type.find('icub') != -1:
             icub_aux_task_group = TaskGroup()
             icub_standing_task = ICubStandingTask()
             icub_aux_task_group.add_task(icub_standing_task)
             self._teacher.add_task_group(icub_aux_task_group)
-        self._seq_length = 20
+        self._seq_length = vocab_sequence_length
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
 
@@ -447,8 +448,8 @@ class GroceryGround(GazeboEnvBase):
         self._world.step(20)
         self._agent = self._world.get_agent()
         for task_group in self._teacher.get_task_groups():
-            for gro_task in task_group.get_tasks():
-                gro_task.setup(self._world, agent_type)
+            for task in task_group.get_tasks():
+                task.setup(self._world, agent_type)
 
         logging.debug(self._world.info())
         agent_cfgs = json.load(
@@ -575,15 +576,15 @@ class GroceryGround(GazeboEnvBase):
         return "".join(content)
 
     def _get_camera_observation(self):
-        img = np.array(
+        image = np.array(
             self._agent.get_camera_observation(self._agent_camera), copy=False)
         if self._resized_image_size:
-            img = PIL.Image.fromarray(img).resize(self._resized_image_size,
+            image = PIL.Image.fromarray(image).resize(self._resized_image_size,
                                                   PIL.Image.ANTIALIAS)
-            img = np.array(img, copy=False)
+            image = np.array(image, copy=False)
         if self._data_format == "channels_first":
-            img = np.transpose(img, [2, 0, 1])
-        return img
+            image = np.transpose(image, [2, 0, 1])
+        return image
 
     def _get_low_dim_full_states(self):
         task_specific_ob = self._teacher.get_task_pecific_observation()

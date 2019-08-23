@@ -1,5 +1,5 @@
 # Training & playing the grocery ground with agent iCub and Sac algorithm
-# Note that task reward weight may need to be tuned when using multi-tasks
+# Note that task reward weight may need to be tuned when multiple tasks are used
 #
 # python -m alf.bin.main --root_dir=~/tmp/gro_icub_sac --gin_file=grocery_alf_sac.gin \
 #   --gin_param="GroceryGround.task_name='kickball'" --gin_param="GroceryGround.agent_type='icub'" \

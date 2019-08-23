@@ -174,9 +174,23 @@ class TaskGroup(object):
         return self._current_task
 
     def get_current_reward_weight(self):
+        """Get reward weight for current task of the group
+
+        Args:
+            None
+        Returns:
+            float, the reward weight of current task
+        """
         return self._current_reward_weight
 
     def get_tasks(self):
+        """Get current tasks in the group.
+
+        Args:
+            None
+        Returns:
+            list, a list of current tasks in the group
+        """
         return self._tasks
 
 class Teacher(object):
