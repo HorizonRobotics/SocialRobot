@@ -54,6 +54,8 @@ class Task(object):
 
     A Task is for teaching a single task.
     """
+    def __init__(self):
+        self.reward_weight = 1.0
 
     @abstractmethod
     def run(self):
@@ -79,6 +81,16 @@ class Task(object):
         """
         pass
 
+    @abstractmethod
+    def task_specific_observation(self):
+        """
+        Args:
+            None
+        Returns:
+            np.array of the extra observations should be added into the
+            observation besides self states, for the non-image case
+        """
+        pass
 
 class TaskGroup(object):
     """A group of tasks.
@@ -91,6 +103,7 @@ class TaskGroup(object):
     def __init__(self):
         self._tasks = []
         self._current_task = None
+        self._current_reward_weight = 1.0
         self._agent = None
         self._world = None
         self._is_idle = True
@@ -154,10 +167,14 @@ class TaskGroup(object):
         if self._current_task is None:
             tid = random.randint(0, len(self._tasks) - 1)
             self._current_task = self._tasks[tid].run(self._agent, self._world)
+            self._current_reward_weight = self._tasks[tid].reward_weight
             # This send will cause self._current_task to execute until the first
             # yield. We ignore the first yielded value.
             self._current_task.send(None)
         return self._current_task
+
+    def get_current_reward_weight(self):
+        return self._current_reward_weight
 
     def get_tasks(self):
         return self._tasks
@@ -213,7 +230,29 @@ class Teacher(object):
         self._weights.append(weight)
 
     def get_task_groups(self):
+        """Get current task groups of teacher.
+
+        Args:
+            None
+        Returns:
+            list, a list of current task group
+        """
         return self._task_groups
+
+    def get_task_pecific_observation(self):
+        """Get the task specific observation of all the tasks added to the teacher
+
+        Args:
+            None
+        Returns:
+            numpy.array, the specific observation for all the tasks added
+        """
+        task_specific_ob = np.array([])
+        for task_group in self.get_task_groups():
+            for task in task_group.get_tasks():
+                task_specific_ob = np.append(task_specific_ob,
+                    task.task_specific_observation())
+        return task_specific_ob
 
     def _build_vocab_from_tasks(self):
         """Build vocabulary table."""
@@ -322,7 +361,7 @@ class Teacher(object):
                 teacher_action = g.teach(agent_sentence)
                 if teacher_action.done:
                     done = True
-                final_reward += teacher_action.reward
+                final_reward += g.get_current_reward_weight() * teacher_action.reward
                 if not final_sentence:
                     final_sentence = teacher_action.sentence
                     active_group_id = i
