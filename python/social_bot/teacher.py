@@ -54,6 +54,7 @@ class Task(object):
 
     A Task is for teaching a single task.
     """
+
     def __init__(self):
         self.reward_weight = 1.0
 
@@ -92,6 +93,7 @@ class Task(object):
         """
         pass
 
+
 class TaskGroup(object):
     """A group of tasks.
 
@@ -99,7 +101,7 @@ class TaskGroup(object):
     task can run at one time. A random task is chosen after the current task is
     finished.
     """
-    
+
     def __init__(self):
         self._tasks = []
         self._current_task = None
@@ -193,6 +195,7 @@ class TaskGroup(object):
         """
         return self._tasks
 
+
 class Teacher(object):
     """Teacher is for teaching the agent.
 
@@ -265,7 +268,7 @@ class Teacher(object):
         for task_group in self.get_task_groups():
             for task in task_group.get_tasks():
                 task_specific_ob = np.append(task_specific_ob,
-                    task.task_specific_observation())
+                                             task.task_specific_observation())
         return task_specific_ob
 
     def _build_vocab_from_tasks(self):
@@ -375,7 +378,8 @@ class Teacher(object):
                 teacher_action = g.teach(agent_sentence)
                 if teacher_action.done:
                     done = True
-                final_reward += g.get_current_reward_weight() * teacher_action.reward
+                weight = g.get_current_reward_weight()
+                final_reward += weight * teacher_action.reward
                 if not final_sentence:
                     final_sentence = teacher_action.sentence
                     active_group_id = i

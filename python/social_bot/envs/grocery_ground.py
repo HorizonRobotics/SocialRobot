@@ -58,6 +58,7 @@ class GroceryGroundTaskBase(teacher.Task):
         self._agent = self._world.get_agent()
         self._agent_name = agent_name
 
+
 @gin.configurable
 class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
     """
@@ -154,15 +155,15 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
         goal = self._world.get_model(self._goal_name)
         return np.array(goal.get_pose()[0]).flatten()
 
+
 @gin.configurable
 class ICubStandingTask(GroceryGroundTaskBase):
     """
     An auxiliary task spicified for iCub, to keep the agent from falling down
         and to encourage the agent walk
     """
-    
-    def __init__(self,
-                 reward_weight=1.0):
+
+    def __init__(self, reward_weight=1.0):
         """
         Args:
             reward_weight (float): the weight of the reward, should be tuned
@@ -191,9 +192,10 @@ class ICubStandingTask(GroceryGroundTaskBase):
         pre_agent_pos = self.task_specific_observation()[:2]
         while not done:
             agent_pos = self.task_specific_observation()[:2]
-            vel_reward = 100.0 * np.linalg.norm(agent_pos - pre_agent_pos, axis=-1)
+            vel_reward = 100.0 * np.linalg.norm(
+                agent_pos - pre_agent_pos, axis=-1)
             pre_agent_pos = agent_pos
-            agent_height = np.array(agent.get_link_pose('iCub::head')).flatten()[2]
+            agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
             done = agent_height < 0.7
             alive_reward = agent_height - 0.7
             reward = max((vel_reward + alive_reward), 1.0)
@@ -223,8 +225,9 @@ class ICubStandingTask(GroceryGroundTaskBase):
             root_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
         ], axis=0) / 4.0
         obs = np.concatenate((average_pos, root_pose, chest_pose, l_foot_pose,
-            r_foot_pose, foot_contacts))
+                              r_foot_pose, foot_contacts))
         return obs
+
 
 @gin.configurable
 class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
@@ -580,7 +583,7 @@ class GroceryGround(GazeboEnvBase):
             self._agent.get_camera_observation(self._agent_camera), copy=False)
         if self._resized_image_size:
             image = PIL.Image.fromarray(image).resize(self._resized_image_size,
-                                                  PIL.Image.ANTIALIAS)
+                                                      PIL.Image.ANTIALIAS)
             image = np.array(image, copy=False)
         if self._data_format == "channels_first":
             image = np.transpose(image, [2, 0, 1])
