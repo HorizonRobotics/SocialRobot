@@ -238,7 +238,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         Agent will receive negative normalized distance from agent to ball before
             touching the ball within 45 degrees of agent direction;
         Agent will receive negative normalized distance from ball to goal plus 1
-            after before touching the ball within the direction;
+            after touching the ball within the direction;
     """
 
     def __init__(self,
@@ -254,7 +254,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
-                it's considered a failure and is givne reward -1
+                it's considered a failure and is given reward -1
             random_range (float): the goal's random position range
             reward_weight (float): the weight of the reward
         """
@@ -325,7 +325,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                         # within 45 degrees of the agent direction
                         hitted_ball = True
                 agent_sentence = yield TeacherAction(
-                    reward=-dist / self._random_range + 0.5)
+                    reward=0.5 - dist / self._random_range)
             else:
                 goal_loc, _ = goal.get_pose()
                 ball_loc, _ = ball.get_pose()
@@ -341,7 +341,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
     def task_specific_observation(self):
         model_list = [
             'ball',
-            self._goal_name,
+            'goal',
         ]
         model_poss = []
         model_vels = []
@@ -499,7 +499,7 @@ class GroceryGround(GazeboEnvBase):
             self.action_space = self._control_space
 
         self.reset()
-        obs_sample = self._get_observation("hello")
+        obs_sample = self._get_observation_with_sentence("hello")
         if self._with_language or self._image_with_internal_states:
             self.observation_space = self._construct_dict_space(
                 obs_sample, self._teacher.vocab_size)
@@ -533,7 +533,7 @@ class GroceryGround(GazeboEnvBase):
             zip(self._agent_joints, self._agent_control_range * actions))
         self._agent.take_action(controls)
         self._world.step(100)
-        obs = self._get_observation(teacher_action.sentence)
+        obs = self._get_observation_with_sentence(teacher_action.sentence)
         return obs
 
     def step(self, action):
@@ -561,7 +561,7 @@ class GroceryGround(GazeboEnvBase):
         teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(100)
-        obs = self._get_observation(teacher_action.sentence)
+        obs = self._get_observation_with_sentence(teacher_action.sentence)
         self._steps_in_this_episode += 1
         self._cum_reward += teacher_action.reward
         if teacher_action.done:
@@ -613,7 +613,7 @@ class GroceryGround(GazeboEnvBase):
                 sentence_raw, self._seq_length)
         return obs
 
-    def _get_observation(self, sentence_raw):
+    def _get_observation_with_sentence(self, sentence_raw):
         if self._image_with_internal_states or self._with_language:
             # observation is an OrderedDict
             obs = self._create_observation_dict(sentence_raw)
