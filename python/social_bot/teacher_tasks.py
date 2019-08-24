@@ -132,12 +132,3 @@ class GoalTask(teacher.Task):
         """
         self._goal_name = goal_name
 
-    def task_specific_observation(self):
-        """
-        Args:
-            None
-        Returns:
-            np.array of the extra observations should be added into the
-            observation besides self states, for the non-image case
-        """
-        return np.array([])

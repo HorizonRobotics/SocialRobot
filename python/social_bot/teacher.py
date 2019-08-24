@@ -82,16 +82,16 @@ class Task(object):
         """
         pass
 
-    @abstractmethod
     def task_specific_observation(self):
         """
         Args:
             None
         Returns:
-            np.array of the extra observations should be added into the
-            observation besides self states, for the non-image case
+            np.array, the extra observations should be added into the observation
+            besides original observation from the environment. This can be overide
+            by the sub task
         """
-        pass
+        return np.array([])
 
 
 class TaskGroup(object):

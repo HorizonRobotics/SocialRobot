@@ -187,9 +187,9 @@ class ICubStandingTask(GroceryGroundTaskBase):
             agent (pygazebo.Agent): the learning agent 
             world (pygazebo.World): the simulation world
         """
+        pre_agent_pos = self.task_specific_observation()[:2]
         agent_sentence = yield
         done = False
-        pre_agent_pos = self.task_specific_observation()[:2]
         while not done:
             agent_pos = self.task_specific_observation()[:2]
             vel_reward = 100.0 * np.linalg.norm(
