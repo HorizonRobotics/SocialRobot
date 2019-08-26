@@ -192,13 +192,13 @@ class ICubStandingTask(GroceryGroundTaskBase):
         done = False
         while not done:
             agent_pos = self.task_specific_observation()[:2]
-            vel_reward = 100.0 * np.linalg.norm(
+            vel_reward = 20.0 * np.linalg.norm(
                 agent_pos - pre_agent_pos, axis=-1)
             pre_agent_pos = agent_pos
             agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
             done = agent_height < 0.7
             alive_reward = agent_height - 0.7
-            reward = max((vel_reward + alive_reward), 1.0)
+            reward = min((vel_reward + alive_reward), 1.0)
             agent_sentence = yield TeacherAction(reward=reward, done=done)
 
     def task_specific_observation(self):
