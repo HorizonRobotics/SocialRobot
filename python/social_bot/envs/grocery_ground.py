@@ -506,11 +506,13 @@ class GroceryGround(GazeboEnvBase):
             icub_standing_task = ICubStandingTask()
             icub_aux_task_group.add_task(icub_standing_task)
             self._teacher.add_task_group(icub_aux_task_group)
+        self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
-        # using MultiDiscrete instead of DiscreteSequence so gym
-        # _spec_from_gym_space won't complain.
-        self._sentence_space = gym.spaces.MultiDiscrete(
-            [self._teacher.vocab_size] * self._seq_length)
+        if self._teacher.vocab_size:
+            # using MultiDiscrete instead of DiscreteSequence so gym
+            # _spec_from_gym_space won't complain.
+            self._sentence_space = gym.spaces.MultiDiscrete(
+                [self._teacher.vocab_size] * self._seq_length)
         self._sub_steps = sub_steps
 
         self._world.step(20)
