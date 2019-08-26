@@ -509,6 +509,9 @@ class GroceryGround(GazeboEnvBase):
                  agent_type='pioneer2dx_noplugin',
                  world_time_precision=None,
                  step_time=0.1,
+                 random_goal=None,
+                 fail_distance_thresh=3,
+                 max_steps=200,
                  port=None,
                  action_cost=0.0,
                  resized_image_size=(64, 64),
@@ -534,6 +537,11 @@ class GroceryGround(GazeboEnvBase):
             step_time (float): the peroid of one step of the environment.
                 step_time / world_time_precision is how many simulator substeps during one
                 environment step. for some complex agent, i.e., icub, using step_time of 0.05 is better
+            random_goal (bool): Optional flag to control whether goal is randomly picked
+                or just the ball.
+            fail_distance_thresh (float): end session if agent is too far away from target.
+            max_steps (int): maximum number of simulation steps in an episode.
+                (Unless a smaller value is specified in REPO/__init__.py)
             port: Gazebo port, need to specify when run multiple environment in parallel
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
