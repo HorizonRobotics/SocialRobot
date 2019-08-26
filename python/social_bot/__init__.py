@@ -46,6 +46,12 @@ register(
 )
 
 register(
+    id='SocialBot-GroceryGroundImage-v1',
+    entry_point='social_bot.envs:GroceryGroundImage',
+    max_episode_steps=1e8,
+)
+
+register(
     id='SocialBot-GroceryGroundLanguage-v0',
     entry_point='social_bot.envs:GroceryGroundLanguage',
     max_episode_steps=200,

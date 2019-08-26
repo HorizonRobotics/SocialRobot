@@ -34,6 +34,10 @@ import social_bot
 from social_bot import teacher
 from social_bot import teacher_tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
+<<<<<<< HEAD
+=======
+from social_bot.teacher import TeacherAction
+>>>>>>> allow adjust grocery_ground max_steps and max_failure_distance, also resolve gym.Space.DiscreteSequence not supported when _spec_from_gym_space
 from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
 from social_bot.teacher_tasks import GoalTask
@@ -436,6 +440,8 @@ class GroceryGround(GazeboEnvBase):
                  image_with_internal_states=False,
                  task_name='goal',
                  agent_type='pioneer2dx_noplugin',
+                 fail_distance_thresh=3,
+                 max_steps=200,
                  port=None,
                  sub_steps=100,
                  action_cost=0.0,
@@ -456,6 +462,10 @@ class GroceryGround(GazeboEnvBase):
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
+            fail_distance_thresh (float): end episode if distance to target increased by
+                more than this threshold.
+            max_steps (float): max number of steps per episode.
+                (Unless a smaller value is specified in REPO/__init__.py)
             port: Gazebo port, need to specify when run multiple environment in parallel
             sub_steps (int): take how many simulator substeps during one gym step
                 for some complex agent, i.e., icub, using substeps of 50 is be better
@@ -482,13 +492,21 @@ class GroceryGround(GazeboEnvBase):
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
+<<<<<<< HEAD
             main_task = GroceryGroundGoalTask()
+=======
+            main_task = GroceryGroundGoalTask(
+                max_steps=max_steps,
+                success_distance_thresh=0.5,
+                fail_distance_thresh=fail_distance_thresh,
+                random_goal=with_language,
+                random_range=10.0)
+>>>>>>> allow adjust grocery_ground max_steps and max_failure_distance, also resolve gym.Space.DiscreteSequence not supported when _spec_from_gym_space
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(
                 max_steps=200, random_range=7.0, sub_steps=sub_steps)
         else:
             logging.debug("upsupported task name: " + task_name)
-
         main_task_group = TaskGroup()
         main_task_group.add_task(main_task)
         self._teacher.add_task_group(main_task_group)
@@ -499,11 +517,18 @@ class GroceryGround(GazeboEnvBase):
             self._teacher.add_task_group(icub_aux_task_group)
         self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
+<<<<<<< HEAD
         if self._teacher.vocab_size:
             # using MultiDiscrete instead of DiscreteSequence so gym
             # _spec_from_gym_space won't complain.
             self._sentence_space = gym.spaces.MultiDiscrete(
                 [self._teacher.vocab_size] * self._seq_length)
+=======
+        # using MultiDiscrete instead of DiscreteSequence so gym
+        # _spec_from_gym_space won't complain.
+        self._sentence_space = gym.spaces.MultiDiscrete(
+            [self._teacher.vocab_size] * self._seq_length)
+>>>>>>> allow adjust grocery_ground max_steps and max_failure_distance, also resolve gym.Space.DiscreteSequence not supported when _spec_from_gym_space
         self._sub_steps = sub_steps
 
         self._world.step(20)
