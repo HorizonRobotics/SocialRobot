@@ -34,10 +34,6 @@ import social_bot
 from social_bot import teacher
 from social_bot import teacher_tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
-<<<<<<< HEAD
-=======
-from social_bot.teacher import TeacherAction
->>>>>>> allow adjust grocery_ground max_steps and max_failure_distance, also resolve gym.Space.DiscreteSequence not supported when _spec_from_gym_space
 from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
 from social_bot.teacher_tasks import GoalTask
@@ -492,16 +488,7 @@ class GroceryGround(GazeboEnvBase):
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
-<<<<<<< HEAD
             main_task = GroceryGroundGoalTask()
-=======
-            main_task = GroceryGroundGoalTask(
-                max_steps=max_steps,
-                success_distance_thresh=0.5,
-                fail_distance_thresh=fail_distance_thresh,
-                random_goal=with_language,
-                random_range=10.0)
->>>>>>> allow adjust grocery_ground max_steps and max_failure_distance, also resolve gym.Space.DiscreteSequence not supported when _spec_from_gym_space
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(
                 max_steps=200, random_range=7.0, sub_steps=sub_steps)
@@ -517,18 +504,11 @@ class GroceryGround(GazeboEnvBase):
             self._teacher.add_task_group(icub_aux_task_group)
         self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
-<<<<<<< HEAD
         if self._teacher.vocab_size:
             # using MultiDiscrete instead of DiscreteSequence so gym
             # _spec_from_gym_space won't complain.
             self._sentence_space = gym.spaces.MultiDiscrete(
                 [self._teacher.vocab_size] * self._seq_length)
-=======
-        # using MultiDiscrete instead of DiscreteSequence so gym
-        # _spec_from_gym_space won't complain.
-        self._sentence_space = gym.spaces.MultiDiscrete(
-            [self._teacher.vocab_size] * self._seq_length)
->>>>>>> allow adjust grocery_ground max_steps and max_failure_distance, also resolve gym.Space.DiscreteSequence not supported when _spec_from_gym_space
         self._sub_steps = sub_steps
 
         self._world.step(20)
