@@ -425,6 +425,13 @@ void StartSensors() {
   std::call_once(flag, []() { gazebo::sensors::run_threads(); });
 }
 
+std::string WorldSDF(const std::string& world_file) {
+  sdf::SDFPtr worldSDF(new sdf::SDF());
+  sdf::init(worldSDF);
+  sdf::readFile(world_file, worldSDF);
+  return worldSDF->ToString();
+}
+
 std::unique_ptr<World> NewWorldFromString(const std::string& std_string) {
   gazebo::physics::WorldPtr world;
   sdf::SDFPtr worldSDF(new sdf::SDF);
@@ -466,6 +473,11 @@ PYBIND11_MODULE(pygazebo, m) {
         py::arg("args") = std::vector<std::string>(),
         py::arg("port") = 0,
         py::arg("quiet") = false);
+
+  m.def("world_sdf",
+        &WorldSDF,
+        "Read a world sdf from .world file",
+        py::arg("world_file"));
 
   // Global functions
   m.def("new_world_from_string",

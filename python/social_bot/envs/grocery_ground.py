@@ -351,7 +351,15 @@ class GroceryGround(GazeboEnvBase):
                 `(height, width, channels)` while `channels_first` corresponds
                 to images with shape `(channels, height, width)`.
         """
-        super(GroceryGround, self).__init__(port=port)
+
+        wf_path = os.path.join(social_bot.get_world_dir(),
+                               "grocery_ground.world")
+        with open(wf_path, 'r+') as world_file:
+            world_string = self._insert_agent_to_world_file(
+                world_file, agent_type)
+
+        super(GroceryGround, self).__init__(
+            world_string=world_string, port=port)
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
@@ -368,17 +376,12 @@ class GroceryGround(GazeboEnvBase):
         else:
             logging.debug("upsupported task name: " + task_name)
         task_group.add_task(self._teacher_task)
+
         self._teacher.add_task_group(task_group)
         self._seq_length = 20
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
 
-        wf_path = os.path.join(social_bot.get_world_dir(),
-                               "grocery_ground.world")
-        with open(wf_path, 'r+') as world_file:
-            world_string = self._insert_agent_to_world_file(
-                world_file, agent_type)
-        self._world = gazebo.new_world_from_string(world_string)
         self._world.step(20)
         self._agent = self._world.get_agent()
         self._teacher_task.setup(self._world, agent_type)

@@ -46,11 +46,9 @@ class ICubWalk(GazeboEnvBase):
             obs_stack (bool): Use staked multi step observation if True
             sub_seteps (int): take how many simulator substeps during one gym step
         """
-        super(ICubWalk, self).__init__(port=port)
+        super(ICubWalk, self).__init__(world_file='icub.world', port=port)
         self._sub_seteps = sub_seteps
         self._obs_stack = obs_stack
-        self._world = gazebo.new_world_from_file(
-            os.path.join(social_bot.get_world_dir(), "icub.world"))
         self._agent = self._world.get_agent('icub')
         logging.debug(self._world.info())
 
@@ -153,8 +151,10 @@ class ICubWalk(GazeboEnvBase):
         r_foot_pose = np.array(
             self._agent.get_link_pose('icub::iCub::r_leg::r_foot')).flatten()
         average_pos = np.sum([
-            agent_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
-        ], axis=0) / 4.0
+            agent_pose[0:3], chest_pose[0:3], l_foot_pose[0:3],
+            r_foot_pose[0:3]
+        ],
+                             axis=0) / 4.0
         agent_poses = np.concatenate((average_pos, agent_pose, chest_pose,
                                       l_foot_pose, r_foot_pose))
         agent_vel = np.array(self._agent.get_velocities()).flatten()

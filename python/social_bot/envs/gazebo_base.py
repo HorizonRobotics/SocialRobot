@@ -15,11 +15,13 @@
 import os
 import time
 import random
+from lxml import etree
 
 import gym
 import gin
 import numpy as np
-
+from absl import logging
+import social_bot
 import social_bot.pygazebo as gazebo
 from social_bot.teacher import DiscreteSequence
 
@@ -36,18 +38,74 @@ class GazeboEnvBase(gym.Env):
         'video.frames_per_second': 30
     }
 
-    def __init__(self, port=None, quiet=False):
+    def __init__(self,
+                 world_file=None,
+                 world_string=None,
+                 world_config=None,
+                 port=None,
+                 quiet=False):
+        """
+
+        Args:
+             world_file (str|None): world file path
+             world_string (str|None): world xml string content,
+             world_config (list[str]): list of str config `key=value`
+                where key is used for locating the element in the xml content,
+                it can a be xpath selector, see `pr2.FIX_UNUSED_LINK` for example
+             port (int): Gazebo port
+             quiet (bool) Set quiet output
+        """
         if port is None:
             port = 0
         self._port = port
         # to avoid different parallel simulation has the same randomness
         random.seed(port)
         self._rendering_process = None
-        self._world = None
         self._rendering_camera = None
         # the default camera pose for rendering rgb_array, could be override
         self._rendering_cam_pose = "10 -10 6 0 0.4 2.4"
         gazebo.initialize(port=port, quiet=quiet)
+
+        if world_file:
+            world_file_abs_path = os.path.join(social_bot.get_world_dir(),
+                                               world_file)
+            world_string = gazebo.world_sdf(world_file_abs_path)
+
+        if world_config:
+            tree = etree.XML(world_string)
+            for config in world_config:
+                i = config.rfind('=')
+                key, value = config[:i].strip(), config[i + 1:].strip()
+
+                i = key.rfind('<>')
+
+                # add sub element
+                if i != -1:
+                    key, sub_ele = key[:i].strip(), key[i + 2:].strip()
+                    logging.debug("Add element: %s %s %s", key, sub_ele, value)
+                    for ele in tree.xpath(key):
+                        etree.SubElement(ele, sub_ele).text = value
+                    continue
+
+                i = key.rfind('.')
+
+                # set attribute
+                if i != -1:
+                    key, attr = key[:i].strip(), key[i + 1:].strip()
+                    logging.debug("Set attribute: %s %s %s", key, attr, value)
+                    for ele in tree.xpath(key):
+                        ele.set(attr, value)
+                    continue
+
+                # set text value
+                for ele in tree.xpath(key):
+                    logging.debug("Set value: %s %s", key, value)
+                    ele.text = value
+
+            world_string = etree.tostring(tree, encoding='unicode')
+            logging.debug(world_string)
+
+        self._world = gazebo.new_world_from_string(world_string)
 
     def render(self, mode='human'):
         """Render the environment.

@@ -77,10 +77,8 @@ class SimpleNavigation(GazeboEnvBase):
                 `(height, width, channels)` while `channels_first` corresponds
                 to images with shape `(channels, height, width)`.
         """
-        super(SimpleNavigation, self).__init__(port=port)
-        self._world = gazebo.new_world_from_file(
-            os.path.join(social_bot.get_world_dir(),
-                         "pioneer2dx_camera.world"))
+        super(SimpleNavigation, self).__init__(
+            world_file='pioneer2dx_camera.world', port=port)
         self._agent = self._world.get_agent()
         self._rendering_cam_pose = "4 -4 3 0 0.4 2.3"
         assert self._agent is not None

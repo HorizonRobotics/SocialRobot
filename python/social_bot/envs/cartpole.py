@@ -53,10 +53,7 @@ class CartPole(GazeboEnvBase):
                  theta_threshold=0.314,
                  noise=0.01,
                  port=None):
-        super(CartPole, self).__init__(port=port)
-        self._world = gazebo.new_world_from_file(
-            os.path.join(social_bot.get_world_dir(), "cartpole.world"))
-
+        super(CartPole, self).__init__(world_file="cartpole.world", port=port)
         self._agent = self._world.get_agent()
         logging.debug("joint names: %s" % self._agent.get_joint_names())
         self._x_threshold = x_threshold
@@ -127,5 +124,5 @@ def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
+    logging.set_verbosity(logging.DEBUG)
     main()
