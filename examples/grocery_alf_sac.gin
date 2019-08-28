@@ -3,8 +3,8 @@
 #
 # python -m alf.bin.main --root_dir=~/tmp/gro_icub_sac --gin_file=grocery_alf_sac.gin \
 #   --gin_param="GroceryGround.task_name='kickball'" --gin_param="GroceryGround.agent_type='icub'" \
-#   --gin_param="GroceryGroundKickBallTask.reward_weight=10.0"
-#
+#   --gin_param="GroceryGround.sub_steps=50" --gin_param="GroceryGroundKickBallTask.reward_weight=5.0"
+#   --gin_param="GroceryGround.action_cost=1.0"
 # python -m alf.bin.main --root_dir=~/tmp/gro_sac --gin_file=grocery_alf_sac.gin --play
 #
 # If you are not recording video and observation does not contain image, you can add 'DISPLAY=null' to skip camera rendering, which will speedup the simulation a lot:
