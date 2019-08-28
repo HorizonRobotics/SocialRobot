@@ -9,14 +9,22 @@ from gym import spaces
 from social_bot.envs.gazebo_base import GazeboEnvBase
 import social_bot.pygazebo as gazebo
 
-FIX_UNUSED_LINK = [
-    "//camera//width=128",  # set camera size
+# fix head and left arm and set camera size to 128x128 and format to gray image
+#  these can save some computation
+
+PR2_WORLD_SETTING = [
+    # set camera size and format
+    "//camera//width=128",
     "//camera//height=128",
-    "//camera//format=L8",  # set camera format
-    "//sensor[contains(@name, 'wide_stereo_gazebo_')]/camera/horizontal_fov=1.8",
-    "//joint[contains(@name, 'pr2::head_')].type=fixed",  # make head fixed
+    "//camera//format=L8",
+    # make head fixed
+    "//joint[contains(@name, 'pr2::head_')].type=fixed",
+    # make eye camera sensor focus on the table
     "//link[@name='pr2::head_tilt_link']/pose=0.033267 -0.003973 1.1676 0.000174 1.0 -0.013584",
-    "//joint[contains(@name, 'pr2::l_')].type=fixed"  # make right arm fixed
+    # make eye camera vision a bit wide
+    "//sensor[contains(@name, 'wide_stereo_gazebo_')]/camera/horizontal_fov=1.8",
+    # make right arm fixed
+    "//joint[contains(@name, 'pr2::l_')].type=fixed"
 ]
 
 
@@ -76,7 +84,7 @@ class Pr2Gripper(GazeboEnvBase):
                  reward_shaping=True,
                  motion_loss=0.0000,
                  use_internal_states_only=True,
-                 world_config=None,
+                 world_config=PR2_WORLD_SETTING,
                  port=None):
         """
         Args:
@@ -149,10 +157,6 @@ class Pr2Gripper(GazeboEnvBase):
         self._gripper_reward_dir = 1
         self._gripper_upper_limit = 0.07
         self._gripper_lower_limit = 0.01
-
-        # whether to move head cameras and gripper when episode starts.
-        # for image based observation, we have to tilt the head down first to look at table
-        self._adjust_position_at_start = not use_internal_states_only
 
         obs = self._get_observation()
         self._prev_dist = self._get_finger_tip_distance()
@@ -383,7 +387,7 @@ class Pr2Gripper(GazeboEnvBase):
 
 def main():
     env = Pr2Gripper(
-        world_config=FIX_UNUSED_LINK +
+        world_config=PR2_WORLD_SETTING +
         ["//sensor[@type='camera']<>visualize=true"],
         max_steps=100,
         use_internal_states_only=False)

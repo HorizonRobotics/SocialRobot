@@ -45,13 +45,11 @@ class GazeboEnvBase(gym.Env):
                  port=None,
                  quiet=False):
         """
-
         Args:
              world_file (str|None): world file path
              world_string (str|None): world xml string content,
              world_config (list[str]): list of str config `key=value`
-                where key is used for locating the element in the xml content,
-                it can a be xpath selector, see `pr2.FIX_UNUSED_LINK` for example
+                see `_xpath_modify_world` for details
              port (int): Gazebo port
              quiet (bool) Set quiet output
         """
@@ -72,38 +70,7 @@ class GazeboEnvBase(gym.Env):
             world_string = gazebo.world_sdf(world_file_abs_path)
 
         if world_config:
-            tree = etree.XML(world_string)
-            for config in world_config:
-                i = config.rfind('=')
-                key, value = config[:i].strip(), config[i + 1:].strip()
-
-                i = key.rfind('<>')
-
-                # add sub element
-                if i != -1:
-                    key, sub_ele = key[:i].strip(), key[i + 2:].strip()
-                    logging.debug("Add element: %s %s %s", key, sub_ele, value)
-                    for ele in tree.xpath(key):
-                        etree.SubElement(ele, sub_ele).text = value
-                    continue
-
-                i = key.rfind('.')
-
-                # set attribute
-                if i != -1:
-                    key, attr = key[:i].strip(), key[i + 1:].strip()
-                    logging.debug("Set attribute: %s %s %s", key, attr, value)
-                    for ele in tree.xpath(key):
-                        ele.set(attr, value)
-                    continue
-
-                # set text value
-                for ele in tree.xpath(key):
-                    logging.debug("Set value: %s %s", key, value)
-                    ele.text = value
-
-            world_string = etree.tostring(tree, encoding='unicode')
-            logging.debug(world_string)
+            world_string = _xpath_modify_world(world_string, world_config)
 
         self._world = gazebo.new_world_from_string(world_string)
 
@@ -213,3 +180,114 @@ class GazeboEnvBase(gym.Env):
     def __del__(self):
         if self._rendering_process is not None:
             self._rendering_process.terminate()
+
+
+def _xpath_modify_world(xml, world_config):
+    """Modify world xml content
+
+    Args:
+        xml (str):
+        world_config (list[str]): list or `${selector}[${op}${name}]=${value}` strs
+            where `selector` is used for locating the element in the xml content,
+            it must be xpath selector, see 'https://lxml.de/xpathxslt.html' for details
+            and `op`, `name` are optional. And op can be '.' that set attribute value of
+            selected element or '<>' that create a sub element
+    Returns (str):
+        Return modified xml string
+
+    eg:
+    <sensor name="head_mount_sensor" type="camera">
+          <visualize>0</visualize>
+          <camera name="__default__">
+            <horizontal_fov>0.994838</horizontal_fov>
+            <image>
+              <width>640</width>
+              <height>480</height>
+              <format>R8G8B8</format>
+            </image>
+          </camera>
+    </sensor>
+
+    1. set element value: ${selector}=${value}
+    "//image/width=128"
+    "//image/height=128"
+    "//image/format=L8"
+
+    <sensor name="head_mount_sensor" type="camera">
+          <visualize>0</visualize>
+          <camera name="__default__">
+            <horizontal_fov>0.994838</horizontal_fov>
+            <image>
+              <width>128</width>
+              <height>128</height>
+              <format>L8</format>
+            </image>
+          </camera>
+    </sensor>
+
+    2. modify element attribute: ${selector}.${attr_name}=${value}
+    "//sensor.name="sensor"
+    "//sensor/camera.name="camera"
+
+    <sensor name="sensor" type="camera">
+          <visualize>0</visualize>
+          <camera name="camera">
+            <horizontal_fov>0.994838</horizontal_fov>
+            <image>
+              <width>640</width>
+              <height>480</height>
+              <format>R8G8B8</format>
+            </image>
+          </camera>
+    </sensor>
+
+    3. insert sub element: ${selector}<>${ele_name}=${value}
+    "//sensor<>always=1"
+
+    <sensor name="head_mount_sensor" type="camera">
+          <always>1</always>
+          <visualize>0</visualize>
+          <camera name="__default__">
+            <horizontal_fov>0.994838</horizontal_fov>
+            <image>
+              <width>640</width>
+              <height>480</height>
+              <format>R8G8B8</format>
+            </image>
+          </camera>
+    </sensor>
+
+    """
+    tree = etree.XML(xml)
+    for config in world_config:
+        i = config.rfind('=')
+        key, value = config[:i].strip(), config[i + 1:].strip()
+
+        i = key.rfind('<>')
+
+        # add sub element
+        if i != -1:
+            key, sub_ele = key[:i].strip(), key[i + 2:].strip()
+            logging.debug("Add element: %s %s %s", key, sub_ele, value)
+            for ele in tree.xpath(key):
+                etree.SubElement(ele, sub_ele).text = value
+            continue
+
+        i = key.rfind('.')
+
+        # set attribute
+        if i != -1:
+            key, attr = key[:i].strip(), key[i + 1:].strip()
+            logging.debug("Set attribute: %s %s %s", key, attr, value)
+            for ele in tree.xpath(key):
+                ele.set(attr, value)
+            continue
+
+        # set text value
+        for ele in tree.xpath(key):
+            logging.debug("Set value: %s %s", key, value)
+            ele.text = value
+
+    xml = etree.tostring(tree, encoding='unicode')
+    logging.debug(xml)
+    return xml
