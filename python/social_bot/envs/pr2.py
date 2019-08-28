@@ -7,6 +7,8 @@ from absl import logging
 import time
 from gym import spaces
 from social_bot.envs.gazebo_base import GazeboEnvBase
+import matplotlib.pyplot as plt
+import os
 import social_bot.pygazebo as gazebo
 
 # fix head and left arm and set camera size to 128x128 and format to gray image
@@ -14,14 +16,16 @@ import social_bot.pygazebo as gazebo
 
 PR2_WORLD_SETTING = [
     # set camera size and format
-    "//camera//width=128",
-    "//camera//height=128",
+    "//camera//width=256",
+    "//camera//height=256",
     "//camera//format=L8",
     # make head fixed
     "//joint[contains(@name, 'pr2::head_')].type=fixed",
     # make eye camera sensor focus on the table
     "//link[@name='pr2::head_tilt_link']/pose=0.033267 -0.003973 1.1676 0.000174 1.0 -0.013584",
-    # make eye camera vision a bit wide
+    # using depth camera
+    "//sensor[contains(@name, 'wide_stereo_gazebo_')].type=depth",
+    # make eye camera vision a bit wider
     "//sensor[contains(@name, 'wide_stereo_gazebo_')]/camera/horizontal_fov=1.8",
     # make right arm fixed
     "//joint[contains(@name, 'pr2::l_')].type=fixed"
@@ -158,6 +162,8 @@ class Pr2Gripper(GazeboEnvBase):
         self._gripper_upper_limit = 0.07
         self._gripper_lower_limit = 0.01
 
+        # data from depth camera may be null
+        self._world.step(50)
         obs = self._get_observation()
         self._prev_dist = self._get_finger_tip_distance()
         self._prev_gripper_pos = self._get_gripper_pos()
@@ -205,8 +211,7 @@ class Pr2Gripper(GazeboEnvBase):
     def _get_observation(self):
         def get_camera_observation(camera_name):
             return np.array(
-                self._agent.get_camera_observation(camera_name),
-                copy=False).astype(np.uint8)
+                self._agent.get_camera_observation(camera_name), copy=False)
 
         self._l_touch = self._finger_tip_contact(
             "r_gripper_l_finger_tip_contact_sensor",
@@ -370,10 +375,25 @@ class Pr2Gripper(GazeboEnvBase):
         while True:
             actions = self.action_space.sample()
             obs, r, done, _ = self.step(actions * self._gripper_reward_dir)
+
             self.render('human')
 
             count += 1
             reward += r
+
+            if os.environ.get('SOCIAL_BOT_PLT_FIG', False):
+                fig = plt.figure()
+                fig.add_subplot(1, 2, 1)
+                shape = obs[0].shape[:2]
+
+                left_camera_img = obs[0][:, :, :3].astype(np.uint8)
+                plt.imshow(left_camera_img)
+                fig.add_subplot(1, 2, 2)
+
+                right_camera_depth = np.reshape(obs[0][:, :, -1:], shape)
+                plt.imshow(right_camera_depth, cmap='gray')
+                plt.show()
+
             if done:
                 logging.debug("episode reward:" + str(reward))
                 self.reset()
@@ -387,10 +407,14 @@ class Pr2Gripper(GazeboEnvBase):
 
 def main():
     env = Pr2Gripper(
-        world_config=PR2_WORLD_SETTING +
-        ["//sensor[@type='camera']<>visualize=true"],
+        world_config=PR2_WORLD_SETTING + [
+            "//sensor[@type='camera']<>visualize=true",
+            "//camera//format=R8G8B8",
+        ],
         max_steps=100,
         use_internal_states_only=False)
+
+    logging.info(env.observation_space)
     env.run()
 
 
