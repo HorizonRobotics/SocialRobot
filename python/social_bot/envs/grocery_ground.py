@@ -196,15 +196,15 @@ class ICubStandingTask(GroceryGroundTaskBase):
         done = False
         while not done:
             agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
-            done = agent_height < 0.7
-            alive_reward = agent_height - 0.7
+            done = agent_height < 0.68
+            alive_reward = agent_height - 0.68
             joint_pos = []
             for joint_name in self._joints:
                 joint_state = self._agent.get_joint_state(joint_name)
                 joint_pos.append(joint_state.get_positions())
             joint_pos = np.array(joint_pos).flatten()
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
-            reward = 2.0 * alive_reward - 0.5 * movement_cost
+            reward = 3.0 * alive_reward - 0.5 * movement_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
     
     @staticmethod
@@ -273,6 +273,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
                  random_range=2.0,
+                 target_speed=2.0,
                  sub_steps=100,
                  reward_weight=1.0):
         """
@@ -300,6 +301,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             'hammer_on_table', 'cafe_table', 'ball'
         ]
         self._sub_steps = sub_steps
+        self._target_speed = target_speed
         self.reward_weight = reward_weight
         self.task_vocab = self.task_vocab + self._objects_in_world
 
@@ -323,6 +325,8 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         self._world.insertModelFromSdfString(goal_sdf)
         time.sleep(0.2)
         self._world.step(20)
+        if agent_name.find('icub') != -1:
+            self._target_speed = 1.0
 
     def run(self, agent, world):
         """
@@ -353,7 +357,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                 dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
                 # distance/step_time so that number is in m/s, trunk to 2m/s
                 step_time = 0.001 * self._sub_steps
-                progress_reward = min(2, (prev_dist - dist) / step_time)
+                progress_reward = min(self._target_speed, (prev_dist - dist) / step_time)
                 prev_dist = dist
                 if dist < 0.35:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
@@ -373,7 +377,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                         reward=100.0, sentence="well done", done=True)
                 else:
                     agent_sentence = yield TeacherAction(
-                        reward=2.5 - dist / self._random_range)
+                        reward=self._target_speed + 0.5 - dist / self._random_range)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def task_specific_observation(self):
