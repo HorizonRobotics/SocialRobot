@@ -9,7 +9,7 @@ curl -sSL http://get.gazebosim.org | sh
 ```
 If you already have a gazebo in your system, please make sure its version is greater than 9.6. You can check gazebo version by running `gazebo --version`. SocialRobot had been tested with Gazebo 9.6 and Gazebo 10.0.
 
-You might need to add the model path in this repp to GAZEBO_MODEL_PATH:
+You might need to add the model path in this repo to GAZEBO_MODEL_PATH:
 ```bash
 export GAZEBO_MODEL_PATH=REPO_ROOT/python/social_bot/models:$GAZEBO_MODEL_PATH
 ```
