@@ -32,33 +32,40 @@ class Observation;
 class CameraObservation {
  public:
   CameraObservation(size_t width, size_t height, size_t depth, uint8_t* img_data, float* depth_data)
-      : width_(width), height_(height), depth_(depth), img_data_(img_data), depth_data_(depth_data) {}
+      : width_(width), height_(height), depth_(depth), img_data_(img_data), depth_data_(depth_data) {
+    if (depth_data_) {
+      float* buf = new float[height_ * width_ * (depth_ + 1)];
+      for (size_t i=0; i < height_ * width_; i++) {
+        for (size_t j=0; j < depth_; j ++ ) {
+            buf[i * (depth_ + 1) + j] = img_data_[i * depth_ + j];
+        }
+        buf[i * (depth_ + 1) + depth_] = depth_data_[i];
+      }
+      this->data_ = buf;
+    } else {
+      this->data_ = NULL;
+    }
+  }
 
   uint8_t* img_data() const { return img_data_; }
   float* depth_data() const { return depth_data_; }
   size_t width() const { return width_; }
   size_t height() const { return height_; }
   size_t depth() const { return depth_; }
+  float *data() const { return data_; }
 
-  float *data() const {
-    static float *buf = NULL;
-    if (buf == NULL) {
-      buf = new float[height_ * width_ * (depth_ + 1)];
+  ~CameraObservation() {
+    if (this->data_) {
+      delete [] this->data_;
+      this->data_ = NULL;
     }
-    for (size_t i=0; i < height_ * width_; i++) {
-        for (size_t j=0; j < depth_; j ++ ) {
-            buf[i * (depth_ + 1) + j] =
-                static_cast<float>(img_data_[i * depth_ + j]);
-        }
-        buf[i * (depth_ + 1) + depth_] = depth_data_[i];
-    }
-    return buf;
   }
 
  private:
   size_t width_, height_, depth_;
   uint8_t* img_data_;
   float* depth_data_;
+  float* data_;
 };
 
 class JointState {

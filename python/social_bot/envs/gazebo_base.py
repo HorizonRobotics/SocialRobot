@@ -49,7 +49,7 @@ class GazeboEnvBase(gym.Env):
              world_file (str|None): world file path
              world_string (str|None): world xml string content,
              world_config (list[str]): list of str config `key=value`
-                see `_xpath_modify_world` for details
+                see `_xpath_modify_xml` for details
              port (int): Gazebo port
              quiet (bool) Set quiet output
         """
@@ -70,7 +70,7 @@ class GazeboEnvBase(gym.Env):
             world_string = gazebo.world_sdf(world_file_abs_path)
 
         if world_config:
-            world_string = _xpath_modify_world(world_string, world_config)
+            world_string = _xpath_modify_xml(world_string, world_config)
 
         self._world = gazebo.new_world_from_string(world_string)
 
@@ -182,19 +182,8 @@ class GazeboEnvBase(gym.Env):
             self._rendering_process.terminate()
 
 
-def _xpath_modify_world(xml, world_config):
+def _xpath_modify_xml(xml, modifications):
     """Modify world xml content
-
-    Args:
-        xml (str):
-        world_config (list[str]): list or `${selector}[${op}${name}]=${value}` strs
-            where `selector` is used for locating the element in the xml content,
-            it must be xpath selector, see 'https://lxml.de/xpathxslt.html' for details
-            and `op`, `name` are optional. And op can be '.' that set attribute value of
-            selected element or '<>' that create a sub element
-    Returns (str):
-        Return modified xml string
-
     eg:
     <sensor name="head_mount_sensor" type="camera">
           <visualize>0</visualize>
@@ -242,10 +231,10 @@ def _xpath_modify_world(xml, world_config):
     </sensor>
 
     3. insert sub element: ${selector}<>${ele_name}=${value}
-    "//sensor<>always=1"
+    "//sensor<>always_on=1"
 
     <sensor name="head_mount_sensor" type="camera">
-          <always>1</always>
+          <always_on>1</always_on>
           <visualize>0</visualize>
           <camera name="__default__">
             <horizontal_fov>0.994838</horizontal_fov>
@@ -257,9 +246,18 @@ def _xpath_modify_world(xml, world_config):
           </camera>
     </sensor>
 
+    Args:
+        xml (str):
+        modifications (list[str]): list or `${selector}[${op}${name}]=${value}` strs
+            where `selector` is used for locating the element in the xml content,
+            it must be xpath selector, see 'https://lxml.de/xpathxslt.html' for details
+            and `op`, `name` are optional. And op can be '.' that set attribute value of
+            selected element or '<>' that create a sub element
+    Returns (str):
+        Return modified xml string
     """
     tree = etree.XML(xml)
-    for config in world_config:
+    for config in modifications:
         i = config.rfind('=')
         key, value = config[:i].strip(), config[i + 1:].strip()
 

@@ -7,13 +7,10 @@ from absl import logging
 import time
 from gym import spaces
 from social_bot.envs.gazebo_base import GazeboEnvBase
-import matplotlib.pyplot as plt
-import os
 import social_bot.pygazebo as gazebo
 
-# fix head and left arm and set camera size to 128x128 and format to gray image
+# fix head and left arm and set camera size to 256x256 and format to gray image
 #  these can save some computation
-
 PR2_WORLD_SETTING = [
     # set camera size and format
     "//camera//width=256",
@@ -24,10 +21,10 @@ PR2_WORLD_SETTING = [
     # make eye camera sensor focus on the table
     "//link[@name='pr2::head_tilt_link']/pose=0.033267 -0.003973 1.1676 0.000174 1.0 -0.013584",
     # using depth camera
-    "//sensor[contains(@name, 'wide_stereo_gazebo_')].type=depth",
+    # "//sensor[contains(@name, 'wide_stereo_gazebo_')].type=depth",
     # make eye camera vision a bit wider
     "//sensor[contains(@name, 'wide_stereo_gazebo_')]/camera/horizontal_fov=1.8",
-    # make right arm fixed
+    # make left arm fixed
     "//joint[contains(@name, 'pr2::l_')].type=fixed"
 ]
 
@@ -174,7 +171,7 @@ class Pr2Gripper(GazeboEnvBase):
         else:
             self.observation_space = gym.spaces.Tuple([
                 gym.spaces.Box(
-                    low=0, high=255, shape=obs[0].shape, dtype=np.uint8),
+                    low=0, high=255, shape=obs[0].shape, dtype=obs[0].dtype),
                 gym.spaces.Box(
                     low=-np.inf,
                     high=np.inf,
@@ -375,24 +372,9 @@ class Pr2Gripper(GazeboEnvBase):
         while True:
             actions = self.action_space.sample()
             obs, r, done, _ = self.step(actions * self._gripper_reward_dir)
-
             self.render('human')
-
             count += 1
             reward += r
-
-            if os.environ.get('SOCIAL_BOT_PLT_FIG', False):
-                fig = plt.figure()
-                fig.add_subplot(1, 2, 1)
-                shape = obs[0].shape[:2]
-
-                left_camera_img = obs[0][:, :, :3].astype(np.uint8)
-                plt.imshow(left_camera_img)
-                fig.add_subplot(1, 2, 2)
-
-                right_camera_depth = np.reshape(obs[0][:, :, -1:], shape)
-                plt.imshow(right_camera_depth, cmap='gray')
-                plt.show()
 
             if done:
                 logging.debug("episode reward:" + str(reward))
