@@ -1,11 +1,8 @@
-# Training & playing the grocery ground with agent iCub and Sac algorithm
+# Training & playing the grocery ground goal task with agent iCub and Sac algorithm
 # Note that task reward weight may need to be tuned when multiple tasks are used
 #
-# python -m alf.bin.main --root_dir=~/tmp/gro_icub_sac --gin_file=grocery_alf_sac.gin \
-#   --gin_param="GroceryGround.task_name='kickball'" --gin_param="GroceryGround.agent_type='icub'" \
-#   --gin_param="GroceryGround.sub_steps=50" --gin_param="GroceryGroundKickBallTask.reward_weight=5.0"
-#   --gin_param="GroceryGround.action_cost=1.0"
-# python -m alf.bin.main --root_dir=~/tmp/gro_sac --gin_file=grocery_alf_sac.gin --play
+# python -m alf.bin.main --root_dir=~/tmp/gro_ball_icub_sac --gin_file=grocery_balltask_icub_sac.gin
+# python -m alf.bin.main --root_dir=~/tmp/gro_ball_icub_sac --gin_file=grocery_balltask_icub_sac.gin --play
 #
 # If you are not recording video and observation does not contain image, you can add 'DISPLAY=null' to skip camera rendering, which will speedup the simulation a lot:
 # DISPLAY=null python -m alf.bin.main ...
@@ -19,6 +16,12 @@ import social_bot
 create_environment.env_name="SocialBot-GroceryGround-v0"
 create_environment.num_parallel_environments=12
 create_environment.env_load_fn=@suite_socialbot.load
+
+GroceryGround.agent_type='icub'
+GroceryGround.task_name='kickball'
+GroceryGroundKickBallTask.reward_weight=5.0
+GroceryGround.action_cost=1.0
+GroceryGround.sub_steps=50
 
 # algorithm config
 create_sac_algorithm.actor_fc_layers=(256, 128)

@@ -260,11 +260,13 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
     """
     A simple task to kick a ball to the goal. Simple reward shaping is used to
     guide the agent run to the ball first:
-        Agent will receive 100 when succefully kick the ball into the goal;
-        Agent will receive negative normalized distance from agent to ball before
-            touching the ball within 45 degrees of agent direction;
-        Agent will receive negative normalized distance from ball to goal plus 1
-            after touching the ball within the direction;
+        Agent will receive 100 when succefully kick the ball into the goal.
+        Agent will receive the speed of getting closer to the ball before touching the
+            ball within 45 degrees of agent direction. The reward is trunked within
+            parameter target_speed.
+        Agent will receive negative normalized distance from ball to goal after
+            touching the ball within the direction. An offset of "target_speed + 1" is
+            included since touching the goal must be better than not touching.
     """
 
     def __init__(self,
@@ -284,6 +286,9 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
             random_range (float): the goal's random position range
+            target_speed (float): the target speed runing to the ball. The agent will receive no more 
+                higher reward when its speed is higher than target_speed.
+            sub_Steps (int): used to caculate speed of the agent
             reward_weight (float): the weight of the reward
         """
         GoalTask.__init__(
@@ -342,10 +347,10 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         self._move_goal(ball, np.array(goal_loc))
         agent_loc, dir = agent.get_pose()
         ball_loc, _ = ball.get_pose()
-        dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
+        prev_dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
+        init_goal_dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
         steps = 0
         hitted_ball = False
-        prev_dist = dist
         while steps < self._max_steps:
             steps += 1
             if not hitted_ball:
@@ -359,7 +364,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                 step_time = 0.001 * self._sub_steps
                 progress_reward = min(self._target_speed, (prev_dist - dist) / step_time)
                 prev_dist = dist
-                if dist < 0.35:
+                if dist < 0.3:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
                     goal_dir = (np.array(ball_loc[0:2]) - np.array(
                         agent_loc[0:2])) / dist
@@ -377,7 +382,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                         reward=100.0, sentence="well done", done=True)
                 else:
                     agent_sentence = yield TeacherAction(
-                        reward=self._target_speed + 0.5 - dist / self._random_range)
+                        reward=self._target_speed + 1 - dist / init_goal_dist)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def task_specific_observation(self):
