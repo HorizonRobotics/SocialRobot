@@ -212,8 +212,8 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
                 joint_pos.append(joint_state.get_positions())
             joint_pos = np.array(joint_pos).flatten()
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
-            angle_cost = np.abs(self._angle_to_target)
-            reward = 3.0 * alive_reward - 0.5 * movement_cost - 0.3* angle_cost
+            orient_cost = np.abs(self._angle_to_target)
+            reward = 3.0 * alive_reward - 0.5 * movement_cost - 0.3* orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
     
     @staticmethod
@@ -275,12 +275,11 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         rot_minus_yaw = np.array(
             [[np.cos(-yaw), -np.sin(-yaw), 0],
              [np.sin(-yaw),  np.cos(-yaw), 0],
-             [           0,             0, 1]]
-            )
+             [           0,             0, 1]])
         vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate speed back to body point of view
-        more = np.array([np.sin(self._angle_to_target), np.cos(self._angle_to_target),
-                        vx, vy, vz], dtype=np.float32)
-        return np.concatenate([icub_extra_obs] + [more])
+        orientation_ob = np.array([np.sin(self._angle_to_target), np.cos(self._angle_to_target),
+                                   vx, vy, vz], dtype=np.float32)
+        return np.concatenate([icub_extra_obs] + [orientation_ob])
 
 
 @gin.configurable
