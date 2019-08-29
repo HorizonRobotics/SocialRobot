@@ -157,9 +157,9 @@ class SimpleNavigation(GazeboEnvBase):
             sentence = ''
             controls = action
         controls = dict(zip(self._joint_names, controls))
-        teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(self.NUM_SIMULATION_STEPS)
+        teacher_action = self._teacher.teach(sentence)
         obs = self._get_observation(teacher_action.sentence)
         return (obs, teacher_action.reward, teacher_action.done, {})
 

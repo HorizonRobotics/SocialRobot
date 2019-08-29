@@ -163,21 +163,29 @@ class ICubStandingTask(GroceryGroundTaskBase):
         and to encourage the agent walk
     """
 
-    def __init__(self, reward_weight=1.0):
+    def __init__(self, reward_weight=1.0, sub_steps=100, target='goal'):
         """
         Args:
             reward_weight (float): the weight of the reward, should be tuned
                 accroding to reward range of other tasks 
+            sub_Steps (int): used to caculate speed of the agent
+            target (string): this is the target icub should face towards, since
+                you may want the agent interact with something
         """
         super().__init__()
         self.reward_weight = reward_weight
         self.task_vocab = ['icub']
+        self._step_time = 0.001 * sub_steps
+        self._target_name = target
+        self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
+        self._angle_to_target = 0.0
 
     def setup(self, world, agent_name):
         """
         Setting things up during the initialization
         """
         super().setup(world, agent_name)
+        self._target = world.get_agent(self._target_name)
         agent_cfgs = json.load(
             open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
@@ -191,7 +199,7 @@ class ICubStandingTask(GroceryGroundTaskBase):
             agent (pygazebo.Agent): the learning agent 
             world (pygazebo.World): the simulation world
         """
-        pre_agent_pos = self.task_specific_observation()[:2]
+        self._pre_agent_pos = self.get_icub_extra_obs(agent)[:3]
         agent_sentence = yield
         done = False
         while not done:
@@ -204,7 +212,8 @@ class ICubStandingTask(GroceryGroundTaskBase):
                 joint_pos.append(joint_state.get_positions())
             joint_pos = np.array(joint_pos).flatten()
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
-            reward = 3.0 * alive_reward - 0.5 * movement_cost
+            angle_cost = np.abs(self._angle_to_target)
+            reward = 3.0 * alive_reward - 0.5 * movement_cost - 0.3* angle_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
     
     @staticmethod
@@ -252,7 +261,26 @@ class ICubStandingTask(GroceryGroundTaskBase):
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
         """
-        return self.get_icub_extra_obs(self._agent)
+        icub_extra_obs =  self.get_icub_extra_obs(self._agent)
+        agent_pos = icub_extra_obs[:3]
+        agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
+        self._pre_agent_pos = agent_pos
+        yaw = self._agent.get_pose()[1][2]
+        target_pos, _ = self._target.get_pose()
+        yaw = yaw % (2 * np.pi) - np.pi  # model icub has a built-in 180 degree rotation
+        walk_target_theta = np.arctan2(target_pos[1] - agent_pos[1], target_pos[0] - agent_pos[0])
+        angle_to_target = walk_target_theta - yaw
+        # wrap the range to [-pi, pi)
+        self._angle_to_target = (angle_to_target + np.pi) % (2 * np.pi) - np.pi
+        rot_minus_yaw = np.array(
+            [[np.cos(-yaw), -np.sin(-yaw), 0],
+             [np.sin(-yaw),  np.cos(-yaw), 0],
+             [           0,             0, 1]]
+            )
+        vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate speed back to body point of view
+        more = np.array([np.sin(self._angle_to_target), np.cos(self._angle_to_target),
+                        vx, vy, vz], dtype=np.float32)
+        return np.concatenate([icub_extra_obs] + [more])
 
 
 @gin.configurable
@@ -305,7 +333,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
         ]
-        self._sub_steps = sub_steps
+        self._step_time = 0.001 * sub_steps
         self._target_speed = target_speed
         self.reward_weight = reward_weight
         self.task_vocab = self.task_vocab + self._objects_in_world
@@ -360,9 +388,8 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                     agent_loc = ICubStandingTask.get_icub_extra_obs(self._agent)[:3]
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
-                # distance/step_time so that number is in m/s, trunk to 2m/s
-                step_time = 0.001 * self._sub_steps
-                progress_reward = min(self._target_speed, (prev_dist - dist) / step_time)
+                # distance/step_time so that number is in m/s, trunk to target_speed
+                progress_reward = min(self._target_speed, (prev_dist - dist) / self._step_time)
                 prev_dist = dist
                 if dist < 0.3:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
@@ -480,7 +507,7 @@ class GroceryGround(GazeboEnvBase):
                 random_range=10.0)
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(
-                max_steps=200, random_range=7.0, sub_steps=sub_steps)
+                max_steps=200, random_range=4.0, sub_steps=sub_steps)
         else:
             logging.debug("upsupported task name: " + task_name)
         main_task_group = TaskGroup()
@@ -488,7 +515,7 @@ class GroceryGround(GazeboEnvBase):
         self._teacher.add_task_group(main_task_group)
         if agent_type.find('icub') != -1:
             icub_aux_task_group = TaskGroup()
-            icub_standing_task = ICubStandingTask()
+            icub_standing_task = ICubStandingTask(sub_steps=sub_steps)
             icub_aux_task_group.add_task(icub_standing_task)
             self._teacher.add_task_group(icub_aux_task_group)
         self._seq_length = vocab_sequence_length
@@ -613,9 +640,9 @@ class GroceryGround(GazeboEnvBase):
             action_ctrl = action
         controls = np.clip(action_ctrl, -1.0, 1.0) * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
-        teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(self._sub_steps)
+        teacher_action = self._teacher.teach(sentence)
         obs = self._get_observation_with_sentence(teacher_action.sentence)
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(action_ctrl)) / action_ctrl.shape[0]
@@ -723,14 +750,14 @@ def main():
     """
     import matplotlib.pyplot as plt
     with_language = True
-    use_image_obs = True
+    use_image_obs = False
     image_with_internal_states = True
     fig = None
     env = GroceryGround(
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='pr2_noplugin',
+        agent_type='icub',
         task_name='kickball')
     env.render()
     while True:
