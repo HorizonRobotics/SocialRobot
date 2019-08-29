@@ -48,7 +48,7 @@ class GoalTask(teacher.Task):
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
-                it's considered a failure and is givne reward -1
+                it's considered a failure and is given reward -1
             random_range (float): the goal's random position range
         """
         self._goal_name = goal_name
@@ -131,3 +131,4 @@ class GoalTask(teacher.Task):
             None
         """
         self._goal_name = goal_name
+

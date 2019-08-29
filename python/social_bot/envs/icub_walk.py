@@ -37,17 +37,16 @@ class ICubWalk(GazeboEnvBase):
     Examples/tain_icub_sac.py solves this taks in about 400K episodes.
     """
 
-    def __init__(self, use_pid=False, obs_stack=True, sub_seteps=50,
-                 port=None):
+    def __init__(self, use_pid=False, obs_stack=True, sub_steps=50, port=None):
         """
         Args:
             use_pid (bool): use pid or direct force to control
             port: Gazebo port, need to specify when run multiple environment in parallel
             obs_stack (bool): Use staked multi step observation if True
-            sub_seteps (int): take how many simulator substeps during one gym step
+            sub_steps (int): take how many simulator substeps during one gym step
         """
         super(ICubWalk, self).__init__(world_file='icub.world', port=port)
-        self._sub_seteps = sub_seteps
+        self._sub_steps = sub_steps
         self._obs_stack = obs_stack
         self._agent = self._world.get_agent('icub')
         logging.debug(self._world.info())
@@ -188,9 +187,9 @@ class ICubWalk(GazeboEnvBase):
         controls = action * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
         self._agent.take_action(controls)
-        self._world.step(self._sub_seteps)
+        self._world.step(self._sub_steps)
         obs = self._get_observation()
-        walk_vel = (obs[0] - self._obs_prev[0]) * (1000.0 / self._sub_seteps)
+        walk_vel = (obs[0] - self._obs_prev[0]) * (1000.0 / self._sub_steps)
         stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
         self._obs_prev = obs
         torso_pose = np.array(
@@ -213,9 +212,9 @@ class ICubWalk(GazeboEnvBase):
 
 
 class ICubWalkPID(ICubWalk):
-    def __init__(self, sub_seteps=50, port=None):
+    def __init__(self, sub_steps=50, port=None):
         super(ICubWalkPID, self).__init__(
-            use_pid=True, sub_seteps=sub_seteps, port=port)
+            use_pid=True, sub_steps=sub_steps, port=port)
 
 
 def main():
@@ -223,7 +222,7 @@ def main():
     Simple testing of this environment.
     """
     import matplotlib.pyplot as plt
-    env = ICubWalkPID(sub_seteps=50)
+    env = ICubWalkPID(sub_steps=50)
     while True:
         actions = np.array(env.action_space.sample())
         obs, _, done, _ = env.step(actions)
