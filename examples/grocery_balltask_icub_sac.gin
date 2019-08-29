@@ -23,7 +23,7 @@ GroceryGroundKickBallTask.reward_weight=5.0
 GroceryGround.action_cost=1.0
 GroceryGround.sub_steps=50
 
-ICubStandingTask.target='ball'
+ICubAuxiliaryTask.target='ball'
 
 # algorithm config
 create_sac_algorithm.actor_fc_layers=(256, 128)

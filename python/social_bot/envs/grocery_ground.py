@@ -157,7 +157,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
 
 
 @gin.configurable
-class ICubStandingTask(GroceryGroundTaskBase):
+class ICubAuxiliaryTask(GroceryGroundTaskBase):
     """
     An auxiliary task spicified for iCub, to keep the agent from falling down
         and to encourage the agent walk
@@ -385,7 +385,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                 agent_loc, dir = agent.get_pose()
                 if self._agent_name.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
-                    agent_loc = ICubStandingTask.get_icub_extra_obs(self._agent)[:3]
+                    agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
                 # distance/step_time so that number is in m/s, trunk to target_speed
@@ -515,7 +515,7 @@ class GroceryGround(GazeboEnvBase):
         self._teacher.add_task_group(main_task_group)
         if agent_type.find('icub') != -1:
             icub_aux_task_group = TaskGroup()
-            icub_standing_task = ICubStandingTask(sub_steps=sub_steps)
+            icub_standing_task = ICubAuxiliaryTask(sub_steps=sub_steps)
             icub_aux_task_group.add_task(icub_standing_task)
             self._teacher.add_task_group(icub_aux_task_group)
         self._seq_length = vocab_sequence_length
