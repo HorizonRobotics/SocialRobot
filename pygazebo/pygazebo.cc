@@ -643,6 +643,10 @@ PYBIND11_MODULE(pygazebo, m) {
            py::arg("max_force") = 2.0)
       .def("get_camera_observation",
            &Agent::GetCameraObservation,
+           "Get observation from this camera sensor "
+           "The shape is (H, W, C) and dtype is uint8 by default "
+           "If it's a depth camera, then the last channel represents the depth data "
+           "and its dtype is float32",
            py::arg("sensor_scope_name"))
       .def("get_joint_state", &Agent::GetJointState, py::arg("joint_name"))
       .def("get_link_pose", &Agent::GetLinkPose, py::arg("link_name"))
