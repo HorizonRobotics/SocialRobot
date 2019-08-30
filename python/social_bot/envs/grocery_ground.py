@@ -73,7 +73,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
-                 random_range=2.0,
+                 random_range=10.0,
                  random_goal=False,
                  reward_weight=1.0):
         """
@@ -163,7 +163,12 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         and to encourage the agent walk
     """
 
-    def __init__(self, reward_weight=1.0, sub_steps=100, target='goal'):
+    def __init__(self,
+                 reward_weight=1.0,
+                 sub_steps=100,
+                 target='goal',
+                 agent_init_pos=(0, 0),
+                 agent_pos_random_range=0):
         """
         Args:
             reward_weight (float): the weight of the reward, should be tuned
@@ -171,6 +176,8 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
             sub_Steps (int): used to caculate speed of the agent
             target (string): this is the target icub should face towards, since
                 you may want the agent interact with something
+            agent_init_pos (tuple): the expected initial position of the agent
+            pos_random_range (float): random range of the initial position
         """
         super().__init__()
         self.reward_weight = reward_weight
@@ -178,7 +185,8 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         self._step_time = 0.001 * sub_steps
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
-        self._angle_to_target = 0.0
+        self._agent_init_pos = agent_init_pos
+        self._random_range = agent_pos_random_range
 
     def setup(self, world, agent_name):
         """
@@ -202,20 +210,48 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         self._pre_agent_pos = self.get_icub_extra_obs(agent)[:3]
         agent_sentence = yield
         done = False
+        # set icub initial pose
+        x = self._agent_init_pos[0] + random.random() * self._random_range
+        y = self._agent_init_pos[1] + random.random() * self._random_range
+        agent_pos = np.array([x, y, 0.6])
+        # a trick from roboschool, to encourage optimal straight walk
+        orient = 0
+        if random.randint(0, 2) == 0:
+            orient = self._get_angle_to_target(agent_pos, 'iCub::root_link',
+                                               np.pi)
+        pose = (agent_pos, np.array([0, 0, orient]))
+        # one problem here is we can not control the sequence of task run(), if 
+        # this aux task is latter than main task, the target might be at initial
+        # pose and has not been randomly moved yet. Should find a way
+        # to fix the call order of run() for the tasks
+        agent.set_pose(pose)
         while not done:
+            # reward for not falling (alive reward)
             agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
-            done = agent_height < 0.68
-            alive_reward = agent_height - 0.68
+            done = agent_height < 0.7  # fall down
+            standing_reward = agent_height
+            # movement cost, to avoid uncessary movements
             joint_pos = []
             for joint_name in self._joints:
                 joint_state = self._agent.get_joint_state(joint_name)
                 joint_pos.append(joint_state.get_positions())
             joint_pos = np.array(joint_pos).flatten()
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
-            orient_cost = np.abs(self._angle_to_target)
-            reward = 3.0 * alive_reward - 0.5 * movement_cost - 0.3* orient_cost
+            # orientation cost, the agent should face towards the target
+            # only orientation of root link is not enough here
+            agent_pos = self.get_icub_extra_obs(agent)[:3]
+            head_angel = self._get_angle_to_target(agent_pos, 'iCub::head')
+            root_angel = self._get_angle_to_target(agent_pos, 'iCub::root_link')
+            l_foot_angel = self._get_angle_to_target(
+                agent_pos, 'iCub::l_leg::l_foot', np.pi)
+            r_foot_angel = self._get_angle_to_target(
+                agent_pos, 'iCub::r_leg::r_foot', np.pi)
+            orient_cost = (np.abs(head_angel) + np.abs(root_angel) +
+                           np.abs(l_foot_angel) + np.abs(r_foot_angel)) / 4
+            # sum all
+            reward = standing_reward - 0.5 * movement_cost - 0.3 * orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
-    
+
     @staticmethod
     def get_icub_extra_obs(icub_agent):
         """
@@ -233,7 +269,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
                 if collision[1] == 'ground_plane::link::collision':
                     return True
             return False
-        
+
         root_pose = np.array(
             icub_agent.get_link_pose('iCub::root_link')).flatten()
         chest_pose = np.array(
@@ -253,6 +289,28 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
                               r_foot_pose, foot_contacts))
         return obs
 
+    def _get_angle_to_target(self, agent_pos, link_name, offset=0):
+        """
+        Get angle from a icub link, relative to target.
+        Args:
+            agent_pos (numpay array): the pos of agent
+            link_name (string): link name of the agent
+            offset (float): the yaw offset of link, for some links have initial internal rotation
+        Returns:
+            float, angle to target
+        """
+        yaw = self._agent.get_link_pose(link_name)[1][2]
+        yaw = (yaw + offset) % (
+            2 * np.pi
+        ) - np.pi  # model icub has a globle built-in 180 degree rotation
+        target_pos, _ = self._target.get_pose()
+        walk_target_theta = np.arctan2(target_pos[1] - agent_pos[1],
+                                       target_pos[0] - agent_pos[0])
+        angle_to_target = walk_target_theta - yaw
+        # wrap the range to [-pi, pi)
+        angle_to_target = (angle_to_target + np.pi) % (2 * np.pi) - np.pi
+        return angle_to_target
+
     def task_specific_observation(self):
         """
         Args:
@@ -261,24 +319,19 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
         """
-        icub_extra_obs =  self.get_icub_extra_obs(self._agent)
+        icub_extra_obs = self.get_icub_extra_obs(self._agent)
         agent_pos = icub_extra_obs[:3]
         agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
         self._pre_agent_pos = agent_pos
-        yaw = self._agent.get_pose()[1][2]
-        target_pos, _ = self._target.get_pose()
-        yaw = yaw % (2 * np.pi) - np.pi  # model icub has a built-in 180 degree rotation
-        walk_target_theta = np.arctan2(target_pos[1] - agent_pos[1], target_pos[0] - agent_pos[0])
-        angle_to_target = walk_target_theta - yaw
-        # wrap the range to [-pi, pi)
-        self._angle_to_target = (angle_to_target + np.pi) % (2 * np.pi) - np.pi
-        rot_minus_yaw = np.array(
-            [[np.cos(-yaw), -np.sin(-yaw), 0],
-             [np.sin(-yaw),  np.cos(-yaw), 0],
-             [           0,             0, 1]])
-        vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate speed back to body point of view
-        orientation_ob = np.array([np.sin(self._angle_to_target), np.cos(self._angle_to_target),
-                                   vx, vy, vz], dtype=np.float32)
+        yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
+        angle_to_target = self._get_angle_to_target(agent_pos,
+                                                    'iCub::root_link')
+        rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
+                                  [np.sin(-yaw), np.cos(-yaw), 0], [0, 0, 1]])
+        vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate to agent view
+        orientation_ob = np.array(
+            [np.sin(angle_to_target),
+             np.cos(angle_to_target), vx, vy, vz], dtype=np.float32)
         return np.concatenate([icub_extra_obs] + [orientation_ob])
 
 
@@ -301,7 +354,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
-                 random_range=2.0,
+                 random_range=5.0,
                  target_speed=2.0,
                  sub_steps=100,
                  reward_weight=1.0):
@@ -374,8 +427,10 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         self._move_goal(ball, np.array(goal_loc))
         agent_loc, dir = agent.get_pose()
         ball_loc, _ = ball.get_pose()
-        prev_dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
-        init_goal_dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
+        prev_dist = np.linalg.norm(
+            np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
+        init_goal_dist = np.linalg.norm(
+            np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
         steps = 0
         hitted_ball = False
         while steps < self._max_steps:
@@ -386,9 +441,11 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                     # For agent icub, we need to use the average pos here
                     agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
                 ball_loc, _ = ball.get_pose()
-                dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
+                dist = np.linalg.norm(
+                    np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
                 # distance/step_time so that number is in m/s, trunk to target_speed
-                progress_reward = min(self._target_speed, (prev_dist - dist) / self._step_time)
+                progress_reward = min(self._target_speed,
+                                      (prev_dist - dist) / self._step_time)
                 prev_dist = dist
                 if dist < 0.3:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
@@ -502,11 +559,10 @@ class GroceryGround(GazeboEnvBase):
                 max_steps=200,
                 success_distance_thresh=0.5,
                 fail_distance_thresh=3.0,
-                random_goal=with_language,
-                random_range=10.0)
+                random_goal=with_language)
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(
-                max_steps=200, random_range=4.0, sub_steps=sub_steps)
+                max_steps=200, sub_steps=sub_steps)
         else:
             logging.debug("upsupported task name: " + task_name)
         main_task_group = TaskGroup()
@@ -559,7 +615,7 @@ class GroceryGround(GazeboEnvBase):
         self._agent_camera = agent_cfg['camera_sensor']
 
         logging.debug("joints to control: %s" % self._agent_joints)
-        
+
         self._action_cost = action_cost
         self._with_language = with_language
         self._use_image_obs = use_image_observation

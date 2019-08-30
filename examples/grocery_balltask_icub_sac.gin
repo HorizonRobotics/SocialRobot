@@ -24,6 +24,8 @@ GroceryGround.action_cost=1.0
 GroceryGround.sub_steps=50
 
 ICubAuxiliaryTask.target='ball'
+ICubAuxiliaryTask.agent_init_pos=(2.5, 0)
+ICubAuxiliaryTask.agent_pos_random_range=1.0
 
 # algorithm config
 create_sac_algorithm.actor_fc_layers=(256, 128)
