@@ -1,20 +1,32 @@
 # Copyright (c) 2019 Horizon Robotics. All Rights Reserved.
 import gym
-import os
 import numpy as np
 import random
-import math
-import PIL
 import gin
 from absl import logging
-
+import time
 from gym import spaces
-import social_bot
-from social_bot import teacher
 from social_bot.envs.gazebo_base import GazeboEnvBase
-from social_bot.teacher import TeacherAction
 import social_bot.pygazebo as gazebo
-import matplotlib.pyplot as plt
+
+# fix head and left arm and set camera size to 256x256 and format to gray image
+#  these can save some computation
+PR2_WORLD_SETTING = [
+    # set camera size and format
+    "//camera//width=256",
+    "//camera//height=256",
+    "//camera//format=L8",
+    # make head fixed
+    "//joint[contains(@name, 'pr2::head_')].type=fixed",
+    # make eye camera sensor focus on the table
+    "//link[@name='pr2::head_tilt_link']/pose=0.033267 -0.003973 1.1676 0.000174 1.0 -0.013584",
+    # using depth camera
+    # "//sensor[contains(@name, 'wide_stereo_gazebo_')].type=depth",
+    # make eye camera vision a bit wider
+    "//sensor[contains(@name, 'wide_stereo_gazebo_')]/camera/horizontal_fov=1.8",
+    # make left arm fixed
+    "//joint[contains(@name, 'pr2::l_')].type=fixed"
+]
 
 
 @gin.configurable
@@ -73,6 +85,7 @@ class Pr2Gripper(GazeboEnvBase):
                  reward_shaping=True,
                  motion_loss=0.0000,
                  use_internal_states_only=True,
+                 world_config=PR2_WORLD_SETTING,
                  port=None):
         """
         Args:
@@ -85,9 +98,8 @@ class Pr2Gripper(GazeboEnvBase):
                   and velocities) and goal positions, and not use camera sensors.
             port: Gazebo port, need to specify when run multiple environment in parallel
         """
-        super(Pr2Gripper, self).__init__(port=port)
-        self._world = gazebo.new_world_from_file(
-            os.path.join(social_bot.get_world_dir(), "pr2.world"))
+        super(Pr2Gripper, self).__init__(
+            world_file='pr2.world', world_config=world_config, port=port)
         self._agent = self._world.get_agent()
         self._rendering_cam_pose = "3 -3 2 0 0.4 2.2"
 
@@ -138,7 +150,6 @@ class Pr2Gripper(GazeboEnvBase):
         self._max_steps = max_steps
         self._steps_in_this_episode = 0
         self._reward_shaping = reward_shaping
-        self._resized_image_size = (128, 128)  #(84, 84)
         self._use_internal_states_only = use_internal_states_only
         self._cum_reward = 0.0
         self._motion_loss = motion_loss
@@ -148,10 +159,8 @@ class Pr2Gripper(GazeboEnvBase):
         self._gripper_upper_limit = 0.07
         self._gripper_lower_limit = 0.01
 
-        # whether to move head cameras and gripper when episode starts.
-        # for image based observation, we have to tilt the head down first to look at table
-        self._adjust_position_at_start = not use_internal_states_only
-
+        # data from depth camera may be null
+        self._world.step(50)
         obs = self._get_observation()
         self._prev_dist = self._get_finger_tip_distance()
         self._prev_gripper_pos = self._get_gripper_pos()
@@ -162,7 +171,7 @@ class Pr2Gripper(GazeboEnvBase):
         else:
             self.observation_space = gym.spaces.Tuple([
                 gym.spaces.Box(
-                    low=0, high=255, shape=obs[0].shape, dtype=np.uint8),
+                    low=0, high=255, shape=obs[0].shape, dtype=obs[0].dtype),
                 gym.spaces.Box(
                     low=-np.inf,
                     high=np.inf,
@@ -176,23 +185,13 @@ class Pr2Gripper(GazeboEnvBase):
         self._world.reset()
         self._move_goal()
 
-        if self._adjust_position_at_start:
-            # move camera to focus on ground. it is hacky
-            joint_state = gazebo.JointState(1)
-            joint_state.set_positions([1.2])
-            joint_state.set_velocities([0.0])
-            self._agent.set_joint_state("pr2::pr2::head_tilt_joint",
-                                        joint_state)
-
-            self._agent.take_action(dict({"pr2::pr2::r_gripper_joint": 5}))
-
         self._world.step(200)
         self._goal = self._world.get_agent(self._goal_name)
 
         obs = self._get_observation()
 
         self._table_height = self._goal_pose[0][2]
-        #logger.debug("table height:" + str(self._table_height))
+        # logger.debug("table height:" + str(self._table_height))
         self._steps_in_this_episode = 0
         self._cum_reward = 0.0
 
@@ -208,13 +207,8 @@ class Pr2Gripper(GazeboEnvBase):
 
     def _get_observation(self):
         def get_camera_observation(camera_name):
-            img = np.array(
+            return np.array(
                 self._agent.get_camera_observation(camera_name), copy=False)
-            img = PIL.Image.fromarray(img).resize(
-                self._resized_image_size,
-                PIL.Image.ANTIALIAS)  #.convert('L') if only grey images
-
-            return np.array(img).astype(np.uint8)
 
         self._l_touch = self._finger_tip_contact(
             "r_gripper_l_finger_tip_contact_sensor",
@@ -346,7 +340,7 @@ class Pr2Gripper(GazeboEnvBase):
         if delta_reward > 0:
             reward += delta_reward
         else:
-            reward += -0.01  #if no positive reward, penalize it a bit to speed up
+            reward += -0.01  # if no positive reward, penalize it a bit to speed up
 
         if self._motion_loss > 0.0:
             v2s = 0.0
@@ -371,35 +365,38 @@ class Pr2Gripper(GazeboEnvBase):
 
     def run(self):
         self.reset()
-        logging.debug(self._world.info())
-        self._max_steps = 1  # To dbg initial setup only
-        r_gripper_index = -1
-        for i in range(len(self._r_arm_joints)):
-            if self._r_arm_joints[i].find("pr2::pr2::r_gripper_joint") != -1:
-                r_gripper_index = i
-                break
         reward = 0.0
+        count = 0
+
+        time_start = time.time()
         while True:
             actions = self.action_space.sample()
             obs, r, done, _ = self.step(actions * self._gripper_reward_dir)
             self.render('human')
+            count += 1
             reward += r
 
-            if not self._use_internal_states_only:
-                fig = plt.figure()
-                fig.add_subplot(1, 2, 1)
-                plt.imshow(obs[0][:, :, :3])
-                fig.add_subplot(1, 2, 2)
-                plt.imshow(obs[0][:, :, 3:])
-                plt.show()
             if done:
                 logging.debug("episode reward:" + str(reward))
                 self.reset()
                 reward = 0.0
 
+            if count % 100 == 0:
+                fps = 100 / (time.time() - time_start)
+                logging.info("fps %f:", fps)
+                time_start = time.time()
+
 
 def main():
-    env = Pr2Gripper(max_steps=100, use_internal_states_only=False)
+    env = Pr2Gripper(
+        world_config=PR2_WORLD_SETTING + [
+            "//sensor[@type='camera']<>visualize=true",
+            "//camera//format=R8G8B8",
+        ],
+        max_steps=100,
+        use_internal_states_only=False)
+
+    logging.info(env.observation_space)
     env.run()
 
 

@@ -14,10 +14,12 @@
 #include <gazebo/physics/physics.hh>
 #include <gazebo/rendering/Camera.hh>
 #include <gazebo/sensors/CameraSensor.hh>
+#include <gazebo/sensors/DepthCameraSensor.hh>
 #include <gazebo/sensors/ContactSensor.hh>
 #include <gazebo/sensors/Sensor.hh>
 #include <gazebo/sensors/SensorManager.hh>
 #include <gazebo/sensors/SensorsIface.hh>
+#include <gazebo/rendering/DepthCamera.hh>
 #include <gazebo/util/LogRecord.hh>
 #include <mutex>  // NOLINT
 
@@ -29,17 +31,41 @@ class Observation;
 
 class CameraObservation {
  public:
-  CameraObservation(size_t width, size_t height, size_t depth, uint8_t* data)
-      : width_(width), height_(height), depth_(depth), data_(data) {}
+  CameraObservation(size_t width, size_t height, size_t depth, uint8_t* img_data, float* depth_data)
+      : width_(width), height_(height), depth_(depth), img_data_(img_data), depth_data_(depth_data) {
+    if (depth_data_) {
+      float* buf = new float[height_ * width_ * (depth_ + 1)];
+      for (size_t i=0; i < height_ * width_; i++) {
+        for (size_t j=0; j < depth_; j ++ ) {
+            buf[i * (depth_ + 1) + j] = img_data_[i * depth_ + j];
+        }
+        buf[i * (depth_ + 1) + depth_] = depth_data_[i];
+      }
+      this->data_ = buf;
+    } else {
+      this->data_ = NULL;
+    }
+  }
 
-  uint8_t* data() const { return data_; }
+  uint8_t* img_data() const { return img_data_; }
+  float* depth_data() const { return depth_data_; }
   size_t width() const { return width_; }
   size_t height() const { return height_; }
   size_t depth() const { return depth_; }
+  float *data() const { return data_; }
+
+  ~CameraObservation() {
+    if (this->data_) {
+      delete [] this->data_;
+      this->data_ = NULL;
+    }
+  }
 
  private:
   size_t width_, height_, depth_;
-  uint8_t* data_;
+  uint8_t* img_data_;
+  float* depth_data_;
+  float* data_;
 };
 
 class JointState {
@@ -245,13 +271,29 @@ class Agent : public Model {
     auto sensor = it->second;
     auto camera = sensor->Camera();
 
+    const float* depthData = NULL;
+    auto sensorType = sensor->Type();
+    if (sensorType == "depth") {
+      // gazebo::sensors::DepthCameraSensorPtr depthSensor =
+      //   std::dynamic_pointer_cast<gazebo::sensors::DepthCameraSensor>(sensor);
+      // depthData = depthSensor->DepthData(); // it's always null
+      gazebo::rendering::DepthCamera* depthCamera =
+        dynamic_cast<gazebo::rendering::DepthCamera *>(camera.get());
+      depthData = depthCamera->DepthData();
+      if (depthData == NULL) {
+        std::cerr << "Depth data null" << std::endl;
+      }
+    } else {
+      // ignore logical_camera, multicamera, wideanglecamera
+    }
+
     return CameraObservation(
-        sensor->ImageWidth(),
-        sensor->ImageHeight(),
+        camera->ImageWidth(),
+        camera->ImageHeight(),
         camera->ImageDepth(),
-        // const char* => uint8_t*
         const_cast<uint8_t*>(
-            reinterpret_cast<const uint8_t*>(sensor->ImageData())));
+            reinterpret_cast<const uint8_t*>(sensor->ImageData())),
+        const_cast<float*>(depthData));
   }
 
   bool TakeAction(const std::map<std::string, double>& controls) {
@@ -425,6 +467,13 @@ void StartSensors() {
   std::call_once(flag, []() { gazebo::sensors::run_threads(); });
 }
 
+std::string WorldSDF(const std::string& world_file) {
+  sdf::SDFPtr worldSDF(new sdf::SDF());
+  sdf::init(worldSDF);
+  sdf::readFile(world_file, worldSDF);
+  return worldSDF->ToString();
+}
+
 std::unique_ptr<World> NewWorldFromString(const std::string& std_string) {
   gazebo::physics::WorldPtr world;
   sdf::SDFPtr worldSDF(new sdf::SDF);
@@ -466,6 +515,11 @@ PYBIND11_MODULE(pygazebo, m) {
         py::arg("args") = std::vector<std::string>(),
         py::arg("port") = 0,
         py::arg("quiet") = false);
+
+  m.def("world_sdf",
+        &WorldSDF,
+        "Read a world sdf from .world file",
+        py::arg("world_file"));
 
   // Global functions
   m.def("new_world_from_string",
@@ -537,7 +591,17 @@ PYBIND11_MODULE(pygazebo, m) {
 
   py::class_<CameraObservation>(m, "CameraObservation", py::buffer_protocol())
       .def_buffer([](CameraObservation& m) -> py::buffer_info {
-        return py::buffer_info(m.data(),
+        if (m.depth_data()) {
+            return py::buffer_info(m.data(),
+                sizeof(float),
+                py::format_descriptor<float>::format(),
+                3,
+                {m.height(), m.width(), m.depth() + 1},
+                {sizeof(float) * m.width() * (m.depth() + 1),
+                 sizeof(float) * (m.depth() + 1),
+                 sizeof(float)});
+        } else {
+            return py::buffer_info(m.img_data(),
                                sizeof(uint8_t),
                                py::format_descriptor<uint8_t>::format(),
                                3,
@@ -546,6 +610,7 @@ PYBIND11_MODULE(pygazebo, m) {
                                {sizeof(uint8_t) * m.width() * m.depth(),
                                 sizeof(uint8_t) * m.depth(),
                                 sizeof(uint8_t)});
+        }
       });
 
   py::class_<Agent, Model>(m, "Agent")
@@ -578,6 +643,10 @@ PYBIND11_MODULE(pygazebo, m) {
            py::arg("max_force") = 2.0)
       .def("get_camera_observation",
            &Agent::GetCameraObservation,
+           "Get observation from this camera sensor "
+           "The shape is (H, W, C) and dtype is uint8 by default "
+           "If it's a depth camera, then the last channel represents the depth data "
+           "and its dtype is float32",
            py::arg("sensor_scope_name"))
       .def("get_joint_state", &Agent::GetJointState, py::arg("joint_name"))
       .def("get_link_pose", &Agent::GetLinkPose, py::arg("link_name"))

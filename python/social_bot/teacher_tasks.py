@@ -51,6 +51,7 @@ class GoalTask(teacher.Task):
                 it's considered a failure and is given reward -1
             random_range (float): the goal's random position range
         """
+        super().__init__()
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
@@ -62,7 +63,7 @@ class GoalTask(teacher.Task):
         """
         Start a teaching episode for this task.
         Args:
-            agent (pygazebo.Agent): the learning agent 
+            agent (pygazebo.Agent): the learning agent
             world (pygazebo.World): the simulation world
         """
         agent_sentence = yield
