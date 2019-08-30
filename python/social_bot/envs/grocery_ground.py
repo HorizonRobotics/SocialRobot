@@ -173,7 +173,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         Args:
             reward_weight (float): the weight of the reward, should be tuned
                 accroding to reward range of other tasks 
-            sub_Steps (int): used to caculate speed of the agent
+            sub_steps (int): used to caculate speed of the agent
             target (string): this is the target icub should face towards, since
                 you may want the agent interact with something
             agent_init_pos (tuple): the expected initial position of the agent
