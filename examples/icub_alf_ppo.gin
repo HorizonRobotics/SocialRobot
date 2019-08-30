@@ -1,6 +1,6 @@
 # training & playing with Agent Learning Framework (Alf)
-# python -m alf.bin.main --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin --alsologtostderr
-# python -m alf.bin.main --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin --play
+# python -m alf.bin.train --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin --alsologtostderr
+# python -m alf.bin.play --root_dir=~/tmp/icub_ppo --gin_file=icub_alf_ppo.gin
 
 import alf.trainers.off_policy_trainer
 import alf.algorithms.ppo_algorithm

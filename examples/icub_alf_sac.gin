@@ -1,6 +1,5 @@
 # training & playing with Agent Learning Framework (Alf)
-# python -m alf.bin.main --root_dir=~/tmp/icub_sac --gin_file=icub_alf_sac.gin --alsologtostderr
-# /opt/workspace/jiangtao.li/tblog/icub/icub_alfsac
+# python -m alf.bin.train --root_dir=~/tmp/icub_sac --gin_file=icub_alf_sac.gin --alsologtostderr
 
 import alf.trainers.off_policy_trainer
 import alf.algorithms.sac_algorithm
@@ -25,7 +24,7 @@ ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwork
 NormalProjectionNetwork.state_dependent_std=True
 NormalProjectionNetwork.mean_transform=None
 NormalProjectionNetwork.scale_distribution=True
-NormalProjectionNetwork.std_transform=@common.std_clip_transform
+NormalProjectionNetwork.std_transform=@clipped_exp
 
 # training config
 TrainerConfig.initial_collect_steps=2000
