@@ -1,6 +1,5 @@
 # training & playing with Agent Learning Framework (Alf)
 # python -m alf.bin.train --root_dir=~/tmp/icub_sac --gin_file=icub_alf_sac.gin --alsologtostderr
-# /opt/workspace/jiangtao.li/tblog/icub/icub_alfsac
 
 import alf.trainers.off_policy_trainer
 import alf.algorithms.sac_algorithm
