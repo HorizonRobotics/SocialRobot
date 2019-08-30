@@ -206,7 +206,7 @@ class ICubStandingTask(GroceryGroundTaskBase):
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
             reward = 3.0 * alive_reward - 0.5 * movement_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
-    
+
     @staticmethod
     def get_icub_extra_obs(icub_agent):
         """
@@ -224,7 +224,7 @@ class ICubStandingTask(GroceryGroundTaskBase):
                 if collision[1] == 'ground_plane::link::collision':
                     return True
             return False
-        
+
         root_pose = np.array(
             icub_agent.get_link_pose('iCub::root_link')).flatten()
         chest_pose = np.array(
@@ -239,7 +239,8 @@ class ICubStandingTask(GroceryGroundTaskBase):
         ]).astype(np.float32)
         average_pos = np.sum([
             root_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
-        ], axis=0) / 4.0
+        ],
+                             axis=0) / 4.0
         obs = np.concatenate((average_pos, root_pose, chest_pose, l_foot_pose,
                               r_foot_pose, foot_contacts))
         return obs
@@ -352,12 +353,15 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                 agent_loc, dir = agent.get_pose()
                 if self._agent_name.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
-                    agent_loc = ICubStandingTask.get_icub_extra_obs(self._agent)[:3]
+                    agent_loc = ICubStandingTask.get_icub_extra_obs(
+                        self._agent)[:3]
                 ball_loc, _ = ball.get_pose()
-                dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
+                dist = np.linalg.norm(
+                    np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
                 # distance/step_time so that number is in m/s, trunk to 2m/s
                 step_time = 0.001 * self._sub_steps
-                progress_reward = min(self._target_speed, (prev_dist - dist) / step_time)
+                progress_reward = min(self._target_speed,
+                                      (prev_dist - dist) / step_time)
                 prev_dist = dist
                 if dist < 0.35:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
@@ -377,7 +381,8 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                         reward=100.0, sentence="well done", done=True)
                 else:
                     agent_sentence = yield TeacherAction(
-                        reward=self._target_speed + 0.5 - dist / self._random_range)
+                        reward=self._target_speed + 0.5 -
+                        dist / self._random_range)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def task_specific_observation(self):
@@ -463,7 +468,15 @@ class GroceryGround(GazeboEnvBase):
                 `(height, width, channels)` while `channels_first` corresponds
                 to images with shape `(channels, height, width)`.
         """
-        super(GroceryGround, self).__init__(port=port)
+
+        wf_path = os.path.join(social_bot.get_world_dir(),
+                               "grocery_ground.world")
+        with open(wf_path, 'r+') as world_file:
+            world_string = self._insert_agent_to_world_file(
+                world_file, agent_type)
+
+        super(GroceryGround, self).__init__(
+            world_string=world_string, port=port)
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
@@ -478,6 +491,7 @@ class GroceryGround(GazeboEnvBase):
                 max_steps=200, random_range=7.0, sub_steps=sub_steps)
         else:
             logging.debug("upsupported task name: " + task_name)
+
         main_task_group = TaskGroup()
         main_task_group.add_task(main_task)
         self._teacher.add_task_group(main_task_group)
@@ -489,14 +503,8 @@ class GroceryGround(GazeboEnvBase):
         self._seq_length = vocab_sequence_length
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
-
-        wf_path = os.path.join(social_bot.get_world_dir(),
-                               "grocery_ground.world")
-        with open(wf_path, 'r+') as world_file:
-            world_string = self._insert_agent_to_world_file(
-                world_file, agent_type)
-        self._world = gazebo.new_world_from_string(world_string)
         self._sub_steps = sub_steps
+
         self._world.step(20)
         self._agent = self._world.get_agent()
         for task_group in self._teacher.get_task_groups():
@@ -528,7 +536,7 @@ class GroceryGround(GazeboEnvBase):
         self._agent_camera = agent_cfg['camera_sensor']
 
         logging.debug("joints to control: %s" % self._agent_joints)
-        
+
         self._action_cost = action_cost
         self._with_language = with_language
         self._use_image_obs = use_image_observation
