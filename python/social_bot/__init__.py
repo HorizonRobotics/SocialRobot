@@ -64,6 +64,12 @@ register(
 )
 
 register(
+    id='SocialBot-GroceryGroundImageLanguage-v1',
+    entry_point='social_bot.envs:GroceryGroundImageLanguage',
+    max_episode_steps=1e8,
+)
+
+register(
     id='SocialBot-GroceryGroundImageSelfStatesLanguage-v0',
     entry_point='social_bot.envs:GroceryGroundImageSelfStatesLanguage',
     max_episode_steps=200,
