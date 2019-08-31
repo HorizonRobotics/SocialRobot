@@ -435,6 +435,7 @@ class GroceryGround(GazeboEnvBase):
                  image_with_internal_states=False,
                  task_name='goal',
                  agent_type='pioneer2dx_noplugin',
+                 random_goal=None,
                  fail_distance_thresh=3,
                  max_steps=200,
                  port=None,
@@ -457,9 +458,10 @@ class GroceryGround(GazeboEnvBase):
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
-            fail_distance_thresh (float): end episode if distance to target increased by
-                more than this threshold.
-            max_steps (float): max number of steps per episode.
+            random_goal (bool): Optional flag to control whether goal is randomly picked
+                or just the ball.
+            fail_distance_thresh (float): end session if agent is too far away from target.
+            max_steps (int): maximum number of simulation steps in an episode.
                 (Unless a smaller value is specified in REPO/__init__.py)
             port: Gazebo port, need to specify when run multiple environment in parallel
             sub_steps (int): take how many simulator substeps during one gym step
@@ -487,11 +489,17 @@ class GroceryGround(GazeboEnvBase):
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
+<<<<<<< HEAD
             main_task = GroceryGroundGoalTask(
+=======
+            if random_goal is None:
+                random_goal = with_language
+            self._teacher_task = GroceryGroundGoalTask(
+>>>>>>> make groceryground goal task more configurable
                 max_steps=max_steps,
                 success_distance_thresh=0.5,
                 fail_distance_thresh=fail_distance_thresh,
-                random_goal=with_language,
+                random_goal=random_goal,
                 random_range=10.0)
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(
@@ -620,7 +628,13 @@ class GroceryGround(GazeboEnvBase):
             sentence = action.get('sentence', None)
             if type(sentence) != str:
                 sentence = self._teacher.sequence_to_sentence(sentence)
+<<<<<<< HEAD
             action_ctrl = action['control']
+=======
+            #if not self._train:
+            #    tf.compat.v1.logging.info("Teacher sentence: " + sentence)
+            controls = action['control']
+>>>>>>> make groceryground goal task more configurable
         else:
             sentence = ''
             action_ctrl = action
