@@ -36,7 +36,6 @@ from social_bot import teacher_tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
-from social_bot import teacher_tasks
 from social_bot.teacher_tasks import GoalTask
 import social_bot.pygazebo as gazebo
 
@@ -616,8 +615,6 @@ class GroceryGround(GazeboEnvBase):
             if type(sentence) != str:
                 sentence = self._teacher.sequence_to_sentence(sentence)
             action_ctrl = action['control']
-            #if not self._train:
-            #    tf.compat.v1.logging.info("Teacher sentence: " + sentence)
         else:
             sentence = ''
             action_ctrl = action
