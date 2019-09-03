@@ -489,13 +489,9 @@ class GroceryGround(GazeboEnvBase):
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
-<<<<<<< HEAD
-            main_task = GroceryGroundGoalTask(
-=======
             if random_goal is None:
                 random_goal = with_language
-            self._teacher_task = GroceryGroundGoalTask(
->>>>>>> make groceryground goal task more configurable
+            main_task = GroceryGroundGoalTask(
                 max_steps=max_steps,
                 success_distance_thresh=0.5,
                 fail_distance_thresh=fail_distance_thresh,
@@ -628,13 +624,9 @@ class GroceryGround(GazeboEnvBase):
             sentence = action.get('sentence', None)
             if type(sentence) != str:
                 sentence = self._teacher.sequence_to_sentence(sentence)
-<<<<<<< HEAD
             action_ctrl = action['control']
-=======
             #if not self._train:
             #    tf.compat.v1.logging.info("Teacher sentence: " + sentence)
-            controls = action['control']
->>>>>>> make groceryground goal task more configurable
         else:
             sentence = ''
             action_ctrl = action
