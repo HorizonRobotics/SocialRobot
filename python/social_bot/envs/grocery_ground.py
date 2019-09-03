@@ -435,9 +435,6 @@ class GroceryGround(GazeboEnvBase):
                  image_with_internal_states=False,
                  task_name='goal',
                  agent_type='pioneer2dx_noplugin',
-                 random_goal=None,
-                 fail_distance_thresh=3,
-                 max_steps=200,
                  port=None,
                  sub_steps=100,
                  action_cost=0.0,
@@ -458,11 +455,6 @@ class GroceryGround(GazeboEnvBase):
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
-            random_goal (bool): Optional flag to control whether goal is randomly picked
-                or just the ball.
-            fail_distance_thresh (float): end session if agent is too far away from target.
-            max_steps (int): maximum number of simulation steps in an episode.
-                (Unless a smaller value is specified in REPO/__init__.py)
             port: Gazebo port, need to specify when run multiple environment in parallel
             sub_steps (int): take how many simulator substeps during one gym step
                 for some complex agent, i.e., icub, using substeps of 50 is be better
@@ -489,19 +481,18 @@ class GroceryGround(GazeboEnvBase):
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
-            if random_goal is None:
-                random_goal = with_language
             main_task = GroceryGroundGoalTask(
-                max_steps=max_steps,
+                max_steps=200,
                 success_distance_thresh=0.5,
-                fail_distance_thresh=fail_distance_thresh,
-                random_goal=random_goal,
+                fail_distance_thresh=3.0,
+                random_goal=with_language,
                 random_range=10.0)
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(
                 max_steps=200, random_range=7.0, sub_steps=sub_steps)
         else:
             logging.debug("upsupported task name: " + task_name)
+
         main_task_group = TaskGroup()
         main_task_group.add_task(main_task)
         self._teacher.add_task_group(main_task_group)
