@@ -619,6 +619,8 @@ class GroceryGround(GazeboEnvBase):
             if type(sentence) != str:
                 sentence = self._teacher.sequence_to_sentence(sentence)
             action_ctrl = action['control']
+            #if not self._train:
+            #    tf.compat.v1.logging.info("Teacher sentence: " + sentence)
         else:
             sentence = ''
             action_ctrl = action
