@@ -15,6 +15,7 @@
 A variety of teacher tasks.
 """
 
+import gin
 import math
 import numpy as np
 import os

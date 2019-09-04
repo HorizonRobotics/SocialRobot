@@ -14,6 +14,7 @@
 """Teacher framework."""
 
 from abc import abstractmethod
+import gin
 import numpy as np
 import random
 import gym
