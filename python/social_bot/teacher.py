@@ -196,6 +196,7 @@ class TaskGroup(object):
         return self._tasks
 
 
+@gin.configurable
 class Teacher(object):
     """Teacher is for teaching the agent.
 
@@ -223,15 +224,17 @@ class Teacher(object):
     _task_groups_exclusive = True
     vocab_size = 0
 
-    def __init__(self, task_groups_exclusive=True):
+    def __init__(self, task_groups_exclusive=True, log_teacher_actions=False):
         """Create a Teacher instance.
 
         Args:
             task_groups_exclusive (bool): If True, only one task group is active
                 at one time. Otherwise, multiple task groups run concurrently.
+            log_teacher_actions (bool): whether to log info teacher's actions
         """
         self._task_groups_exclusive = task_groups_exclusive
         self._vocab_list = None
+        self._log_teacher_actions = log_teacher_actions
 
     def add_task_group(self, task_group, weight=1):
         """Add a task group to teacher.
@@ -364,10 +367,11 @@ class Teacher(object):
         Returns:
             TeacherAction
         """
+        return_action = None
         if self._task_groups_exclusive:
             if self._current_task_group.is_idle():
                 self._switch_task_group()
-            return self._current_task_group.teach(agent_sentence)
+            return_action = self._current_task_group.teach(agent_sentence)
         else:
             final_sentence = ''
             final_reward = 0.
@@ -386,4 +390,10 @@ class Teacher(object):
             if active_group_id != -1:
                 g = self._task_groups.pop(active_group_id)
                 self._task_groups.insert(0, g)
-            return TeacherAction(final_reward, final_sentence, done)
+            return_action = TeacherAction(final_reward, final_sentence, done)
+        if self._log_teacher_actions:
+            logging.info(
+                "Teacher Reward: %f, Sentence: %s, Done: %d",
+                return_action.reward, return_action.sentence,
+                return_action.done)
+        return return_action
