@@ -249,7 +249,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
             orient_cost = (np.abs(head_angel) + np.abs(root_angel) +
                            np.abs(l_foot_angel) + np.abs(r_foot_angel)) / 4
             # sum all
-            reward = standing_reward - 0.5 * movement_cost - 0.3 * orient_cost
+            reward = standing_reward - 0.5 * movement_cost - 0.2 * orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
 
     @staticmethod
@@ -376,12 +376,11 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             self,
             max_steps=max_steps,
             goal_name=goal_name,
-            success_distance_thresh=success_distance_thresh,
             fail_distance_thresh=fail_distance_thresh,
             random_range=random_range)
         GroceryGroundTaskBase.__init__(self)
         self._goal_name = 'goal'
-        self._success_distance_thresh = 0.5,
+        self._success_distance_thresh = success_distance_thresh,
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
@@ -411,8 +410,6 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         self._world.insertModelFromSdfString(goal_sdf)
         time.sleep(0.2)
         self._world.step(20)
-        if agent_name.find('icub') != -1:
-            self._target_speed = 1.0
 
     def run(self, agent, world):
         """
@@ -460,13 +457,13 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             else:
                 goal_loc, _ = goal.get_pose()
                 ball_loc, _ = ball.get_pose()
-                dist = np.linalg.norm(np.array(ball_loc) - np.array(goal_loc))
+                dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
                 if dist < self._success_distance_thresh:
                     agent_sentence = yield TeacherAction(
                         reward=100.0, sentence="well done", done=True)
                 else:
                     agent_sentence = yield TeacherAction(
-                        reward=self._target_speed + 1 - dist / init_goal_dist)
+                        reward=self._target_speed + 3 - dist / init_goal_dist)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def task_specific_observation(self):
@@ -570,8 +567,7 @@ class GroceryGround(GazeboEnvBase):
                 fail_distance_thresh=3.0,
                 random_goal=with_language)
         elif task_name == 'kickball':
-            main_task = GroceryGroundKickBallTask(
-                max_steps=200, sub_steps=sub_steps)
+            main_task = GroceryGroundKickBallTask(sub_steps=sub_steps)
         else:
             logging.debug("upsupported task name: " + task_name)
 
