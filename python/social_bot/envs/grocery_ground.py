@@ -96,7 +96,6 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             random_range=random_range)
         GroceryGroundTaskBase.__init__(self)
         self._random_goal = random_goal
-        self._goal_name = goal_name
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
@@ -437,9 +436,6 @@ class GroceryGround(GazeboEnvBase):
                  image_with_internal_states=False,
                  task_name='goal',
                  agent_type='pioneer2dx_noplugin',
-                 random_goal=None,
-                 fail_distance_thresh=3,
-                 max_steps=200,
                  port=None,
                  sub_steps=100,
                  action_cost=0.0,
@@ -460,11 +456,6 @@ class GroceryGround(GazeboEnvBase):
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
-            random_goal (bool): Optional flag to control whether goal is randomly picked
-                or just the ball.
-            fail_distance_thresh (float): end session if agent is too far away from target.
-            max_steps (int): maximum number of simulation steps in an episode.
-                (Unless a smaller value is specified in REPO/__init__.py)
             port: Gazebo port, need to specify when run multiple environment in parallel
             sub_steps (int): take how many simulator substeps during one gym step
                 for some complex agent, i.e., icub, using substeps of 50 is be better
