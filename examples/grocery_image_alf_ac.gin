@@ -3,6 +3,8 @@
 # python -m alf.bin.play --root_dir=~/tmp/gro_img_ppo --gin_file=grocery_image_alf_ppo.gin
 
 import alf.trainers.on_policy_trainer
+import alf.algorithms.actor_critic_algorithm
+import alf.algorithms.actor_critic_loss
 
 # environment config
 import alf.environments.wrappers
@@ -34,7 +36,7 @@ create_ac_algorithm.learning_rate=2e-4
 
 ActorCriticAlgorithm.gradient_clipping=0.5
 
-GroceryGround.data_format=%CHANNEL_ORDER
+GroceryGround.image_data_format=%CHANNEL_ORDER
 tf.keras.layers.Conv2D.data_format=%CHANNEL_ORDER
 
 # training config

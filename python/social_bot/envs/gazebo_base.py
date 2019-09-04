@@ -42,6 +42,7 @@ class GazeboEnvBase(gym.Env):
                  world_file=None,
                  world_string=None,
                  world_config=None,
+                 sim_time_precision=0.001,
                  port=None,
                  quiet=False):
         """
@@ -50,6 +51,7 @@ class GazeboEnvBase(gym.Env):
              world_string (str|None): world xml string content,
              world_config (list[str]): list of str config `key=value`
                 see `_xpath_modify_xml` for details
+             sim_time_precision (float): the time precision of the simulator
              port (int): Gazebo port
              quiet (bool) Set quiet output
         """
