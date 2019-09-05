@@ -165,7 +165,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
 
     def __init__(self,
                  reward_weight=1.0,
-                 sub_steps=100,
+                 step_time=0.05,
                  target='goal',
                  agent_init_pos=(0, 0),
                  agent_pos_random_range=0):
@@ -173,7 +173,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         Args:
             reward_weight (float): the weight of the reward, should be tuned
                 accroding to reward range of other tasks 
-            sub_steps (int): used to caculate speed of the agent
+            step_time (float): used to caculate speed of the agent
             target (string): this is the target icub should face towards, since
                 you may want the agent interact with something
             agent_init_pos (tuple): the expected initial position of the agent
@@ -182,7 +182,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         super().__init__()
         self.reward_weight = reward_weight
         self.task_vocab = ['icub']
-        self._step_time = 0.001 * sub_steps
+        self._step_time = step_time
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
         self._agent_init_pos = agent_init_pos
@@ -357,7 +357,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                  fail_distance_thresh=0.5,
                  random_range=5.0,
                  target_speed=2.0,
-                 sub_steps=100,
+                 step_time=0.1,
                  reward_weight=1.0):
         """
         Args:
@@ -369,7 +369,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             random_range (float): the goal's random position range
             target_speed (float): the target speed runing to the ball. The agent will receive no more 
                 higher reward when its speed is higher than target_speed.
-            sub_Steps (int): used to caculate speed of the agent
+            step_time (float): used to caculate speed of the agent
             reward_weight (float): the weight of the reward
         """
         GoalTask.__init__(
@@ -385,7 +385,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
         ]
-        self._step_time = 0.001 * sub_steps
+        self._step_time = step_time
         self._target_speed = target_speed
         self.reward_weight = reward_weight
         self.task_vocab = self.task_vocab + self._objects_in_world
@@ -515,8 +515,9 @@ class GroceryGround(GazeboEnvBase):
                  image_with_internal_states=False,
                  task_name='goal',
                  agent_type='pioneer2dx_noplugin',
+                 world_time_precision=None,
+                 step_time=0.1,
                  port=None,
-                 sub_steps=100,
                  action_cost=0.0,
                  resized_image_size=(64, 64),
                  image_data_format='channels_last',
@@ -535,9 +536,13 @@ class GroceryGround(GazeboEnvBase):
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
+            world_time_precision (float|None): if not none, the time precision of
+                simulator, i.e., the max_step_size defined in the agent cfg file, will be
+                override. e.g., '0.002' for a 2ms sim step
+            step_time (float): the peroid of one step of the environment.
+                step_time / world_time_precision is how many simulator substeps during one
+                environment step. for some complex agent, i.e., icub, using step_time of 0.05 is better
             port: Gazebo port, need to specify when run multiple environment in parallel
-            sub_steps (int): take how many simulator substeps during one gym step
-                for some complex agent, i.e., icub, using substeps of 50 is be better
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
             resized_image_size (None|tuple): If None, use the original image size
@@ -550,14 +555,24 @@ class GroceryGround(GazeboEnvBase):
                 to images with shape `(channels, height, width)`.
         """
 
+        agent_cfgs = json.load(
+            open(
+                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                'r'))
+        agent_cfg = agent_cfgs[agent_type]
+
         wf_path = os.path.join(social_bot.get_world_dir(),
                                "grocery_ground.world")
         with open(wf_path, 'r+') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
+        if world_time_precision is None:
+            world_time_precision = agent_cfg['max_sim_step_time']
+        sub_steps = int(round(step_time / world_time_precision))
+        sim_time_cfg = ["//physics//max_step_size=" + str(world_time_precision)]
 
         super(GroceryGround, self).__init__(
-            world_string=world_string, port=port)
+            world_string=world_string, world_config=sim_time_cfg, port=port)
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
@@ -567,7 +582,7 @@ class GroceryGround(GazeboEnvBase):
                 fail_distance_thresh=3.0,
                 random_goal=with_language)
         elif task_name == 'kickball':
-            main_task = GroceryGroundKickBallTask(sub_steps=sub_steps)
+            main_task = GroceryGroundKickBallTask(step_time=step_time)
         else:
             logging.debug("upsupported task name: " + task_name)
 
@@ -576,7 +591,7 @@ class GroceryGround(GazeboEnvBase):
         self._teacher.add_task_group(main_task_group)
         if agent_type.find('icub') != -1:
             icub_aux_task_group = TaskGroup()
-            icub_standing_task = ICubAuxiliaryTask(sub_steps=sub_steps)
+            icub_standing_task = ICubAuxiliaryTask(step_time=step_time)
             icub_aux_task_group.add_task(icub_standing_task)
             self._teacher.add_task_group(icub_aux_task_group)
         self._seq_length = vocab_sequence_length
@@ -591,11 +606,6 @@ class GroceryGround(GazeboEnvBase):
                 task.setup(self._world, agent_type)
 
         logging.debug(self._world.info())
-        agent_cfgs = json.load(
-            open(
-                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
-                'r'))
-        agent_cfg = agent_cfgs[agent_type]
         self._agent_joints = agent_cfg['control_joints']
         joint_states = list(
             map(lambda s: self._agent.get_joint_state(s), self._agent_joints))
@@ -623,6 +633,7 @@ class GroceryGround(GazeboEnvBase):
         assert image_data_format in ('channels_first', 'channels_last')
         self._data_format = image_data_format
         self._resized_image_size = resized_image_size
+        self._substep_time = world_time_precision
 
         self._control_space = gym.spaces.Box(
             low=-1.0,
