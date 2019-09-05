@@ -75,6 +75,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                  fail_distance_thresh=0.5,
                  random_range=2.0,
                  random_goal=False,
+                 sparse_reward=False,
                  reward_weight=1.0):
         """
         Args:
@@ -84,6 +85,8 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is givne reward -1
             random_range (float): the goal's random position range
+            sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
+                with normalized distance the agent get closer to goal.
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
         """
         GoalTask.__init__(
@@ -92,6 +95,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             goal_name=goal_name,
             success_distance_thresh=success_distance_thresh,
             fail_distance_thresh=fail_distance_thresh,
+            sparse_reward=sparse_reward,
             random_range=random_range)
         GroceryGroundTaskBase.__init__(self)
         self._random_goal = random_goal
