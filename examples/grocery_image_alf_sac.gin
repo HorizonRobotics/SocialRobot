@@ -41,7 +41,11 @@ PolicyDriver.observation_transformer=@image_scale_transformer
 # training config
 TrainerConfig.initial_collect_steps=2000
 TrainerConfig.mini_batch_length=2
-TrainerConfig.unroll_length=1
+# in average, how many times a sample is used for training is:
+#   mini_batch_size*mini_batch_length/(unroll_length*num_parallel_environments)
+# for internal states case, training computational cost is very low, the ration could be higher
+# for image observation case, computational cost is relatively high, we set unroll_length=2 to generate more new data
+TrainerConfig.unroll_length=2
 TrainerConfig.mini_batch_size=256
 TrainerConfig.num_iterations=10000000
 TrainerConfig.summary_interval=1000
