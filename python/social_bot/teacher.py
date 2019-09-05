@@ -223,7 +223,7 @@ class Teacher(object):
     _task_groups_exclusive = True
     vocab_size = 0
 
-    def __init__(self, task_groups_exclusive=True, log_teacher_actions=False):
+    def __init__(self, task_groups_exclusive=True):
         """Create a Teacher instance.
 
         Args:
