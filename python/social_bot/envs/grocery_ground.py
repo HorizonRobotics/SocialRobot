@@ -73,7 +73,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
-                 random_range=2.0,
+                 random_range=10.0,
                  random_goal=False,
                  sparse_reward=False,
                  reward_weight=1.0):
@@ -161,27 +161,43 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
 
 
 @gin.configurable
-class ICubStandingTask(GroceryGroundTaskBase):
+class ICubAuxiliaryTask(GroceryGroundTaskBase):
     """
     An auxiliary task spicified for iCub, to keep the agent from falling down
         and to encourage the agent walk
     """
 
-    def __init__(self, reward_weight=1.0):
+    def __init__(self,
+                 reward_weight=1.0,
+                 step_time=0.05,
+                 target='goal',
+                 agent_init_pos=(0, 0),
+                 agent_pos_random_range=0):
         """
         Args:
             reward_weight (float): the weight of the reward, should be tuned
                 accroding to reward range of other tasks 
+            step_time (float): used to caculate speed of the agent
+            target (string): this is the target icub should face towards, since
+                you may want the agent interact with something
+            agent_init_pos (tuple): the expected initial position of the agent
+            pos_random_range (float): random range of the initial position
         """
         super().__init__()
         self.reward_weight = reward_weight
         self.task_vocab = ['icub']
+        self._step_time = step_time
+        self._target_name = target
+        self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
+        self._agent_init_pos = agent_init_pos
+        self._random_range = agent_pos_random_range
 
     def setup(self, world, agent_name):
         """
         Setting things up during the initialization
         """
         super().setup(world, agent_name)
+        self._target = world.get_agent(self._target_name)
         agent_cfgs = json.load(
             open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
@@ -195,20 +211,49 @@ class ICubStandingTask(GroceryGroundTaskBase):
             agent (pygazebo.Agent): the learning agent 
             world (pygazebo.World): the simulation world
         """
-        pre_agent_pos = self.task_specific_observation()[:2]
+        self._pre_agent_pos = self.get_icub_extra_obs(agent)[:3]
         agent_sentence = yield
         done = False
+        # set icub initial pose
+        x = self._agent_init_pos[0] + random.random() * self._random_range
+        y = self._agent_init_pos[1] + random.random() * self._random_range
+        agent_pos = np.array([x, y, 0.6])
+        # a trick from roboschool, to encourage optimal straight walk
+        orient = 0
+        if random.randint(0, 2) == 0:
+            orient = self._get_angle_to_target(agent_pos, 'iCub::root_link',
+                                               np.pi)
+        pose = (agent_pos, np.array([0, 0, orient]))
+        # one problem here is we can not control the sequence of task run(), if 
+        # this aux task is latter than main task, the target might be at initial
+        # pose and has not been randomly moved yet. Should find a way
+        # to fix the call order of run() for the tasks
+        agent.set_pose(pose)
         while not done:
+            # reward for not falling (alive reward)
             agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
-            done = agent_height < 0.68
-            alive_reward = agent_height - 0.68
+            done = agent_height < 0.7  # fall down
+            standing_reward = agent_height
+            # movement cost, to avoid uncessary movements
             joint_pos = []
             for joint_name in self._joints:
                 joint_state = self._agent.get_joint_state(joint_name)
                 joint_pos.append(joint_state.get_positions())
             joint_pos = np.array(joint_pos).flatten()
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
-            reward = 3.0 * alive_reward - 0.5 * movement_cost
+            # orientation cost, the agent should face towards the target
+            # only orientation of root link is not enough here
+            agent_pos = self.get_icub_extra_obs(agent)[:3]
+            head_angel = self._get_angle_to_target(agent_pos, 'iCub::head')
+            root_angel = self._get_angle_to_target(agent_pos, 'iCub::root_link')
+            l_foot_angel = self._get_angle_to_target(
+                agent_pos, 'iCub::l_leg::l_foot', np.pi)
+            r_foot_angel = self._get_angle_to_target(
+                agent_pos, 'iCub::r_leg::r_foot', np.pi)
+            orient_cost = (np.abs(head_angel) + np.abs(root_angel) +
+                           np.abs(l_foot_angel) + np.abs(r_foot_angel)) / 4
+            # sum all
+            reward = standing_reward - 0.5 * movement_cost - 0.2 * orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
 
     @staticmethod
@@ -249,6 +294,28 @@ class ICubStandingTask(GroceryGroundTaskBase):
                               r_foot_pose, foot_contacts))
         return obs
 
+    def _get_angle_to_target(self, agent_pos, link_name, offset=0):
+        """
+        Get angle from a icub link, relative to target.
+        Args:
+            agent_pos (numpay array): the pos of agent
+            link_name (string): link name of the agent
+            offset (float): the yaw offset of link, for some links have initial internal rotation
+        Returns:
+            float, angle to target
+        """
+        yaw = self._agent.get_link_pose(link_name)[1][2]
+        yaw = (yaw + offset) % (
+            2 * np.pi
+        ) - np.pi  # model icub has a globle built-in 180 degree rotation
+        target_pos, _ = self._target.get_pose()
+        walk_target_theta = np.arctan2(target_pos[1] - agent_pos[1],
+                                       target_pos[0] - agent_pos[0])
+        angle_to_target = walk_target_theta - yaw
+        # wrap the range to [-pi, pi)
+        angle_to_target = (angle_to_target + np.pi) % (2 * np.pi) - np.pi
+        return angle_to_target
+
     def task_specific_observation(self):
         """
         Args:
@@ -257,7 +324,20 @@ class ICubStandingTask(GroceryGroundTaskBase):
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
         """
-        return self.get_icub_extra_obs(self._agent)
+        icub_extra_obs = self.get_icub_extra_obs(self._agent)
+        agent_pos = icub_extra_obs[:3]
+        agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
+        self._pre_agent_pos = agent_pos
+        yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
+        angle_to_target = self._get_angle_to_target(agent_pos,
+                                                    'iCub::root_link')
+        rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
+                                  [np.sin(-yaw), np.cos(-yaw), 0], [0, 0, 1]])
+        vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate to agent view
+        orientation_ob = np.array(
+            [np.sin(angle_to_target),
+             np.cos(angle_to_target), vx, vy, vz], dtype=np.float32)
+        return np.concatenate([icub_extra_obs] + [orientation_ob])
 
 
 @gin.configurable
@@ -265,11 +345,13 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
     """
     A simple task to kick a ball to the goal. Simple reward shaping is used to
     guide the agent run to the ball first:
-        Agent will receive 100 when succefully kick the ball into the goal;
-        Agent will receive negative normalized distance from agent to ball before
-            touching the ball within 45 degrees of agent direction;
-        Agent will receive negative normalized distance from ball to goal plus 1
-            after touching the ball within the direction;
+        Agent will receive 100 when succefully kick the ball into the goal.
+        Agent will receive the speed of getting closer to the ball before touching the
+            ball within 45 degrees of agent direction. The reward is trunked within
+            parameter target_speed.
+        Agent will receive negative normalized distance from ball to goal after
+            touching the ball within the direction. An offset of "target_speed + 1" is
+            included since touching the goal must be better than not touching.
     """
 
     def __init__(self,
@@ -277,9 +359,9 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
-                 random_range=2.0,
+                 random_range=5.0,
                  target_speed=2.0,
-                 sub_steps=100,
+                 step_time=0.1,
                  reward_weight=1.0):
         """
         Args:
@@ -289,23 +371,25 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
             random_range (float): the goal's random position range
+            target_speed (float): the target speed runing to the ball. The agent will receive no more 
+                higher reward when its speed is higher than target_speed.
+            step_time (float): used to caculate speed of the agent
             reward_weight (float): the weight of the reward
         """
         GoalTask.__init__(
             self,
             max_steps=max_steps,
             goal_name=goal_name,
-            success_distance_thresh=success_distance_thresh,
             fail_distance_thresh=fail_distance_thresh,
             random_range=random_range)
         GroceryGroundTaskBase.__init__(self)
         self._goal_name = 'goal'
-        self._success_distance_thresh = 0.5,
+        self._success_distance_thresh = success_distance_thresh,
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
         ]
-        self._sub_steps = sub_steps
+        self._step_time = step_time
         self._target_speed = target_speed
         self.reward_weight = reward_weight
         self.task_vocab = self.task_vocab + self._objects_in_world
@@ -330,8 +414,6 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         self._world.insertModelFromSdfString(goal_sdf)
         time.sleep(0.2)
         self._world.step(20)
-        if agent_name.find('icub') != -1:
-            self._target_speed = 1.0
 
     def run(self, agent, world):
         """
@@ -347,27 +429,27 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         self._move_goal(ball, np.array(goal_loc))
         agent_loc, dir = agent.get_pose()
         ball_loc, _ = ball.get_pose()
-        dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
+        prev_dist = np.linalg.norm(
+            np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
+        init_goal_dist = np.linalg.norm(
+            np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
         steps = 0
         hitted_ball = False
-        prev_dist = dist
         while steps < self._max_steps:
             steps += 1
             if not hitted_ball:
                 agent_loc, dir = agent.get_pose()
                 if self._agent_name.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
-                    agent_loc = ICubStandingTask.get_icub_extra_obs(
-                        self._agent)[:3]
+                    agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
-                # distance/step_time so that number is in m/s, trunk to 2m/s
-                step_time = 0.001 * self._sub_steps
+                # distance/step_time so that number is in m/s, trunk to target_speed
                 progress_reward = min(self._target_speed,
-                                      (prev_dist - dist) / step_time)
+                                      (prev_dist - dist) / self._step_time)
                 prev_dist = dist
-                if dist < 0.35:
+                if dist < 0.3:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
                     goal_dir = (np.array(ball_loc[0:2]) - np.array(
                         agent_loc[0:2])) / dist
@@ -379,14 +461,13 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             else:
                 goal_loc, _ = goal.get_pose()
                 ball_loc, _ = ball.get_pose()
-                dist = np.linalg.norm(np.array(ball_loc) - np.array(goal_loc))
+                dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
                 if dist < self._success_distance_thresh:
                     agent_sentence = yield TeacherAction(
                         reward=100.0, sentence="well done", done=True)
                 else:
                     agent_sentence = yield TeacherAction(
-                        reward=self._target_speed + 0.5 -
-                        dist / self._random_range)
+                        reward=self._target_speed + 3 - dist / init_goal_dist)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def task_specific_observation(self):
@@ -438,8 +519,9 @@ class GroceryGround(GazeboEnvBase):
                  image_with_internal_states=False,
                  task_name='goal',
                  agent_type='pioneer2dx_noplugin',
+                 world_time_precision=None,
+                 step_time=0.1,
                  port=None,
-                 sub_steps=100,
                  action_cost=0.0,
                  resized_image_size=(64, 64),
                  image_data_format='channels_last',
@@ -458,9 +540,13 @@ class GroceryGround(GazeboEnvBase):
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
+            world_time_precision (float|None): if not none, the time precision of
+                simulator, i.e., the max_step_size defined in the agent cfg file, will be
+                override. e.g., '0.002' for a 2ms sim step
+            step_time (float): the peroid of one step of the environment.
+                step_time / world_time_precision is how many simulator substeps during one
+                environment step. for some complex agent, i.e., icub, using step_time of 0.05 is better
             port: Gazebo port, need to specify when run multiple environment in parallel
-            sub_steps (int): take how many simulator substeps during one gym step
-                for some complex agent, i.e., icub, using substeps of 50 is be better
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
             resized_image_size (None|tuple): If None, use the original image size
@@ -473,14 +559,24 @@ class GroceryGround(GazeboEnvBase):
                 to images with shape `(channels, height, width)`.
         """
 
+        agent_cfgs = json.load(
+            open(
+                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                'r'))
+        agent_cfg = agent_cfgs[agent_type]
+
         wf_path = os.path.join(social_bot.get_world_dir(),
                                "grocery_ground.world")
         with open(wf_path, 'r+') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
+        if world_time_precision is None:
+            world_time_precision = agent_cfg['max_sim_step_time']
+        sub_steps = int(round(step_time / world_time_precision))
+        sim_time_cfg = ["//physics//max_step_size=" + str(world_time_precision)]
 
         super(GroceryGround, self).__init__(
-            world_string=world_string, port=port)
+            world_string=world_string, world_config=sim_time_cfg, port=port)
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
@@ -488,11 +584,9 @@ class GroceryGround(GazeboEnvBase):
                 max_steps=200,
                 success_distance_thresh=0.5,
                 fail_distance_thresh=3.0,
-                random_goal=with_language,
-                random_range=10.0)
+                random_goal=with_language)
         elif task_name == 'kickball':
-            main_task = GroceryGroundKickBallTask(
-                max_steps=200, random_range=7.0, sub_steps=sub_steps)
+            main_task = GroceryGroundKickBallTask(step_time=step_time)
         else:
             logging.debug("upsupported task name: " + task_name)
 
@@ -501,7 +595,7 @@ class GroceryGround(GazeboEnvBase):
         self._teacher.add_task_group(main_task_group)
         if agent_type.find('icub') != -1:
             icub_aux_task_group = TaskGroup()
-            icub_standing_task = ICubStandingTask()
+            icub_standing_task = ICubAuxiliaryTask(step_time=step_time)
             icub_aux_task_group.add_task(icub_standing_task)
             self._teacher.add_task_group(icub_aux_task_group)
         self._seq_length = vocab_sequence_length
@@ -516,11 +610,6 @@ class GroceryGround(GazeboEnvBase):
                 task.setup(self._world, agent_type)
 
         logging.debug(self._world.info())
-        agent_cfgs = json.load(
-            open(
-                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
-                'r'))
-        agent_cfg = agent_cfgs[agent_type]
         self._agent_joints = agent_cfg['control_joints']
         joint_states = list(
             map(lambda s: self._agent.get_joint_state(s), self._agent_joints))
@@ -548,6 +637,7 @@ class GroceryGround(GazeboEnvBase):
         assert image_data_format in ('channels_first', 'channels_last')
         self._data_format = image_data_format
         self._resized_image_size = resized_image_size
+        self._substep_time = world_time_precision
 
         self._control_space = gym.spaces.Box(
             low=-1.0,
@@ -620,9 +710,9 @@ class GroceryGround(GazeboEnvBase):
             action_ctrl = action
         controls = np.clip(action_ctrl, -1.0, 1.0) * self._agent_control_range
         controls = dict(zip(self._agent_joints, controls))
-        teacher_action = self._teacher.teach(sentence)
         self._agent.take_action(controls)
         self._world.step(self._sub_steps)
+        teacher_action = self._teacher.teach(sentence)
         obs = self._get_observation_with_sentence(teacher_action.sentence)
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(action_ctrl)) / action_ctrl.shape[0]
@@ -730,14 +820,14 @@ def main():
     """
     import matplotlib.pyplot as plt
     with_language = True
-    use_image_obs = True
+    use_image_obs = False
     image_with_internal_states = True
     fig = None
     env = GroceryGround(
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='pr2_noplugin',
+        agent_type='icub',
         task_name='kickball')
     env.render()
     while True:
