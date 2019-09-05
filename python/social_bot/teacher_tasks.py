@@ -15,7 +15,6 @@
 A variety of teacher tasks.
 """
 
-import gin
 import math
 import numpy as np
 import os
@@ -29,7 +28,6 @@ import social_bot.pygazebo as gazebo
 from absl import logging
 
 
-@gin.configurable
 class GoalTask(teacher.Task):
     """
     A simple teacher task to find a goal.
@@ -43,8 +41,7 @@ class GoalTask(teacher.Task):
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
-                 random_range=2.0,
-                 log_task_actions=False):
+                 random_range=2.0):
         """
         Args:
             max_steps (int): episode will end if not reaching gaol in so many steps
@@ -53,7 +50,6 @@ class GoalTask(teacher.Task):
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
             random_range (float): the goal's random position range
-            log_task_actions (bool): whether to log info task setup changes
         """
         super().__init__()
         self._goal_name = goal_name
@@ -61,7 +57,6 @@ class GoalTask(teacher.Task):
         self._fail_distance_thresh = fail_distance_thresh
         self._max_steps = max_steps
         self._random_range = random_range
-        self._log_task_actions = log_task_actions
         self.task_vocab = ['hello', 'goal', 'well', 'done', 'failed', 'to']
 
     def run(self, agent, world):
@@ -136,7 +131,6 @@ class GoalTask(teacher.Task):
         Returns:
             None
         """
-        if self._log_task_actions:
-            logging.info('Setting Goal to %s', goal_name)
+        logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
 

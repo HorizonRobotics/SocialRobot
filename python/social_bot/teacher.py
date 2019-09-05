@@ -14,7 +14,6 @@
 """Teacher framework."""
 
 from abc import abstractmethod
-import gin
 import numpy as np
 import random
 import gym
@@ -197,7 +196,6 @@ class TaskGroup(object):
         return self._tasks
 
 
-@gin.configurable
 class Teacher(object):
     """Teacher is for teaching the agent.
 
@@ -231,11 +229,9 @@ class Teacher(object):
         Args:
             task_groups_exclusive (bool): If True, only one task group is active
                 at one time. Otherwise, multiple task groups run concurrently.
-            log_teacher_actions (bool): whether to log info teacher's actions
         """
         self._task_groups_exclusive = task_groups_exclusive
         self._vocab_list = None
-        self._log_teacher_actions = log_teacher_actions
 
     def add_task_group(self, task_group, weight=1):
         """Add a task group to teacher.
@@ -392,9 +388,8 @@ class Teacher(object):
                 g = self._task_groups.pop(active_group_id)
                 self._task_groups.insert(0, g)
             return_action = TeacherAction(final_reward, final_sentence, done)
-        if self._log_teacher_actions:
-            logging.info(
-                "Teacher Reward: %f, Sentence: %s, Done: %d",
-                return_action.reward, return_action.sentence,
-                return_action.done)
+        logging.debug(
+            "Teacher Reward: %f, Sentence: %s, Done: %d",
+            return_action.reward, return_action.sentence,
+            return_action.done)
         return return_action
