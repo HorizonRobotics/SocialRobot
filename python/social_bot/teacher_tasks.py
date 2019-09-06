@@ -131,5 +131,6 @@ class GoalTask(teacher.Task):
         Returns:
             None
         """
+        logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
 
