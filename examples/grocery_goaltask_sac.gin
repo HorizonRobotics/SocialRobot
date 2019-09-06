@@ -1,0 +1,18 @@
+# Training & playing the grocery ground goal task with ALF SAC algorithm
+#
+# DISPLAY=null python -m alf.bin.train --root_dir=~/tmp/gro_goal_sac --gin_file=grocery_goaltask_sac.gin
+# python -m alf.bin.play --root_dir=~/tmp/gro_goal_sac --gin_file=grocery_goaltask_sac.gin
+
+include 'common_nonimage_sac.gin'
+import social_bot
+
+# environment config
+create_environment.env_name="SocialBot-GroceryGround-v0"
+create_environment.num_parallel_environments=12
+create_environment.env_load_fn=@suite_socialbot.load
+suite_socialbot.load.max_episode_steps=200
+
+GroceryGround.agent_type='pioneer2dx_noplugin'
+GroceryGround.task_name='goal'
+GroceryGround.action_cost=0.1
+GroceryGround.step_time=0.01
