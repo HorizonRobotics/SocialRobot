@@ -29,8 +29,8 @@ SacAlgorithm.target_update_tau=0.005
 OneStepTDLoss.td_error_loss_fn=@losses.element_wise_squared_loss
 
 ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwork
-ActorDistributionNetwork.conv_layer_params=((32, 4, 2))
-ValueNetwork.conv_layer_params=((32, 4, 2))
+ActorDistributionNetwork.conv_layer_params=((32, 4, 2),)
+ValueNetwork.conv_layer_params=((32, 4, 2),)
 NormalProjectionNetwork.state_dependent_std=True
 NormalProjectionNetwork.mean_transform=None
 NormalProjectionNetwork.scale_distribution=True
