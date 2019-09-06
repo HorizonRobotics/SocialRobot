@@ -20,8 +20,8 @@ create_environment.num_parallel_environments=12
 GroceryGround.resized_image_size=(64, 64)
 
 # algorithm config
-create_sac_algorithm.actor_fc_layers=(256,)
-create_sac_algorithm.critic_fc_layers=(256,)
+create_sac_algorithm.actor_fc_layers=(128,)
+create_sac_algorithm.critic_fc_layers=(128,)
 create_sac_algorithm.actor_learning_rate=6e-4
 create_sac_algorithm.critic_learning_rate=6e-4
 create_sac_algorithm.alpha_learning_rate=6e-4
@@ -29,8 +29,8 @@ SacAlgorithm.target_update_tau=0.005
 OneStepTDLoss.td_error_loss_fn=@losses.element_wise_squared_loss
 
 ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwork
-ActorDistributionNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
-ValueNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
+ActorDistributionNetwork.conv_layer_params=((32, 4, 2))
+ValueNetwork.conv_layer_params=((32, 4, 2))
 NormalProjectionNetwork.state_dependent_std=True
 NormalProjectionNetwork.mean_transform=None
 NormalProjectionNetwork.scale_distribution=True
@@ -48,9 +48,9 @@ TrainerConfig.mini_batch_length=2
 TrainerConfig.unroll_length=2
 TrainerConfig.mini_batch_size=256
 TrainerConfig.num_iterations=10000000
-TrainerConfig.summary_interval=1000
-TrainerConfig.eval_interval=5000
-TrainerConfig.checkpoint_interval=5000
+TrainerConfig.summary_interval=500
+TrainerConfig.eval_interval=500
+TrainerConfig.checkpoint_interval=1000
 TrainerConfig.num_updates_per_train_step=1
 TrainerConfig.summarize_grads_and_vars=0
 TrainerConfig.summaries_flush_secs=10
@@ -61,7 +61,5 @@ TrainerConfig.algorithm_ctor=@create_sac_algorithm
 TrainerConfig.debug_summaries=1
 TrainerConfig.evaluate=1
 
-# takes about (1.6 * num_parallel_environments + 7.5) GB memerory, 28GB for 12 parallel envs
-TFUniformReplayBuffer.max_length=50000
-
-
+# for a max_length 20000 ReplayBuffer and 12 parallel envs, require about 50GB memory
+TFUniformReplayBuffer.max_length=20000
