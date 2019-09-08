@@ -14,5 +14,16 @@ suite_socialbot.load.max_episode_steps=200
 
 GroceryGround.agent_type='pioneer2dx_noplugin'
 GroceryGround.task_name='goal'
-GroceryGround.action_cost=0.1
-GroceryGround.step_time=0.01
+GroceryGround.action_cost=0
+# 10Hz control freq
+GroceryGround.step_time=0.1
+
+
+# override algorithm and training config
+create_sac_algorithm.actor_fc_layers=(128, 64)
+create_sac_algorithm.critic_fc_layers=(128, 64)
+
+create_sac_algorithm.actor_learning_rate=2e-3
+create_sac_algorithm.critic_learning_rate=2e-3
+create_sac_algorithm.alpha_learning_rate=2e-3
+TrainerConfig.unroll_length=1

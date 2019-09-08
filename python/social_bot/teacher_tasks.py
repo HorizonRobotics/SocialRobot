@@ -101,10 +101,13 @@ class GoalTask(teacher.Task):
                               "dist: " + str(dist))
                 yield TeacherAction(reward=-1.0, sentence="failed", done=True)
             else:
-                reward = (self._prev_dist - dist) / self._initial_dist
+                if self._sparse_reward:
+                    reward = 0
+                else:
+                    reward = (self._prev_dist - dist) / self._initial_dist
                 self._prev_dist = dist
                 agent_sentence = yield TeacherAction(
-                    reward=reward * (not self._sparse_reward),
+                    reward=reward,
                     sentence=self._goal_name)
         logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                       "dist: " + str(dist))
