@@ -26,3 +26,4 @@ create_sac_algorithm.actor_learning_rate=1e-3
 create_sac_algorithm.critic_learning_rate=1e-3
 create_sac_algorithm.alpha_learning_rate=1e-3
 TrainerConfig.unroll_length=2
+TrainerConfig.mini_batch_size=512
