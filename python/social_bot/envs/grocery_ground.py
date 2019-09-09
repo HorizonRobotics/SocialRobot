@@ -32,10 +32,10 @@ from collections import OrderedDict
 
 import social_bot
 from social_bot import teacher
+from social_bot import teacher_tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
-from social_bot.teacher import TeacherAction
-from social_bot.teacher import DiscreteSequence
 from social_bot.teacher import TaskGroup
+from social_bot.teacher import TeacherAction
 from social_bot.teacher_tasks import GoalTask
 import social_bot.pygazebo as gazebo
 
@@ -70,10 +70,10 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
 
     def __init__(self,
                  max_steps=500,
-                 goal_name="goal",
+                 goal_name="ball",
                  success_distance_thresh=0.5,
-                 fail_distance_thresh=0.5,
-                 random_range=2.0,
+                 fail_distance_thresh=3,
+                 random_range=10.0,
                  random_goal=False,
                  reward_weight=1.0):
         """
@@ -86,6 +86,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             random_range (float): the goal's random position range
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
         """
+        assert goal_name is not None, "Goal name needs to be set, not None."
         GoalTask.__init__(
             self,
             max_steps=max_steps,
@@ -95,7 +96,6 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             random_range=random_range)
         GroceryGroundTaskBase.__init__(self)
         self._random_goal = random_goal
-        self._goal_name = 'ball'
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
@@ -104,6 +104,8 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             'coke_can', 'table', 'bookshelf', 'car_wheel', 'plastic_cup',
             'beer', 'hammer'
         ]
+        logging.info("goal_name %s, random_goal %d, fail_distance_thresh %f",
+            self._goal_name, self._random_goal, fail_distance_thresh)
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.reward_weight = reward_weight
@@ -480,12 +482,7 @@ class GroceryGround(GazeboEnvBase):
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
-            main_task = GroceryGroundGoalTask(
-                max_steps=200,
-                success_distance_thresh=0.5,
-                fail_distance_thresh=3.0,
-                random_goal=with_language,
-                random_range=10.0)
+            main_task = GroceryGroundGoalTask()
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(
                 max_steps=200, random_range=7.0, sub_steps=sub_steps)
@@ -500,9 +497,13 @@ class GroceryGround(GazeboEnvBase):
             icub_standing_task = ICubStandingTask()
             icub_aux_task_group.add_task(icub_standing_task)
             self._teacher.add_task_group(icub_aux_task_group)
+        self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
-        self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
-                                                self._seq_length)
+        if self._teacher.vocab_size:
+            # using MultiDiscrete instead of DiscreteSequence so gym
+            # _spec_from_gym_space won't complain.
+            self._sentence_space = gym.spaces.MultiDiscrete(
+                [self._teacher.vocab_size] * self._seq_length)
         self._sub_steps = sub_steps
 
         self._world.step(20)
