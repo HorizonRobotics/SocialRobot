@@ -135,6 +135,9 @@ class Model {
         std::make_tuple(lin_ver.X(), lin_ver.Y(), lin_ver.Z()),
         std::make_tuple(ang_ver.X(), ang_ver.Y(), ang_ver.Z()));
   }
+  void Reset() {
+    model_->ResetPhysicsStates();
+  }
 };
 
 class Agent : public Model {
@@ -570,7 +573,10 @@ PYBIND11_MODULE(pygazebo, m) {
            &Model::GetVelocities,
            "Get ((Linear velocity x, Linear velocity y, Linear velocity z),"
            "(Angular velocity x, Angular velocity y, Angular velocity z))"
-           "of the model");
+           "of the model")
+      .def("reset",
+           &Model::Reset,
+           "Resets the pose and velocities of the model");
 
   py::class_<JointState>(m, "JointState")
       .def(py::init<unsigned int>())
