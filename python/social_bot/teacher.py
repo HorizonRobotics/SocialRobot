@@ -364,10 +364,11 @@ class Teacher(object):
         Returns:
             TeacherAction
         """
+        return_action = None
         if self._task_groups_exclusive:
             if self._current_task_group.is_idle():
                 self._switch_task_group()
-            return self._current_task_group.teach(agent_sentence)
+            return_action = self._current_task_group.teach(agent_sentence)
         else:
             final_sentence = ''
             final_reward = 0.
@@ -386,4 +387,9 @@ class Teacher(object):
             if active_group_id != -1:
                 g = self._task_groups.pop(active_group_id)
                 self._task_groups.insert(0, g)
-            return TeacherAction(final_reward, final_sentence, done)
+            return_action = TeacherAction(final_reward, final_sentence, done)
+        logging.debug(
+            "Teacher Reward: %f, Sentence: %s, Done: %d",
+            return_action.reward, return_action.sentence,
+            return_action.done)
+        return return_action

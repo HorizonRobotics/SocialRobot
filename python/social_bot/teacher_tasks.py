@@ -113,6 +113,7 @@ class GoalTask(teacher.Task):
             self._initial_dist = np.linalg.norm(loc - agent_loc)
             if self._initial_dist > self._success_distance_thresh:
                 break
+        goal.reset()
         goal.set_pose((loc, (0, 0, 0)))
 
     def get_goal_name(self):
@@ -131,5 +132,6 @@ class GoalTask(teacher.Task):
         Returns:
             None
         """
+        logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
 
