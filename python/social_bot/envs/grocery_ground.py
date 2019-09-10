@@ -69,17 +69,19 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
     """
 
     def __init__(self,
-                 max_steps=500,
+                 max_steps=1000,
                  goal_name="goal",
                  success_distance_thresh=0.5,
-                 fail_distance_thresh=0.5,
-                 random_range=10.0,
+                 fail_distance_thresh=3,
+                 random_range=8.0,
                  random_goal=False,
                  sparse_reward=False,
                  reward_weight=1.0):
         """
         Args:
-            max_steps (int): episode will end if not reaching gaol in so many steps
+            max_steps (int): episode will end if not reaching gaol in so many steps, typically should be
+                higher than max_episode_steps when register to gym, so that return of last step could be
+                handled correctly
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
@@ -580,11 +582,7 @@ class GroceryGround(GazeboEnvBase):
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
-            main_task = GroceryGroundGoalTask(
-                max_steps=200,
-                success_distance_thresh=0.5,
-                fail_distance_thresh=3.0,
-                random_goal=with_language)
+            main_task = GroceryGroundGoalTask()
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(step_time=step_time)
         else:
@@ -819,6 +817,7 @@ def main():
     Simple testing of this environment.
     """
     import matplotlib.pyplot as plt
+    import time
     with_language = True
     use_image_obs = False
     image_with_internal_states = True
@@ -827,14 +826,18 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='icub',
+        # agent type support: pioneer2dx_noplugin, pr2_noplugin, turtlebot, icub, icub_with_hands
+        agent_type='pioneer2dx_noplugin',
         task_name='kickball')
     env.render()
+    step_cnt = 0
+    last_done_time = time.time()
     while True:
         actions = env._control_space.sample()
         if with_language:
             actions = dict(control=actions, sentence="hello")
         obs, _, done, _ = env.step(actions)
+        step_cnt += 1
         if with_language and (env._steps_in_this_episode == 1 or done):
             seq = obs["sentence"]
             logging.info("sentence_seq: " + str(seq))
@@ -850,6 +853,10 @@ def main():
             plt.pause(0.00001)
         if done:
             env.reset()
+            step_per_sec = step_cnt / (time.time()-last_done_time)
+            logging.debug("step per second: " + str(step_per_sec))
+            step_cnt = 0
+            last_done_time = time.time()
 
 
 if __name__ == "__main__":

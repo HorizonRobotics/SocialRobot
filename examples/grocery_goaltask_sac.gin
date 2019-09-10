@@ -17,13 +17,14 @@ GroceryGround.task_name='goal'
 GroceryGround.action_cost=0.0
 # 10Hz control freq
 GroceryGround.step_time=0.1
+GroceryGroundGoalTask.sparse_reward=False
 
 
 # override algorithm and training config
 create_sac_algorithm.actor_fc_layers=(128, 64)
 create_sac_algorithm.critic_fc_layers=(128, 64)
-create_sac_algorithm.actor_learning_rate=1e-3
-create_sac_algorithm.critic_learning_rate=1e-3
-create_sac_algorithm.alpha_learning_rate=1e-3
+create_sac_algorithm.actor_learning_rate=2e-3
+create_sac_algorithm.critic_learning_rate=2e-3
+create_sac_algorithm.alpha_learning_rate=2e-3
 TrainerConfig.unroll_length=2
 TrainerConfig.mini_batch_size=512
