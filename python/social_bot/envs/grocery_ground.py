@@ -858,7 +858,39 @@ def main():
             step_cnt = 0
             last_done_time = time.time()
 
+def test():
+    """
+    Testing cases of this environment.
+    """
+    import time
+    logging.set_verbosity(logging.INFO)
+    with_language = True
+    agents=['pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands']
+    tasks=['goal', 'kickball']
+    for agent_type in agents:
+        for task_name in tasks:
+            for use_image_obs in [True, False]:
+                if agent_type=='icub' and use_image_obs:
+                    continue
+                env = GroceryGround(
+                    with_language=with_language,
+                    use_image_observation=use_image_obs,
+                    image_with_internal_states=True,
+                    agent_type=agent_type,
+                    task_name=task_name)
+                step_cnt = 0
+                last_done_time = time.time()
+                while step_cnt < 500:
+                    actions = env._control_space.sample()
+                    if with_language:
+                        actions = dict(control=actions, sentence="hello")
+                    env.step(actions)
+                    step_cnt += 1
+                env.close()
+                step_per_sec = step_cnt / (time.time()-last_done_time)
+                logging.info("Agent: " + agent_type + ", UseImage: " + str(use_image_obs) + ", FPS: " + str(step_per_sec))
 
 if __name__ == "__main__":
     logging.set_verbosity(logging.DEBUG)
-    main()
+    test()
+    # main()

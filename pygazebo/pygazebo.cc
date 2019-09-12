@@ -462,6 +462,10 @@ void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=fal
   });
 }
 
+void Close() {
+  gazebo::shutdown();
+}
+
 void StartSensors() {
   static std::once_flag flag;
   std::call_once(flag, []() { gazebo::sensors::run_threads(); });
@@ -515,6 +519,10 @@ PYBIND11_MODULE(pygazebo, m) {
         py::arg("args") = std::vector<std::string>(),
         py::arg("port") = 0,
         py::arg("quiet") = false);
+
+  m.def("close",
+        &Close,
+        "Close");
 
   m.def("world_sdf",
         &WorldSDF,

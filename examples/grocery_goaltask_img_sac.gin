@@ -16,21 +16,21 @@ tf.keras.layers.Conv2D.data_format=%CHANNEL_ORDER
 create_environment.env_name='SocialBot-GroceryGroundImage-v0'
 create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
-create_environment.num_parallel_environments=12
-GroceryGround.resized_image_size=(64, 64)
+create_environment.num_parallel_environments=8
+GroceryGround.resized_image_size=(32, 32)
 
 # algorithm config
 create_sac_algorithm.actor_fc_layers=(128,)
 create_sac_algorithm.critic_fc_layers=(128,)
-create_sac_algorithm.actor_learning_rate=2e-3
-create_sac_algorithm.critic_learning_rate=2e-3
-create_sac_algorithm.alpha_learning_rate=2e-3
+create_sac_algorithm.actor_learning_rate=1e-3
+create_sac_algorithm.critic_learning_rate=1e-3
+create_sac_algorithm.alpha_learning_rate=1e-3
 SacAlgorithm.target_update_tau=0.005
 OneStepTDLoss.td_error_loss_fn=@losses.element_wise_squared_loss
 
 ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwork
-ActorDistributionNetwork.conv_layer_params=((32, 4, 2),)
-ValueNetwork.conv_layer_params=((32, 4, 2),)
+ActorDistributionNetwork.conv_layer_params=((32, 3, 1),)
+ValueNetwork.conv_layer_params=((32, 3, 1),)
 NormalProjectionNetwork.state_dependent_std=True
 NormalProjectionNetwork.mean_transform=None
 NormalProjectionNetwork.scale_distribution=True
@@ -45,13 +45,13 @@ TrainerConfig.mini_batch_length=2
 #   mini_batch_size*mini_batch_length/(unroll_length*num_parallel_environments)
 # for internal states case, training computational cost is very low, the ration could be higher
 # for image observation case, computational cost is relatively high, we set unroll_length=2 to generate more new data
-TrainerConfig.unroll_length=2
-TrainerConfig.mini_batch_size=512
+TrainerConfig.unroll_length=10
+TrainerConfig.mini_batch_size=128
 TrainerConfig.num_iterations=10000000
 TrainerConfig.summary_interval=500
 TrainerConfig.eval_interval=500
 TrainerConfig.checkpoint_interval=1000
-TrainerConfig.num_updates_per_train_step=1
+TrainerConfig.num_updates_per_train_step=10
 TrainerConfig.summarize_grads_and_vars=0
 TrainerConfig.summaries_flush_secs=10
 TrainerConfig.clear_replay_buffer=False
@@ -62,4 +62,4 @@ TrainerConfig.debug_summaries=1
 TrainerConfig.evaluate=1
 
 # for a max_length 20000 ReplayBuffer and 12 parallel envs, require about 50GB memory
-TFUniformReplayBuffer.max_length=20000
+TFUniformReplayBuffer.max_length=10000

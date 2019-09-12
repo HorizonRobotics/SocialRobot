@@ -131,6 +131,10 @@ class GazeboEnvBase(gym.Env):
         raise NotImplementedError("rendering mode: " + mode +
                                   " is not implemented.")
 
+    def close(self):
+        super().close()
+        gazebo.close()
+
     def _get_internal_states(self, agent, agent_joints):
         joint_pos = []
         joint_vel = []
