@@ -1,5 +1,5 @@
 # training & playing with Agent Learning Framework (Alf)
-# python -m alf.bin.train --root_dir=~/tmp/gro_goal_pioneer_img_sac --gin_file=grocery_image_alf_sac.gin --alsologtostderr
+# python -m alf.bin.train --root_dir=~/tmp/gro_goal_img_sac --gin_file=grocery_goaltask_img_sac.gin --alsologtostderr
 
 import alf.trainers.off_policy_trainer
 import alf.algorithms.sac_algorithm
@@ -16,7 +16,7 @@ tf.keras.layers.Conv2D.data_format=%CHANNEL_ORDER
 create_environment.env_name='SocialBot-GroceryGroundImage-v0'
 create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
-create_environment.num_parallel_environments=8
+create_environment.num_parallel_environments=12
 GroceryGround.resized_image_size=(32, 32)
 
 # algorithm config
@@ -61,5 +61,5 @@ TrainerConfig.algorithm_ctor=@create_sac_algorithm
 TrainerConfig.debug_summaries=1
 TrainerConfig.evaluate=1
 
-# for a max_length 20000 ReplayBuffer and 12 parallel envs, require about 50GB memory
+# for a max_length 10000 ReplayBuffer and 12 parallel envs, require about 9GB memory
 TFUniformReplayBuffer.max_length=10000

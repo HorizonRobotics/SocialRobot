@@ -872,6 +872,7 @@ def test():
             for use_image_obs in [True, False]:
                 if agent_type=='icub' and use_image_obs:
                     continue
+                logging.info("Agent: " + agent_type + ", Task: " + task_name + ", UseImage: " + str(use_image_obs))
                 env = GroceryGround(
                     with_language=with_language,
                     use_image_observation=use_image_obs,
@@ -888,7 +889,7 @@ def test():
                     step_cnt += 1
                 env.close()
                 step_per_sec = step_cnt / (time.time()-last_done_time)
-                logging.info("Agent: " + agent_type + ", UseImage: " + str(use_image_obs) + ", FPS: " + str(step_per_sec))
+                logging.info("Passed, FPS: " + str(step_per_sec))
 
 if __name__ == "__main__":
     logging.set_verbosity(logging.DEBUG)
