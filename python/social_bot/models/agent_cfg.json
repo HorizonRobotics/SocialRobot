@@ -17,7 +17,7 @@
         "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
         "camera_sensor": "default::pioneer2dx_noplugin::camera_link::camera",
         "use_pid": false,
-        "max_sim_step_time": 0.005
+        "max_sim_step_time": 0.0025
     },
     "turtlebot": {
         "control_joints": ["turtlebot::create::left_wheel", "turtlebot::create::right_wheel"], 
