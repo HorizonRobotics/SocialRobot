@@ -1,6 +1,6 @@
 # training & playing with Agent Learning Framework (Alf)
-# python -m alf.bin.train --root_dir=~/tmp/gro_img_ppo --gin_file=grocery_image_alf_ppo.gin --alsologtostderr
-# python -m alf.bin.play --root_dir=~/tmp/gro_img_ppo --gin_file=grocery_image_alf_ppo.gin
+# python -m alf.bin.train --root_dir=~/tmp/gro_img_ppo --gin_file=grocery_goaltask_img_ac.gin --alsologtostderr
+# python -m alf.bin.play --root_dir=~/tmp/gro_img_ppo --gin_file=grocery_goaltask_img_ac.gin
 
 import alf.trainers.on_policy_trainer
 import alf.algorithms.actor_critic_algorithm
