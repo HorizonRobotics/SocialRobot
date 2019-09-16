@@ -438,13 +438,11 @@ class World {
 };
 
 void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=false) {
-  static std::once_flag flag;
   if (port != 0) {
     std::string uri = "localhost:" + std::to_string(port);
     setenv("GAZEBO_MASTER_URI", uri.c_str(), 1);
   }
 
-  std::call_once(flag, [&args, quiet]() {
     gazebo::common::Console::SetQuiet(quiet);
     gazebo::setupServer(args);
     // gazebo::runWorld uses World::RunLoop(). RunLoop() starts LogWorker()
@@ -459,7 +457,6 @@ void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=fal
       // gazebo::util::LogRecord::Instance()->Init("pygazebo");
       gazebo::util::LogRecord::Instance()->Start(params);
     }
-  });
 }
 
 void Close() {
@@ -467,8 +464,7 @@ void Close() {
 }
 
 void StartSensors() {
-  static std::once_flag flag;
-  std::call_once(flag, []() { gazebo::sensors::run_threads(); });
+  gazebo::sensors::run_threads(); 
 }
 
 std::string WorldSDF(const std::string& world_file) {

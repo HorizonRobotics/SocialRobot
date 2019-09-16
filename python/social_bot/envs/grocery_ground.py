@@ -826,7 +826,6 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        # agent type support: pioneer2dx_noplugin, pr2_noplugin, turtlebot, icub, icub_with_hands
         agent_type='pioneer2dx_noplugin',
         task_name='kickball')
     env.render()
@@ -872,7 +871,6 @@ def test():
             for use_image_obs in [True, False]:
                 if agent_type=='icub' and use_image_obs:
                     continue
-                logging.info("Agent: " + agent_type + ", Task: " + task_name + ", UseImage: " + str(use_image_obs))
                 env = GroceryGround(
                     with_language=with_language,
                     use_image_observation=use_image_obs,
@@ -881,15 +879,15 @@ def test():
                     task_name=task_name)
                 step_cnt = 0
                 last_done_time = time.time()
-                while step_cnt < 500:
+                while step_cnt < 500 and (time.time()-last_done_time) < 10:
                     actions = env._control_space.sample()
                     if with_language:
                         actions = dict(control=actions, sentence="hello")
                     env.step(actions)
                     step_cnt += 1
-                env.close()
                 step_per_sec = step_cnt / (time.time()-last_done_time)
-                logging.info("Passed, FPS: " + str(step_per_sec))
+                logging.info("Test Passed, Agent: " + agent_type + ", Task: " + task_name + ", UseImage: " + str(use_image_obs) + ", FPS: " + str(step_per_sec))
+                env.close()
 
 if __name__ == "__main__":
     logging.set_verbosity(logging.DEBUG)
