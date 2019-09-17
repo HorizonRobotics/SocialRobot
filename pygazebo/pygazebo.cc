@@ -6,6 +6,7 @@
 #include <sstream>
 #include <gazebo/common/PID.hh>
 #include <gazebo/gazebo.hh>
+#include <gazebo/gazebo_client.hh>
 #include <gazebo/physics/Joint.hh>
 #include <gazebo/physics/JointController.hh>
 #include <gazebo/physics/Model.hh>
@@ -464,6 +465,7 @@ void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=fal
 
 void Close() {
   gazebo::shutdown();
+  gazebo::client::shutdown();
 }
 
 void StartSensors() {

@@ -222,7 +222,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         x = self._agent_init_pos[0] + random.random() * self._random_range
         y = self._agent_init_pos[1] + random.random() * self._random_range
         orient = (random.random() - 0.5) * np.pi
-        agent.set_pose(np.array([x, y, 0.6]), np.array([0, 0, orient]))
+        agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
         while not done:
             # reward for not falling (alive reward)
             agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
@@ -887,4 +887,4 @@ def test():
 
 if __name__ == "__main__":
     logging.set_verbosity(logging.DEBUG)
-    main()
+    test()
