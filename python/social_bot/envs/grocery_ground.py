@@ -110,7 +110,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             'coke_can', 'table', 'bookshelf', 'car_wheel', 'plastic_cup',
             'beer', 'hammer'
         ]
-        logging.info("goal_name %s, random_goal %d, fail_distance_thresh %f",
+        logging.debug("goal_name %s, random_goal %d, fail_distance_thresh %f",
             self._goal_name, self._random_goal, fail_distance_thresh)
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
@@ -855,7 +855,7 @@ def main():
 
 def test():
     """
-    Testing cases of this environment.
+    Testing several cases of this environment.
     """
     import time
     logging.set_verbosity(logging.INFO)
