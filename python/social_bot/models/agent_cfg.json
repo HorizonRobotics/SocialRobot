@@ -10,22 +10,26 @@
             "pr2::br_caster_r_wheel_joint",
             "pr2::br_caster_l_wheel_joint"], 
         "camera_sensor": "default::pr2::head_tilt_link::head_mount_prosilica_link_sensor",
-        "use_pid": false
+        "use_pid": false,
+        "max_sim_step_time": 0.001
     }, 
     "pioneer2dx_noplugin": {
         "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
         "camera_sensor": "default::pioneer2dx_noplugin::camera_link::camera",
-        "use_pid": false
+        "use_pid": false,
+        "max_sim_step_time": 0.0025
     },
     "turtlebot": {
         "control_joints": ["turtlebot::create::left_wheel", "turtlebot::create::right_wheel"], 
         "camera_sensor": "default::turtlebot::kinect::link::camera",
-        "use_pid": false
+        "use_pid": false,
+        "max_sim_step_time": 0.0025
     },
     "create": {
         "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
         "camera_sensor": " ",
-        "use_pid": false
+        "use_pid": false,
+        "max_sim_step_time": 0.0025
     },
     "icub_with_hands": {
         "control_joints": [
@@ -56,7 +60,8 @@
             "iCub::r_elbow"],
         "camera_sensor": "default::iCub::left_eye_link::left_camera",
         "use_pid": true,
-        "pid_control_limit": 10
+        "pid_control_limit": 10,
+        "max_sim_step_time": 0.001
     },
     "icub": {
         "control_joints": [
@@ -87,6 +92,7 @@
             "iCub::r_elbow"],
         "camera_sensor": " ",
         "use_pid": true,
-        "pid_control_limit": 10
+        "pid_control_limit": 10,
+        "max_sim_step_time": 0.001
     }
 }
