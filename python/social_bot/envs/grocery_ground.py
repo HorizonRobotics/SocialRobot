@@ -70,7 +70,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
 
     def __init__(self,
                  max_steps=1000,
-                 goal_name="goal",
+                 goal_name="ball",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=3,
                  random_range=8.0,
@@ -101,7 +101,6 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             random_range=random_range)
         GroceryGroundTaskBase.__init__(self)
         self._random_goal = random_goal
-        self._goal_name = 'ball'
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
@@ -172,7 +171,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
     def __init__(self,
                  reward_weight=1.0,
                  step_time=0.05,
-                 target='goal',
+                 target='ball',
                  agent_init_pos=(0, 0),
                  agent_pos_random_range=0):
         """
@@ -826,8 +825,8 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='pioneer2dx_noplugin',
-        task_name='kickball')
+        agent_type='icub',
+        task_name='goal')
     env.render()
     step_cnt = 0
     last_done_time = time.time()
@@ -891,5 +890,4 @@ def test():
 
 if __name__ == "__main__":
     logging.set_verbosity(logging.DEBUG)
-    test()
-    # main()
+    main()
