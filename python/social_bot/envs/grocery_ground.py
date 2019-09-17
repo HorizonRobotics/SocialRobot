@@ -32,10 +32,10 @@ from collections import OrderedDict
 
 import social_bot
 from social_bot import teacher
+from social_bot import teacher_tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
-from social_bot.teacher import TeacherAction
-from social_bot.teacher import DiscreteSequence
 from social_bot.teacher import TaskGroup
+from social_bot.teacher import TeacherAction
 from social_bot.teacher_tasks import GoalTask
 import social_bot.pygazebo as gazebo
 
@@ -69,11 +69,11 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
     """
 
     def __init__(self,
-                 max_steps=1000,
+                 max_steps=500,
                  goal_name="ball",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=3,
-                 random_range=8.0,
+                 random_range=10.0,
                  random_goal=False,
                  sparse_reward=False,
                  reward_weight=1.0):
@@ -91,6 +91,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                 with normalized distance the agent get closer to goal.
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
         """
+        assert goal_name is not None, "Goal name needs to be set, not None."
         GoalTask.__init__(
             self,
             max_steps=max_steps,
@@ -109,6 +110,8 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             'coke_can', 'table', 'bookshelf', 'car_wheel', 'plastic_cup',
             'beer', 'hammer'
         ]
+        logging.info("goal_name %s, random_goal %d, fail_distance_thresh %f",
+            self._goal_name, self._random_goal, fail_distance_thresh)
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.reward_weight = reward_weight
@@ -215,21 +218,11 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         self._pre_agent_pos = self.get_icub_extra_obs(agent)[:3]
         agent_sentence = yield
         done = False
-        # set icub initial pose
+        # set icub random initial pose
         x = self._agent_init_pos[0] + random.random() * self._random_range
         y = self._agent_init_pos[1] + random.random() * self._random_range
-        agent_pos = np.array([x, y, 0.6])
-        # a trick from roboschool, to encourage optimal straight walk
-        orient = 0
-        if random.randint(0, 2) == 0:
-            orient = self._get_angle_to_target(agent_pos, 'iCub::root_link',
-                                               np.pi)
-        pose = (agent_pos, np.array([0, 0, orient]))
-        # one problem here is we can not control the sequence of task run(), if 
-        # this aux task is latter than main task, the target might be at initial
-        # pose and has not been randomly moved yet. Should find a way
-        # to fix the call order of run() for the tasks
-        agent.set_pose(pose)
+        orient = (random.random() - 0.5) * np.pi
+        agent.set_pose(np.array([x, y, 0.6]), np.array([0, 0, orient]))
         while not done:
             # reward for not falling (alive reward)
             agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
@@ -245,14 +238,14 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
             # orientation cost, the agent should face towards the target
             # only orientation of root link is not enough here
             agent_pos = self.get_icub_extra_obs(agent)[:3]
-            head_angel = self._get_angle_to_target(agent_pos, 'iCub::head')
-            root_angel = self._get_angle_to_target(agent_pos, 'iCub::root_link')
-            l_foot_angel = self._get_angle_to_target(
+            head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
+            root_angle = self._get_angle_to_target(agent_pos, 'iCub::root_link')
+            l_foot_angle = self._get_angle_to_target(
                 agent_pos, 'iCub::l_leg::l_foot', np.pi)
-            r_foot_angel = self._get_angle_to_target(
+            r_foot_angle = self._get_angle_to_target(
                 agent_pos, 'iCub::r_leg::r_foot', np.pi)
-            orient_cost = (np.abs(head_angel) + np.abs(root_angel) +
-                           np.abs(l_foot_angel) + np.abs(r_foot_angel)) / 4
+            orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
+                           np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
             # sum all
             reward = standing_reward - 0.5 * movement_cost - 0.2 * orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
@@ -595,9 +588,13 @@ class GroceryGround(GazeboEnvBase):
             icub_standing_task = ICubAuxiliaryTask(step_time=step_time)
             icub_aux_task_group.add_task(icub_standing_task)
             self._teacher.add_task_group(icub_aux_task_group)
+        self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
-        self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
-                                                self._seq_length)
+        if self._teacher.vocab_size:
+            # using MultiDiscrete instead of DiscreteSequence so gym
+            # _spec_from_gym_space won't complain.
+            self._sentence_space = gym.spaces.MultiDiscrete(
+                [self._teacher.vocab_size] * self._seq_length)
         self._sub_steps = sub_steps
 
         self._world.step(20)
@@ -826,7 +823,7 @@ def main():
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
         agent_type='icub',
-        task_name='goal')
+        task_name='kickball')
     env.render()
     step_cnt = 0
     last_done_time = time.time()

@@ -30,6 +30,8 @@ make -j
 cd REPO_ROOT
 pip3 install -e .
 ```
+if cmake .. complains about cannot find configuration file provided by "gazebo", run
+```sudo apt install libgazebo9-dev``` where the version number 9 comes from ```gazebo --version```
 
 ## To run test
 #### [Simple Navigation Test](examples/test_simple_navigation.py)

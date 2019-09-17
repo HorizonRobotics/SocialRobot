@@ -122,6 +122,7 @@ class GoalTask(teacher.Task):
             if self._initial_dist > self._success_distance_thresh:
                 break
         self._prev_dist = self._initial_dist
+        goal.reset()
         goal.set_pose((loc, (0, 0, 0)))
 
     def get_goal_name(self):
@@ -140,5 +141,6 @@ class GoalTask(teacher.Task):
         Returns:
             None
         """
+        logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
 
