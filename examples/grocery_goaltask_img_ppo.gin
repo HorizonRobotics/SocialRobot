@@ -1,0 +1,84 @@
+# training & playing with Agent Learning Framework (Alf)
+# python -m alf.bin.train --root_dir=~/tmp/gro_img_ppo --gin_file=grocery_goaltask_img_ppo.gin --alsologtostderr
+# python -m alf.bin.play --root_dir=~/tmp/gro_img_ppo --gin_file=grocery_goaltask_img_ppo.gin
+
+import alf.algorithms.ppo_algorithm
+import alf.algorithms.ppo_loss
+import alf.algorithms.ddpg_algorithm
+import alf.trainers.off_policy_trainer
+
+TrainerConfig.trainer=@sync_off_policy_trainer
+TrainerConfig.algorithm_ctor=@create_ppo_algorithm
+ActorCriticAlgorithm.loss_class=@PPOLoss
+
+# environment config
+import alf.environments.wrappers
+CHANNEL_ORDER='channels_last'
+FrameStack.channel_order=%CHANNEL_ORDER
+GroceryGround.image_data_format=%CHANNEL_ORDER
+tf.keras.layers.Conv2D.data_format=%CHANNEL_ORDER
+create_environment.env_name='SocialBot-GroceryGroundImage-v0'
+create_environment.env_load_fn=@suite_socialbot.load
+suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
+create_environment.num_parallel_environments=16
+GroceryGround.resized_image_size=(48, 48)
+
+PolicyDriver.observation_transformer=@image_scale_transformer
+
+
+# algorithm config
+ActorCriticAlgorithm.gradient_clipping=0.5
+ActorCriticAlgorithm.clip_by_global_norm=True
+ActorCriticAlgorithm.enforce_entropy_target=True
+
+PPOLoss.entropy_regularization=None
+PPOLoss.gamma=0.99
+PPOLoss.normalize_advantages=True
+PPOLoss.td_lambda=0.95
+PPOLoss.td_error_loss_fn=@element_wise_squared_loss
+
+# debug
+PPOLoss.check_numerics=True
+estimated_entropy.check_numerics=True
+
+import alf.networks.stable_normal_projection_network
+ActorDistributionNetwork.activation_fn=@tf.nn.tanh
+ActorDistributionNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
+ActorDistributionNetwork.continuous_projection_net=@StableNormalProjectionNetwork
+StableNormalProjectionNetwork.init_means_output_factor=1e-10
+StableNormalProjectionNetwork.inverse_std_transform='softplus'
+StableNormalProjectionNetwork.scale_distribution=True
+StableNormalProjectionNetwork.state_dependent_std=True
+StableNormalProjectionNetwork.init_std=1.0
+
+# we need to modify network/stable_normal_projection_network.py line 125 to avoid action_log_prob NaN problem
+# Just setting the min/max does not help
+# inv_stds = self._std_transform(tf.clip_by_value(stds, 0.1, 100))
+StableNormalProjectionNetwork.min_std=0.1
+StableNormalProjectionNetwork.max_std=10.0
+
+estimated_entropy.assume_reparametrization=True
+
+ValueNetwork.activation_fn=@tf.nn.tanh
+ValueNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
+
+create_ac_algorithm.actor_fc_layers=(128,)
+create_ac_algorithm.value_fc_layers=(128,)
+create_ac_algorithm.learning_rate=5e-4
+
+# training config
+TrainerConfig.checkpoint_interval=10
+TrainerConfig.debug_summaries=True
+TrainerConfig.eval_interval=100
+TrainerConfig.evaluate=True
+TrainerConfig.mini_batch_length=1
+TrainerConfig.mini_batch_size=2048
+TrainerConfig.num_updates_per_train_step=2
+TrainerConfig.num_iterations=100000
+TrainerConfig.summarize_grads_and_vars=True
+TrainerConfig.summary_interval=2
+TrainerConfig.unroll_length=512
+TrainerConfig.use_tf_functions=True
+PolicyDriver.summarize_action_distributions=True
+
+TFUniformReplayBuffer.max_length=2048

@@ -822,8 +822,8 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='icub',
-        task_name='kickball')
+        agent_type='pr2_noplugin',
+        task_name='goal')
     env.render()
     step_cnt = 0
     last_done_time = time.time()
@@ -849,7 +849,7 @@ def main():
         if done:
             env.reset()
             step_per_sec = step_cnt / (time.time()-last_done_time)
-            logging.debug("step per second: " + str(step_per_sec))
+            logging.info("step per second: " + str(step_per_sec))
             step_cnt = 0
             last_done_time = time.time()
 
@@ -886,5 +886,5 @@ def test():
                 env.close()
 
 if __name__ == "__main__":
-    logging.set_verbosity(logging.DEBUG)
-    test()
+    logging.set_verbosity(logging.INFO)
+    main()
