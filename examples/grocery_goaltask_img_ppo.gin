@@ -51,11 +51,8 @@ StableNormalProjectionNetwork.scale_distribution=True
 StableNormalProjectionNetwork.state_dependent_std=True
 StableNormalProjectionNetwork.init_std=1.0
 
-# we need to modify network/stable_normal_projection_network.py line 125 to avoid action_log_prob NaN problem
-# Just setting the min/max does not help
-# inv_stds = self._std_transform(tf.clip_by_value(stds, 0.1, 100))
 StableNormalProjectionNetwork.min_std=0.1
-StableNormalProjectionNetwork.max_std=10.0
+StableNormalProjectionNetwork.max_std=2.0
 
 estimated_entropy.assume_reparametrization=True
 
@@ -69,7 +66,7 @@ create_ac_algorithm.learning_rate=5e-4
 # training config
 TrainerConfig.checkpoint_interval=10
 TrainerConfig.debug_summaries=True
-TrainerConfig.eval_interval=100
+TrainerConfig.eval_interval=10
 TrainerConfig.evaluate=True
 TrainerConfig.mini_batch_length=1
 TrainerConfig.mini_batch_size=2048
