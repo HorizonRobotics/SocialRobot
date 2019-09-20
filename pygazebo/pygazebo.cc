@@ -28,6 +28,9 @@ namespace py = pybind11;
 
 namespace social_bot {
 
+bool gazebo_initialized  = false;
+bool gazebo_sensor_initialized  = false;
+
 class Observation;
 
 class CameraObservation {
@@ -446,7 +449,7 @@ void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=fal
     std::string uri = "localhost:" + std::to_string(port);
     setenv("GAZEBO_MASTER_URI", uri.c_str(), 1);
   }
-
+  if (!gazebo_initialized) {
     gazebo::common::Console::SetQuiet(quiet);
     gazebo::setupServer(args);
     // gazebo::runWorld uses World::RunLoop(). RunLoop() starts LogWorker()
@@ -461,15 +464,22 @@ void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=fal
       // gazebo::util::LogRecord::Instance()->Init("pygazebo");
       gazebo::util::LogRecord::Instance()->Start(params);
     }
+  }
+  gazebo_initialized = true;
 }
 
 void Close() {
   gazebo::shutdown();
   gazebo::client::shutdown();
+  gazebo_initialized  = false;
+  gazebo_sensor_initialized  = false;
 }
 
 void StartSensors() {
-  gazebo::sensors::run_threads(); 
+  if (!gazebo_sensor_initialized) {
+    gazebo::sensors::run_threads(); 
+    gazebo_sensor_initialized  = true;
+  }
 }
 
 std::string WorldSDF(const std::string& world_file) {
