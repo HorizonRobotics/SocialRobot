@@ -51,7 +51,7 @@ StableNormalProjectionNetwork.scale_distribution=True
 StableNormalProjectionNetwork.state_dependent_std=True
 StableNormalProjectionNetwork.init_std=1.0
 
-StableNormalProjectionNetwork.min_std=0.1
+StableNormalProjectionNetwork.min_std=0.5
 StableNormalProjectionNetwork.max_std=2.0
 
 estimated_entropy.assume_reparametrization=True
