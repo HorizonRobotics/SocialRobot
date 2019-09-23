@@ -174,7 +174,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
     def __init__(self,
                  reward_weight=1.0,
                  step_time=0.05,
-                 target='ball',
+                 target=None,
                  agent_init_pos=(0, 0),
                  agent_pos_random_range=0):
         """
@@ -201,7 +201,8 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         Setting things up during the initialization
         """
         super().setup(world, agent_name)
-        self._target = world.get_agent(self._target_name)
+        if self._target_name:
+            self._target = world.get_agent(self._target_name)
         agent_cfgs = json.load(
             open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
@@ -236,16 +237,18 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
             joint_pos = np.array(joint_pos).flatten()
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
             # orientation cost, the agent should face towards the target
-            # only orientation of root link is not enough here
-            agent_pos = self.get_icub_extra_obs(agent)[:3]
-            head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
-            root_angle = self._get_angle_to_target(agent_pos, 'iCub::root_link')
-            l_foot_angle = self._get_angle_to_target(
-                agent_pos, 'iCub::l_leg::l_foot', np.pi)
-            r_foot_angle = self._get_angle_to_target(
-                agent_pos, 'iCub::r_leg::r_foot', np.pi)
-            orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
-                           np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
+            if self._target:
+                agent_pos = self.get_icub_extra_obs(agent)[:3]
+                head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
+                root_angle = self._get_angle_to_target(agent_pos, 'iCub::root_link')
+                l_foot_angle = self._get_angle_to_target(
+                    agent_pos, 'iCub::l_leg::l_foot', np.pi)
+                r_foot_angle = self._get_angle_to_target(
+                    agent_pos, 'iCub::r_leg::r_foot', np.pi)
+                orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
+                            np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
+            else:
+                orient_cost = 0
             # sum all
             reward = standing_reward - 0.5 * movement_cost - 0.2 * orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
