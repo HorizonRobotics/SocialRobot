@@ -203,10 +203,9 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         super().setup(world, agent_name)
         if self._target_name:
             self._target = world.get_agent(self._target_name)
-        agent_cfgs = json.load(
-            open(
-                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
-                'r'))
+        with open (os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                   'r') as cfg_file:
+            agent_cfgs = json.load(cfg_file)
         self._joints = agent_cfgs[self._agent_name]['control_joints']
 
     def run(self, agent, world):
@@ -237,7 +236,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
             joint_pos = np.array(joint_pos).flatten()
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
             # orientation cost, the agent should face towards the target
-            if self._target:
+            if self._target_name:
                 agent_pos = self.get_icub_extra_obs(agent)[:3]
                 head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
                 root_angle = self._get_angle_to_target(agent_pos, 'iCub::root_link')
@@ -322,19 +321,22 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
             observation besides self states, for the non-image case
         """
         icub_extra_obs = self.get_icub_extra_obs(self._agent)
-        agent_pos = icub_extra_obs[:3]
-        agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
-        self._pre_agent_pos = agent_pos
-        yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
-        angle_to_target = self._get_angle_to_target(agent_pos,
-                                                    'iCub::root_link')
-        rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
-                                  [np.sin(-yaw), np.cos(-yaw), 0], [0, 0, 1]])
-        vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate to agent view
-        orientation_ob = np.array(
-            [np.sin(angle_to_target),
-             np.cos(angle_to_target), vx, vy, vz], dtype=np.float32)
-        return np.concatenate([icub_extra_obs] + [orientation_ob])
+        if self._target_name:
+            agent_pos = icub_extra_obs[:3]
+            agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
+            self._pre_agent_pos = agent_pos
+            yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
+            angle_to_target = self._get_angle_to_target(agent_pos,
+                                                        'iCub::root_link')
+            rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
+                                    [np.sin(-yaw), np.cos(-yaw), 0], [0, 0, 1]])
+            vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate to agent view
+            orientation_ob = np.array(
+                [np.sin(angle_to_target),
+                np.cos(angle_to_target), vx, vy, vz], dtype=np.float32)
+            return np.concatenate([icub_extra_obs] + [orientation_ob])
+        else:
+            return icub_extra_obs
 
 
 @gin.configurable
@@ -556,10 +558,9 @@ class GroceryGround(GazeboEnvBase):
                 to images with shape `(channels, height, width)`.
         """
 
-        agent_cfgs = json.load(
-            open(
-                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
-                'r'))
+        with open (os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                   'r') as cfg_file:
+            agent_cfgs = json.load(cfg_file)
         agent_cfg = agent_cfgs[agent_type]
 
         wf_path = os.path.join(social_bot.get_world_dir(),

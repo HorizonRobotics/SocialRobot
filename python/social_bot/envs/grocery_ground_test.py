@@ -19,7 +19,10 @@ class TestGroceryGround(unittest.TestCase):
             for task_name in tasks:
                 for use_image_obs in [True, False]:
                     if agent_type == 'icub' and use_image_obs:
-                        continue
+                        continue # icub does not have camera
+                    logging.info("Testing Case: Agent " + agent_type +
+                                 ", Task " + task_name + ", UseImage: " +
+                                 str(use_image_obs))
                     env = GroceryGround(
                         with_language=with_language,
                         use_image_observation=use_image_obs,
@@ -35,10 +38,7 @@ class TestGroceryGround(unittest.TestCase):
                         env.step(actions)
                         step_cnt += 1
                     step_per_sec = step_cnt / (time.time() - last_done_time)
-                    logging.info("Test Passed, Agent: " + agent_type +
-                                 ", Task: " + task_name + ", UseImage: " +
-                                 str(use_image_obs) + ", FPS: " +
-                                 str(step_per_sec))
+                    logging.info("Test Passed, FPS: " + str(step_per_sec))
                     env.close()
 
 

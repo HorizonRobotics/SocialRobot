@@ -218,11 +218,6 @@ class Teacher(object):
     task can run at one time. A random task is chosen after the current task is
     finished.
     """
-    _task_groups = []
-    _weights = []
-    _task_groups_exclusive = True
-    vocab_size = 0
-
     def __init__(self, task_groups_exclusive=True):
         """Create a Teacher instance.
 
@@ -232,6 +227,10 @@ class Teacher(object):
         """
         self._task_groups_exclusive = task_groups_exclusive
         self._vocab_list = None
+        self._task_groups = []
+        self._weights = []
+        self._task_groups_exclusive = True
+        self.vocab_size = 0
 
     def add_task_group(self, task_group, weight=1):
         """Add a task group to teacher.
