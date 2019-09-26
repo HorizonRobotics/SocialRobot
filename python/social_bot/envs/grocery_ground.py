@@ -79,7 +79,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                  reward_weight=1.0):
         """
         Args:
-            max_steps (int): episode will end if not reaching gaol in so many steps, typically should be
+            max_steps (int): episode will end if not reaching goal in so many steps, typically should be
                 higher than max_episode_steps when register to gym, so that return of last step could be
                 handled correctly
             goal_name (string): name of the goal in the world
@@ -364,7 +364,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                  reward_weight=1.0):
         """
         Args:
-            max_steps (int): episode will end if not reaching gaol in so many steps
+            max_steps (int): episode will end if not reaching goal in so many steps
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,

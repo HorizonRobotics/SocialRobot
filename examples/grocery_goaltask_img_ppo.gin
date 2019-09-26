@@ -27,21 +27,22 @@ observation_spec=@get_observation_spec()
 action_spec=@get_action_spec()
 
 actor/ActorDistributionNetwork.input_tensor_spec=%observation_spec
-actor/ActorDistributionNetwork.output_tensor_spec=%action_spec
+actor/ActorDistributionNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
 actor/ActorDistributionNetwork.fc_layer_params=(128,)
+actor/ActorDistributionNetwork.output_tensor_spec=%action_spec
 actor/ActorDistributionNetwork.activation_fn=@tf.nn.tanh
 actor/ActorDistributionNetwork.continuous_projection_net=@StableNormalProjectionNetwork
 StableNormalProjectionNetwork.init_means_output_factor=1e-10
 StableNormalProjectionNetwork.inverse_std_transform='softplus'
 StableNormalProjectionNetwork.scale_distribution=True
-StableNormalProjectionNetwork.state_dependent_std=True
-StableNormalProjectionNetwork.init_std=1.0
-StableNormalProjectionNetwork.min_std=0.5
-StableNormalProjectionNetwork.max_std=2.0
+# StableNormalProjectionNetwork.state_dependent_std=True
+# StableNormalProjectionNetwork.init_std=1.0
+# StableNormalProjectionNetwork.min_std=0.5
+# StableNormalProjectionNetwork.max_std=2.0
+StableNormalProjectionNetwork.state_dependent_std=False
 estimated_entropy.assume_reparametrization=True
 
 value/ValueNetwork.input_tensor_spec=%observation_spec
-actor/ActorDistributionNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
 value/ValueNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
 value/ValueNetwork.fc_layer_params=(128,)
 value/ValueNetwork.activation_fn=@tf.nn.tanh
@@ -85,4 +86,4 @@ TrainerConfig.unroll_length=512
 TrainerConfig.use_tf_functions=True
 PolicyDriver.summarize_action_distributions=True
 
-TFUniformReplayBuffer.max_length=2048
+TFUniformReplayBuffer.max_length=512
