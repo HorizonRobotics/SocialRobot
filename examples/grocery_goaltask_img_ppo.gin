@@ -47,7 +47,7 @@ value/ValueNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
 value/ValueNetwork.fc_layer_params=(128,)
 value/ValueNetwork.activation_fn=@tf.nn.tanh
 
-ac/Adam.learning_rate=5e-4
+ac/Adam.learning_rate=2e-4
 
 ActorCriticAlgorithm.action_spec=%action_spec
 ActorCriticAlgorithm.actor_network=@actor/ActorDistributionNetwork()
