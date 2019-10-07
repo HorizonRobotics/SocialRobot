@@ -96,7 +96,6 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             random_range=random_range)
         GroceryGroundTaskBase.__init__(self)
         self._random_goal = random_goal
-        self._goal_name = goal_name
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
             'hammer_on_table', 'cafe_table', 'ball'
