@@ -602,7 +602,7 @@ class GroceryGround(GazeboEnvBase):
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(step_time=step_time)
         else:
-            logging.debug("upsupported task name: " + task_name)
+            logging.debug("unsupported task name: " + task_name)
 
         main_task_group = TaskGroup()
         main_task_group.add_task(main_task)
