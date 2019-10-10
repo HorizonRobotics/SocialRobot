@@ -97,7 +97,7 @@ class GoalTask(teacher.Task):
             self._is_full_range_in_curriculum):
             return
         self._q.append(value)
-        if (value > 0 and
+        if (value > 0 and len(self._q) == self._max_reward_q_length and
             sum(self._q) >= self._max_reward_q_length *
                 self._reward_thresh_to_increase_range):
             self._random_range *= 1. + self._increase_range_by_percent
