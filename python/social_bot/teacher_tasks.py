@@ -43,6 +43,7 @@ class GoalTask(teacher.Task):
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
                  random_range=2.0,
+                 use_curriculum_training=False,
                  start_range=0,
                  increase_range_by_percent=50.,
                  reward_thresh_to_increase_range=0.4,
@@ -56,6 +57,7 @@ class GoalTask(teacher.Task):
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
             random_range (float): the goal's random position range
+            use_curriculum_training (bool): when true, use curriculum in goal task training
             start_range (float): for curriculum learning, the starting random_range to set the goal
             increase_range_by_percent (float): for curriculum learning, how much to increase random range
                 every time agent reached the specified amount of reward.
@@ -66,11 +68,11 @@ class GoalTask(teacher.Task):
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
         """
         super().__init__()
-        self._q = deque()
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._max_steps = max_steps
+        self._use_curriculum_training = use_curriculum_training
         self._start_range = start_range
         self._is_full_range_in_curriculum = False
         if self.should_use_curriculum_training():
@@ -78,6 +80,7 @@ class GoalTask(teacher.Task):
             self._orig_random_range = random_range
             self._random_range = start_range
             self._max_reward_q_length = max_reward_q_length
+            self._q = deque(maxlen=max_reward_q_length)
             self._reward_thresh_to_increase_range = reward_thresh_to_increase_range
             self._increase_range_by_percent = increase_range_by_percent
             self._percent_full_range_in_curriculum = percent_full_range_in_curriculum
@@ -86,16 +89,15 @@ class GoalTask(teacher.Task):
         self.task_vocab = ['hello', 'goal', 'well', 'done', 'failed', 'to']
 
     def should_use_curriculum_training(self):
-        return self._start_range >= self._success_distance_thresh * 1.2
+        return (self._use_curriculum_training and
+            self._start_range >= self._success_distance_thresh * 1.2)
 
     def _push_reward_queue(self, value):
         if (not self.should_use_curriculum_training() or
             self._is_full_range_in_curriculum):
             return
-        while len(self._q) >= self._max_reward_q_length:
-            self._q.popleft()
         self._q.append(value)
-        if (value > 0 and len(self._q) == self._max_reward_q_length and
+        if (value > 0 and
             sum(self._q) >= self._max_reward_q_length *
                 self._reward_thresh_to_increase_range):
             self._random_range *= 1. + self._increase_range_by_percent

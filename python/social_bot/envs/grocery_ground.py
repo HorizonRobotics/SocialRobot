@@ -75,6 +75,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                  fail_distance_thresh=3,
                  random_range=10.0,
                  random_goal=False,
+                 use_curriculum_training=False,
                  start_range=0,
                  increase_range_by_percent=50.,
                  reward_thresh_to_increase_range=0.4,
@@ -90,6 +91,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                 it's considered a failure and is givne reward -1
             random_range (float): the goal's random position range
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
+            use_curriculum_training (bool): when true, use curriculum in goal task training
             start_range (float): for curriculum learning, the starting random_range to set the goal
                 Enables curriculum learning if start_range > 1.2 * success_distance_thresh.
                 NOTE: Because curriculum learning is implemented using teacher in the environment,
@@ -110,6 +112,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             success_distance_thresh=success_distance_thresh,
             fail_distance_thresh=fail_distance_thresh,
             random_range=random_range,
+            use_curriculum_training=use_curriculum_training,
             start_range=start_range,
             increase_range_by_percent=increase_range_by_percent,
             reward_thresh_to_increase_range=reward_thresh_to_increase_range,
