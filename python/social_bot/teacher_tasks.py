@@ -15,6 +15,7 @@
 A variety of teacher tasks.
 """
 
+from collections import deque
 import math
 import numpy as np
 import os
@@ -41,7 +42,13 @@ class GoalTask(teacher.Task):
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
-                 random_range=2.0):
+                 random_range=2.0,
+                 use_curriculum_training=False,
+                 start_range=0,
+                 increase_range_by_percent=50.,
+                 reward_thresh_to_increase_range=0.4,
+                 percent_full_range_in_curriculum=0.1,
+                 max_reward_q_length=100):
         """
         Args:
             max_steps (int): episode will end if not reaching gaol in so many steps
@@ -50,14 +57,57 @@ class GoalTask(teacher.Task):
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
             random_range (float): the goal's random position range
+            use_curriculum_training (bool): when true, use curriculum in goal task training
+            start_range (float): for curriculum learning, the starting random_range to set the goal
+            increase_range_by_percent (float): for curriculum learning, how much to increase random range
+                every time agent reached the specified amount of reward.
+            reward_thresh_to_increase_range (float): for curriculum learning, how much reward to reach
+                before the teacher increases random range.
+            percent_full_range_in_curriculum (float): if above 0, randomly throw in x% of training examples
+                where random_range is the full range instead of the easier ones in the curriculum.
+            max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
         """
         super().__init__()
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._max_steps = max_steps
-        self._random_range = random_range
+        self._use_curriculum_training = use_curriculum_training
+        self._start_range = start_range
+        self._is_full_range_in_curriculum = False
+        if self.should_use_curriculum_training():
+            logging.info("Setting random_range to %f", self._start_range)
+            self._orig_random_range = random_range
+            self._random_range = start_range
+            self._max_reward_q_length = max_reward_q_length
+            self._q = deque(maxlen=max_reward_q_length)
+            self._reward_thresh_to_increase_range = reward_thresh_to_increase_range
+            self._increase_range_by_percent = increase_range_by_percent
+            self._percent_full_range_in_curriculum = percent_full_range_in_curriculum
+        else:
+            self._random_range = random_range
         self.task_vocab = ['hello', 'goal', 'well', 'done', 'failed', 'to']
+
+    def should_use_curriculum_training(self):
+        return (self._use_curriculum_training and
+            self._start_range >= self._success_distance_thresh * 1.2)
+
+    def _push_reward_queue(self, value):
+        if (not self.should_use_curriculum_training() or
+            self._is_full_range_in_curriculum):
+            return
+        self._q.append(value)
+        if (value > 0 and len(self._q) == self._max_reward_q_length and
+            sum(self._q) >= self._max_reward_q_length *
+                self._reward_thresh_to_increase_range):
+            self._random_range *= 1. + self._increase_range_by_percent
+            if self._random_range > self._orig_random_range:
+                self._random_range = self._orig_random_range
+            logging.info("Raising random_range to %f", self._random_range)
+            self._q.clear()
+
+    def get_random_range(self):
+        return self._random_range
 
     def run(self, agent, world):
         """
@@ -86,6 +136,7 @@ class GoalTask(teacher.Task):
                 goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
                 dot = sum(dir * goal_dir)
                 if dot > 0.707:
+                    self._push_reward_queue(1)
                     # within 45 degrees of the agent direction
                     logging.debug("loc: " + str(loc) + " goal: " +
                                   str(goal_loc) + "dist: " + str(dist))
@@ -96,6 +147,7 @@ class GoalTask(teacher.Task):
                 else:
                     agent_sentence = yield TeacherAction()
             elif dist > self._initial_dist + self._fail_distance_thresh:
+                self._push_reward_queue(0)
                 logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                               "dist: " + str(dist))
                 yield TeacherAction(reward=-1.0, sentence="failed", done=True)
@@ -103,10 +155,18 @@ class GoalTask(teacher.Task):
                 agent_sentence = yield TeacherAction(sentence=self._goal_name)
         logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                       "dist: " + str(dist))
+        self._push_reward_queue(0)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def _move_goal(self, goal, agent_loc):
-        range = self._random_range
+        if (self.should_use_curriculum_training() and
+            self._percent_full_range_in_curriculum > 0 and
+            random.random() < self._percent_full_range_in_curriculum):
+            range = self._orig_random_range
+            self._is_full_range_in_curriculum = True
+        else:
+            range = self._random_range
+            self._is_full_range_in_curriculum = False
         while True:
             loc = (random.random() * range - range / 2,
                    random.random() * range - range / 2, 0)
