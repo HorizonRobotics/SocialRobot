@@ -75,7 +75,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                  fail_distance_thresh=3,
                  random_range=10.0,
                  random_goal=False,
-                 sparse_reward=False,
+                 sparse_reward=True,
                  reward_weight=1.0):
         """
         Args:
