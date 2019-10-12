@@ -76,6 +76,12 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                  random_range=10.0,
                  random_goal=False,
                  sparse_reward=True,
+                 use_curriculum_training=False,
+                 start_range=0,
+                 increase_range_by_percent=50.,
+                 reward_thresh_to_increase_range=0.4,
+                 percent_full_range_in_curriculum=0.1,
+                 max_reward_q_length=100,
                  reward_weight=1.0):
         """
         Args:
@@ -90,6 +96,18 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with normalized distance the agent get closer to goal.
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
+            use_curriculum_training (bool): when true, use curriculum in goal task training
+            start_range (float): for curriculum learning, the starting random_range to set the goal
+                Enables curriculum learning if start_range > 1.2 * success_distance_thresh.
+                NOTE: Because curriculum learning is implemented using teacher in the environment,
+                currently teacher status are not stored in model checkpoints.  Resuming is not supported.
+            increase_range_by_percent (float): for curriculum learning, how much to increase random range
+                every time agent reached the specified amount of reward.
+            reward_thresh_to_increase_range (float): for curriculum learning, how much reward to reach
+                before the teacher increases random range.
+            percent_full_range_in_curriculum (float): if above 0, randomly throw in x% of training examples
+                where random_range is the full range instead of the easier ones in the curriculum.
+            max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
         """
         assert goal_name is not None, "Goal name needs to be set, not None."
         GoalTask.__init__(
@@ -99,7 +117,13 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             success_distance_thresh=success_distance_thresh,
             fail_distance_thresh=fail_distance_thresh,
             sparse_reward=sparse_reward,
-            random_range=random_range)
+            random_range=random_range,
+            use_curriculum_training=use_curriculum_training,
+            start_range=start_range,
+            increase_range_by_percent=increase_range_by_percent,
+            reward_thresh_to_increase_range=reward_thresh_to_increase_range,
+            percent_full_range_in_curriculum=percent_full_range_in_curriculum,
+            max_reward_q_length=max_reward_q_length)
         GroceryGroundTaskBase.__init__(self)
         self._random_goal = random_goal
         self._objects_in_world = [
@@ -110,8 +134,14 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             'coke_can', 'table', 'bookshelf', 'car_wheel', 'plastic_cup',
             'beer', 'hammer'
         ]
-        logging.debug("goal_name %s, random_goal %d, fail_distance_thresh %f",
+        self._goals = self._objects_to_insert
+        if self._random_goal:
+            self._goals = self._goal_name.split(',')
+        logging.info("goal_name %s, random_goal %d, fail_distance_thresh %f,",
             self._goal_name, self._random_goal, fail_distance_thresh)
+        if GoalTask.should_use_curriculum_training(self):
+            logging.info("start_range %f, reward_thresh_to_increase_range %f",
+                self._start_range, self._reward_thresh_to_increase_range)
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.reward_weight = reward_weight
@@ -127,8 +157,8 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
     def run(self, agent, world):
         self._random_move_objects()
         if self._random_goal:
-            random_id = random.randrange(len(self._objects_to_insert))
-            self.set_goal_name(self._objects_to_insert[random_id])
+            random_id = random.randrange(len(self._goals))
+            self.set_goal_name(self._goals[random_id])
         yield from GoalTask.run(self, agent, world)
 
     def _insert_objects(self, object_list):
@@ -582,7 +612,7 @@ class GroceryGround(GazeboEnvBase):
         elif task_name == 'kickball':
             main_task = GroceryGroundKickBallTask(step_time=step_time)
         else:
-            logging.debug("upsupported task name: " + task_name)
+            logging.debug("unsupported task name: " + task_name)
 
         main_task_group = TaskGroup()
         main_task_group.add_task(main_task)
