@@ -10,15 +10,12 @@ import alf.networks.stable_normal_projection_network
 
 # environment config
 import alf.environments.wrappers
-CHANNEL_ORDER='channels_last'
-FrameStack.channel_order=%CHANNEL_ORDER
-GroceryGround.image_data_format=%CHANNEL_ORDER
-tf.keras.layers.Conv2D.data_format=%CHANNEL_ORDER
 create_environment.env_name='SocialBot-GroceryGroundImage-v0'
 create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
 create_environment.num_parallel_environments=16
 GroceryGround.resized_image_size=(48, 48)
+GroceryGroundGoalTask.sparse_reward=False
 
 PolicyDriver.observation_transformer=@image_scale_transformer
 
