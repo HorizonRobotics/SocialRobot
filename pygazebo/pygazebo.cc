@@ -6,6 +6,7 @@
 #include <sstream>
 #include <gazebo/common/PID.hh>
 #include <gazebo/gazebo.hh>
+#include <gazebo/gazebo_client.hh>
 #include <gazebo/physics/Joint.hh>
 #include <gazebo/physics/JointController.hh>
 #include <gazebo/physics/Model.hh>
@@ -26,6 +27,9 @@
 namespace py = pybind11;
 
 namespace social_bot {
+
+bool gazebo_initialized  = false;
+bool gazebo_sensor_initialized  = false;
 
 class Observation;
 
@@ -441,13 +445,11 @@ class World {
 };
 
 void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=false) {
-  static std::once_flag flag;
   if (port != 0) {
     std::string uri = "localhost:" + std::to_string(port);
     setenv("GAZEBO_MASTER_URI", uri.c_str(), 1);
   }
-
-  std::call_once(flag, [&args, quiet]() {
+  if (!gazebo_initialized) {
     gazebo::common::Console::SetQuiet(quiet);
     gazebo::setupServer(args);
     // gazebo::runWorld uses World::RunLoop(). RunLoop() starts LogWorker()
@@ -462,12 +464,22 @@ void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=fal
       // gazebo::util::LogRecord::Instance()->Init("pygazebo");
       gazebo::util::LogRecord::Instance()->Start(params);
     }
-  });
+  }
+  gazebo_initialized = true;
+}
+
+void Close() {
+  gazebo::shutdown();
+  gazebo::client::shutdown();
+  gazebo_initialized  = false;
+  gazebo_sensor_initialized  = false;
 }
 
 void StartSensors() {
-  static std::once_flag flag;
-  std::call_once(flag, []() { gazebo::sensors::run_threads(); });
+  if (!gazebo_sensor_initialized) {
+    gazebo::sensors::run_threads(); 
+    gazebo_sensor_initialized  = true;
+  }
 }
 
 std::string WorldSDF(const std::string& world_file) {
@@ -518,6 +530,10 @@ PYBIND11_MODULE(pygazebo, m) {
         py::arg("args") = std::vector<std::string>(),
         py::arg("port") = 0,
         py::arg("quiet") = false);
+
+  m.def("close",
+        &Close,
+        "Close");
 
   m.def("world_sdf",
         &WorldSDF,

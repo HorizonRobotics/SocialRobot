@@ -75,6 +75,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                  fail_distance_thresh=3,
                  random_range=10.0,
                  random_goal=False,
+                 sparse_reward=True,
                  use_curriculum_training=False,
                  start_range=0,
                  increase_range_by_percent=50.,
@@ -84,12 +85,16 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
                  reward_weight=1.0):
         """
         Args:
-            max_steps (int): episode will end if not reaching gaol in so many steps
+            max_steps (int): episode will end if not reaching goal in so many steps, typically should be
+                higher than max_episode_steps when register to gym, so that return of last step could be
+                handled correctly
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is givne reward -1
             random_range (float): the goal's random position range
+            sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
+                with normalized distance the agent get closer to goal.
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
             start_range (float): for curriculum learning, the starting random_range to set the goal
@@ -111,6 +116,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             goal_name=goal_name,
             success_distance_thresh=success_distance_thresh,
             fail_distance_thresh=fail_distance_thresh,
+            sparse_reward=sparse_reward,
             random_range=random_range,
             use_curriculum_training=use_curriculum_training,
             start_range=start_range,
@@ -198,7 +204,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
     def __init__(self,
                  reward_weight=1.0,
                  step_time=0.05,
-                 target='goal',
+                 target=None,
                  agent_init_pos=(0, 0),
                  agent_pos_random_range=0):
         """
@@ -225,11 +231,11 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         Setting things up during the initialization
         """
         super().setup(world, agent_name)
-        self._target = world.get_agent(self._target_name)
-        agent_cfgs = json.load(
-            open(
-                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
-                'r'))
+        if self._target_name:
+            self._target = world.get_agent(self._target_name)
+        with open (os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                   'r') as cfg_file:
+            agent_cfgs = json.load(cfg_file)
         self._joints = agent_cfgs[self._agent_name]['control_joints']
 
     def run(self, agent, world):
@@ -246,7 +252,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
         x = self._agent_init_pos[0] + random.random() * self._random_range
         y = self._agent_init_pos[1] + random.random() * self._random_range
         orient = (random.random() - 0.5) * np.pi
-        agent.set_pose(np.array([x, y, 0.6]), np.array([0, 0, orient]))
+        agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
         while not done:
             # reward for not falling (alive reward)
             agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
@@ -260,16 +266,18 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
             joint_pos = np.array(joint_pos).flatten()
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
             # orientation cost, the agent should face towards the target
-            # only orientation of root link is not enough here
-            agent_pos = self.get_icub_extra_obs(agent)[:3]
-            head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
-            root_angle = self._get_angle_to_target(agent_pos, 'iCub::root_link')
-            l_foot_angle = self._get_angle_to_target(
-                agent_pos, 'iCub::l_leg::l_foot', np.pi)
-            r_foot_angle = self._get_angle_to_target(
-                agent_pos, 'iCub::r_leg::r_foot', np.pi)
-            orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
-                           np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
+            if self._target_name:
+                agent_pos = self.get_icub_extra_obs(agent)[:3]
+                head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
+                root_angle = self._get_angle_to_target(agent_pos, 'iCub::root_link')
+                l_foot_angle = self._get_angle_to_target(
+                    agent_pos, 'iCub::l_leg::l_foot', np.pi)
+                r_foot_angle = self._get_angle_to_target(
+                    agent_pos, 'iCub::r_leg::r_foot', np.pi)
+                orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
+                            np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
+            else:
+                orient_cost = 0
             # sum all
             reward = standing_reward - 0.5 * movement_cost - 0.2 * orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
@@ -343,19 +351,22 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
             observation besides self states, for the non-image case
         """
         icub_extra_obs = self.get_icub_extra_obs(self._agent)
-        agent_pos = icub_extra_obs[:3]
-        agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
-        self._pre_agent_pos = agent_pos
-        yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
-        angle_to_target = self._get_angle_to_target(agent_pos,
-                                                    'iCub::root_link')
-        rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
-                                  [np.sin(-yaw), np.cos(-yaw), 0], [0, 0, 1]])
-        vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate to agent view
-        orientation_ob = np.array(
-            [np.sin(angle_to_target),
-             np.cos(angle_to_target), vx, vy, vz], dtype=np.float32)
-        return np.concatenate([icub_extra_obs] + [orientation_ob])
+        if self._target_name:
+            agent_pos = icub_extra_obs[:3]
+            agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
+            self._pre_agent_pos = agent_pos
+            yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
+            angle_to_target = self._get_angle_to_target(agent_pos,
+                                                        'iCub::root_link')
+            rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
+                                    [np.sin(-yaw), np.cos(-yaw), 0], [0, 0, 1]])
+            vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate to agent view
+            orientation_ob = np.array(
+                [np.sin(angle_to_target),
+                np.cos(angle_to_target), vx, vy, vz], dtype=np.float32)
+            return np.concatenate([icub_extra_obs] + [orientation_ob])
+        else:
+            return icub_extra_obs
 
 
 @gin.configurable
@@ -383,7 +394,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
                  reward_weight=1.0):
         """
         Args:
-            max_steps (int): episode will end if not reaching gaol in so many steps
+            max_steps (int): episode will end if not reaching goal in so many steps
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
@@ -577,10 +588,9 @@ class GroceryGround(GazeboEnvBase):
                 to images with shape `(channels, height, width)`.
         """
 
-        agent_cfgs = json.load(
-            open(
-                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
-                'r'))
+        with open (os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                   'r') as cfg_file:
+            agent_cfgs = json.load(cfg_file)
         agent_cfg = agent_cfgs[agent_type]
 
         wf_path = os.path.join(social_bot.get_world_dir(),
@@ -837,6 +847,7 @@ def main():
     Simple testing of this environment.
     """
     import matplotlib.pyplot as plt
+    import time
     with_language = True
     use_image_obs = False
     image_with_internal_states = True
@@ -845,14 +856,17 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='icub',
-        task_name='kickball')
+        agent_type='pr2_noplugin',
+        task_name='goal')
     env.render()
+    step_cnt = 0
+    last_done_time = time.time()
     while True:
         actions = env._control_space.sample()
         if with_language:
             actions = dict(control=actions, sentence="hello")
         obs, _, done, _ = env.step(actions)
+        step_cnt += 1
         if with_language and (env._steps_in_this_episode == 1 or done):
             seq = obs["sentence"]
             logging.info("sentence_seq: " + str(seq))
@@ -868,8 +882,11 @@ def main():
             plt.pause(0.00001)
         if done:
             env.reset()
-
+            step_per_sec = step_cnt / (time.time()-last_done_time)
+            logging.info("step per second: " + str(step_per_sec))
+            step_cnt = 0
+            last_done_time = time.time()
 
 if __name__ == "__main__":
-    logging.set_verbosity(logging.DEBUG)
+    logging.set_verbosity(logging.INFO)
     main()

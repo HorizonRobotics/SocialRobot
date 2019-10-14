@@ -1,5 +1,5 @@
-# Training & playing the grocery ground goal task with agent iCub and Sac algorithm
-# Note that task reward weight may need to be tuned when multiple tasks are used
+# Training & playing the grocery ground ball task with agent iCub and Sac algorithm
+# Note that task reward weight may need to be tuned since multiple tasks are used
 #
 # python -m alf.bin.train --root_dir=~/tmp/gro_ball_icub_sac --gin_file=grocery_balltask_icub_sac.gin
 # python -m alf.bin.play --root_dir=~/tmp/gro_ball_icub_sac --gin_file=grocery_balltask_icub_sac.gin
@@ -7,9 +7,7 @@
 # If you are not recording video and observation does not contain image, you can add 'DISPLAY=null' to skip camera rendering, which will speedup the simulation a lot:
 # DISPLAY=null python -m alf.bin.train ...
 
-import alf.trainers.off_policy_trainer
-import alf.algorithms.sac_algorithm
-import alf.utils.common
+include 'common_nonimage_sac.gin'
 import social_bot
 
 # environment config
@@ -28,55 +26,3 @@ GroceryGroundKickBallTask.reward_weight=5.0
 ICubAuxiliaryTask.target='ball'
 ICubAuxiliaryTask.agent_init_pos=(1.0, 0)
 ICubAuxiliaryTask.agent_pos_random_range=1.0
-
-# algorithm config
-observation_spec=@get_observation_spec()
-action_spec=@get_action_spec()
-
-actor/ActorDistributionNetwork.input_tensor_spec=%observation_spec
-actor/ActorDistributionNetwork.output_tensor_spec=%action_spec
-actor/ActorDistributionNetwork.fc_layer_params=(256, 128)
-actor/ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwork
-NormalProjectionNetwork.state_dependent_std=True
-NormalProjectionNetwork.mean_transform=None
-NormalProjectionNetwork.scale_distribution=True
-NormalProjectionNetwork.std_transform=@clipped_exp
-
-actor/Adam.learning_rate=2e-3
-
-critic/CriticNetwork.input_tensor_spec=(%observation_spec, %action_spec)
-critic/CriticNetwork.joint_fc_layer_params=(256, 128)
-critic/Adam.learning_rate=2e-3
-
-alpha/Adam.learning_rate=2e-3
-
-SacAlgorithm.action_spec=%action_spec
-SacAlgorithm.actor_network=@actor/ActorDistributionNetwork()
-SacAlgorithm.critic_network=@critic/CriticNetwork()
-SacAlgorithm.actor_optimizer=@actor/Adam()
-SacAlgorithm.critic_optimizer=@critic/Adam()
-SacAlgorithm.alpha_optimizer=@alpha/Adam()
-SacAlgorithm.target_update_tau=0.005
-OneStepTDLoss.td_error_loss_fn=@losses.element_wise_squared_loss
-
-
-# training config
-TrainerConfig.initial_collect_steps=2000
-TrainerConfig.mini_batch_length=2
-TrainerConfig.unroll_length=1
-TrainerConfig.mini_batch_size=256
-TrainerConfig.num_iterations=10000000
-TrainerConfig.summary_interval=1000
-TrainerConfig.eval_interval=5000
-TrainerConfig.checkpoint_interval=5000
-TrainerConfig.num_updates_per_train_step=1
-TrainerConfig.summarize_grads_and_vars=0
-TrainerConfig.summaries_flush_secs=10
-TrainerConfig.clear_replay_buffer=False
-TrainerConfig.trainer=@sync_off_policy_trainer
-TrainerConfig.algorithm_ctor=@SacAlgorithm
-TrainerConfig.debug_summaries=1
-TrainerConfig.evaluate=1
-
-TFUniformReplayBuffer.max_length=100000
-

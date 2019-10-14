@@ -42,6 +42,7 @@ class GoalTask(teacher.Task):
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
+                 sparse_reward=True,
                  random_range=2.0,
                  use_curriculum_training=False,
                  start_range=0,
@@ -56,6 +57,8 @@ class GoalTask(teacher.Task):
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
+            sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
+                with normalized distance the agent get closer to goal.
             random_range (float): the goal's random position range
             use_curriculum_training (bool): when true, use curriculum in goal task training
             start_range (float): for curriculum learning, the starting random_range to set the goal
@@ -72,6 +75,7 @@ class GoalTask(teacher.Task):
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._max_steps = max_steps
+        self._sparse_reward = sparse_reward
         self._use_curriculum_training = use_curriculum_training
         self._start_range = start_range
         self._is_full_range_in_curriculum = False
@@ -130,29 +134,34 @@ class GoalTask(teacher.Task):
             loc = np.array(loc)
             goal_loc = np.array(goal_loc)
             dist = np.linalg.norm(loc - goal_loc)
-            if dist < self._success_distance_thresh:
-                # dir from get_pose is (roll, pitch, roll)
-                dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
-                goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
-                dot = sum(dir * goal_dir)
-                if dot > 0.707:
-                    self._push_reward_queue(1)
-                    # within 45 degrees of the agent direction
-                    logging.debug("loc: " + str(loc) + " goal: " +
-                                  str(goal_loc) + "dist: " + str(dist))
-                    agent_sentence = yield TeacherAction(
-                        reward=1.0, sentence="well done", done=False)
-                    steps_since_last_reward = 0
-                    self._move_goal(goal, loc)
-                else:
-                    agent_sentence = yield TeacherAction()
+            # dir from get_pose is (roll, pitch, roll)
+            dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
+            goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
+            dot = sum(dir * goal_dir)
+            if dist < self._success_distance_thresh and dot > 0.707:
+                # within 45 degrees of the agent direction
+                self._push_reward_queue(1)
+                logging.debug("loc: " + str(loc) + " goal: " +
+                                str(goal_loc) + "dist: " + str(dist))
+                agent_sentence = yield TeacherAction(
+                    reward=1.0, sentence="well done", done=False)
+                steps_since_last_reward = 0
+                self._move_goal(goal, loc)
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 self._push_reward_queue(0)
                 logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                               "dist: " + str(dist))
                 yield TeacherAction(reward=-1.0, sentence="failed", done=True)
             else:
-                agent_sentence = yield TeacherAction(sentence=self._goal_name)
+                if self._sparse_reward:
+                    reward = 0
+                else:
+                    reward = (self._prev_dist - dist) / self._initial_dist
+                self._push_reward_queue(reward)
+                self._prev_dist = dist
+                agent_sentence = yield TeacherAction(
+                    reward=reward,
+                    sentence=self._goal_name)
         logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                       "dist: " + str(dist))
         self._push_reward_queue(0)
@@ -173,6 +182,7 @@ class GoalTask(teacher.Task):
             self._initial_dist = np.linalg.norm(loc - agent_loc)
             if self._initial_dist > self._success_distance_thresh:
                 break
+        self._prev_dist = self._initial_dist
         goal.reset()
         goal.set_pose((loc, (0, 0, 0)))
 
