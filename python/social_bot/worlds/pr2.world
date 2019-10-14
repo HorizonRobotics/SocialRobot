@@ -40,12 +40,15 @@
           <surface>
             <friction>
               <ode>
-                <mu>50.0</mu>
-                <mu2>50.0</mu2>
+                <mu>1.0</mu>
+                <mu2>1.0</mu2>
               </ode>
             </friction>
           </surface>
         </collision>
+        <inertial>
+          <mass>0.15</mass>
+        </inertial>
         <visual name="visual">
           <material>
             <ambient> 0.5 0 0 1.0 </ambient>
