@@ -24,8 +24,16 @@ PR2_WORLD_SETTING = [
     # "//sensor[contains(@name, 'wide_stereo_gazebo_')].type=depth",
     # make eye camera vision a bit wider
     "//sensor[contains(@name, 'wide_stereo_gazebo_')]/camera/horizontal_fov=1.8",
-    # make left arm fixed
-    "//joint[contains(@name, 'pr2::l_')].type=fixed"
+    # remove unused joint
+    "//joint[contains(@name, 'pr2::l_')]=",
+    "//link[contains(@name, 'pr2::l_')]=",
+    "//joint[contains(@name, 'wheel')]=",
+    "//link[contains(@name, 'wheel')]=",
+    "//joint[contains(@name, 'caster')]=",
+    "//link[contains(@name, 'caster')]=",
+    # remove unused collision and sensor
+    # "//link[contains(@name, 'pr2::l_')]/collision=",
+    # "//sensor[contains(@name, 'wide')]=",
 ]
 
 
