@@ -291,10 +291,11 @@ def _xpath_modify_xml(xml, modifications):
 
         # set text value
         for ele in tree.xpath(key):
-            logging.debug("Set value: %s %s", key, value)
             if len(value) != 0:
+                logging.debug("Set value: %s %s", key, value)
                 ele.text = value
             else:
+                logging.debug("Removing: %s", key)
                 ele.getparent().remove(ele)
 
     xml = etree.tostring(tree, encoding='unicode')
