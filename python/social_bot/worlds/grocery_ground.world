@@ -6,6 +6,9 @@
 <sdf version="1.5">
   <world name="default">
     <physics type="ode">
+      <!-- For the parameters of physics please refer to:
+        http://gazebosim.org/tutorials?tut=physics_params and
+        http://ode.org/ode-latest-userguide.html#sec_3_7_0  -->
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1</real_time_factor>
       <real_time_update_rate>0</real_time_update_rate>
