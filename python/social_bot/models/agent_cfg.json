@@ -25,11 +25,24 @@
         "use_pid": false,
         "max_sim_step_time": 0.0025
     },
-    "create": {
-        "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
+    "youbot_noplugin": {
+        "control_joints": [
+            "youbot::arm_joint_0",
+            "youbot::arm_joint_1",
+            "youbot::arm_joint_2",
+            "youbot::arm_joint_3",
+            "youbot::arm_joint_4",
+            "youbot::arm_joint_5",
+            "youbot::gripper_palm_joint",
+            "youbot::gripper_finger_joint_l",
+            "youbot::gripper_finger_joint_r",
+            "youbot::wheel_joint_bl",
+            "youbot::wheel_joint_br",
+            "youbot::wheel_joint_fl",
+            "youbot::wheel_joint_fr"],
         "camera_sensor": " ",
         "use_pid": false,
-        "max_sim_step_time": 0.0025
+        "max_sim_step_time": 0.001
     },
     "icub_with_hands": {
         "control_joints": [
