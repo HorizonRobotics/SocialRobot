@@ -5,7 +5,7 @@
     <link name="base_footprint">
       <self_collide>0</self_collide>
       <inertial>
-        <mass>118.001000</mass>
+        <mass>50.0</mass>
         <pose>-0.062421 0.000000 0.201365 0.000000 -0.000000 0.000000</pose>
         <inertia>
           <ixx>8.431730</ixx>
@@ -449,7 +449,7 @@
       <self_collide>0</self_collide>
       <pose>-0.050000 0.000000 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>36.449000</mass>
+        <mass>12.0</mass>
         <pose>-0.099499 -0.000004 -0.086764 0.000000 -0.000000 0.000000</pose>
         <inertia>
           <ixx>2.792330</ixx>
@@ -712,7 +712,7 @@
       <gravity>0</gravity>
       <pose>-0.050000 0.188000 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>25.799300</mass>
+        <mass>10.0</mass>
         <pose>-0.001201 0.024513 -0.098231 0.000000 -0.000000 0.000000</pose>
         <inertia>
           <ixx>0.866179</ixx>
@@ -1028,8 +1028,8 @@
         <surface>
           <friction>
             <ode>
-              <mu>500.000000</mu>
-              <mu2>500.000000</mu2>
+              <mu>0.800000</mu>
+              <mu2>0.800000</mu2>
               <slip1>0.000000</slip1>
               <slip2>0.000000</slip2>
             </ode>
@@ -1058,7 +1058,7 @@
       <gravity>0</gravity>
       <pose>0.939280 0.202950 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>0.044190</mass>
+        <mass>0.15</mass>
         <pose>0.004230 0.002840 0.000000 0.000000 -0.000000 0.000000</pose>
         <inertia>
           <ixx>0.000008</ixx>
@@ -1078,8 +1078,8 @@
         <surface>
           <friction>
             <ode>
-              <mu>500.000000</mu>
-              <mu2>500.000000</mu2>
+              <mu>0.800000</mu>
+              <mu2>0.800000</mu2>
               <slip1>0.000000</slip1>
               <slip2>0.000000</slip2>
             </ode>
@@ -1115,7 +1115,7 @@
       <gravity>0</gravity>
       <pose>0.939280 0.188000 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>0.010000</mass>
+        <mass>0.15</mass>
         <inertia>
           <ixx>0.001000</ixx>
           <ixy>0.000000</ixy>
@@ -1132,7 +1132,7 @@
       <gravity>0</gravity>
       <pose>0.939280 0.188000 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>0.010000</mass>
+        <mass>0.15</mass>
         <inertia>
           <ixx>0.000100</ixx>
           <ixy>0.000000</ixy>
@@ -1170,8 +1170,8 @@
         <surface>
           <friction>
             <ode>
-              <mu>500.000000</mu>
-              <mu2>500.000000</mu2>
+              <mu>0.800000</mu>
+              <mu2>0.800000</mu2>
               <slip1>0.000000</slip1>
               <slip2>0.000000</slip2>
             </ode>
@@ -1201,7 +1201,7 @@
       <gravity>0</gravity>
       <pose>0.939280 0.173050 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>0.044190</mass>
+        <mass>0.15</mass>
         <pose>0.004230 -0.002840 0.000000 0.000000 -0.000000 0.000000</pose>
         <inertia>
           <ixx>0.000008</ixx>
@@ -1222,8 +1222,8 @@
         <surface>
           <friction>
             <ode>
-              <mu>500.000000</mu>
-              <mu2>500.000000</mu2>
+              <mu>0.800000</mu>
+              <mu2>0.800000</mu2>
               <slip1>0.000000</slip1>
               <slip2>0.000000</slip2>
             </ode>
@@ -1309,7 +1309,7 @@
       <gravity>0</gravity>
       <pose>-0.050000 -0.188000 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>25.799300</mass>
+        <mass>10.0</mass>
         <pose>-0.001201 0.024513 -0.098231 0.000000 -0.000000 0.000000</pose>
         <inertia>
           <ixx>0.866179</ixx>
@@ -1661,8 +1661,8 @@
         <surface>
           <friction>
             <ode>
-              <mu>500.000000</mu>
-              <mu2>500.000000</mu2>
+              <mu>0.800000</mu>
+              <mu2>0.800000</mu2>
               <slip1>0.000000</slip1>
               <slip2>0.000000</slip2>
             </ode>
@@ -1691,7 +1691,7 @@
       <gravity>0</gravity>
       <pose>0.939280 -0.173050 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>0.044190</mass>
+        <mass>0.15</mass>
         <pose>0.004230 0.002840 0.000000 0.000000 -0.000000 0.000000</pose>
         <inertia>
           <ixx>0.000008</ixx>
@@ -1711,8 +1711,8 @@
         <surface>
           <friction>
             <ode>
-              <mu>500.000000</mu>
-              <mu2>500.000000</mu2>
+              <mu>0.800000</mu>
+              <mu2>0.800000</mu2>
               <slip1>0.000000</slip1>
               <slip2>0.000000</slip2>
             </ode>
@@ -1749,7 +1749,7 @@
       <gravity>0</gravity>
       <pose>0.939280 -0.188000 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>0.010000</mass>
+        <mass>0.15</mass>
         <inertia>
           <ixx>0.001000</ixx>
           <ixy>0.000000</ixy>
@@ -1766,7 +1766,7 @@
       <gravity>0</gravity>
       <pose>0.939280 -0.188000 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>0.010000</mass>
+        <mass>0.15</mass>
         <inertia>
           <ixx>0.000100</ixx>
           <ixy>0.000000</ixy>
@@ -1804,8 +1804,8 @@
         <surface>
           <friction>
             <ode>
-              <mu>500.000000</mu>
-              <mu2>500.000000</mu2>
+              <mu>0.800000</mu>
+              <mu2>0.800000</mu2>
               <slip1>0.000000</slip1>
               <slip2>0.000000</slip2>
             </ode>
@@ -1835,7 +1835,7 @@
       <gravity>0</gravity>
       <pose>0.939280 -0.202950 0.790675 0.000000 -0.000000 0.000000</pose>
       <inertial>
-        <mass>0.044190</mass>
+        <mass>0.15</mass>
         <pose>0.004230 -0.002840 0.000000 0.000000 -0.000000 0.000000</pose>
         <inertia>
           <ixx>0.000008</ixx>
@@ -1856,8 +1856,8 @@
         <surface>
           <friction>
             <ode>
-              <mu>500.000000</mu>
-              <mu2>500.000000</mu2>
+              <mu>0.800000</mu>
+              <mu2>0.800000</mu2>
               <slip1>0.000000</slip1>
               <slip2>0.000000</slip2>
             </ode>

@@ -204,7 +204,8 @@ def _xpath_modify_xml(xml, modifications):
           </camera>
     </sensor>
 
-    1. set element value: ${selector}=${value}
+    1. set element value: ${selector}=${value}, if ${value} is empty,
+    the element will be removed
     "//image/width=128"
     "//image/height=128"
     "//image/format=L8"
@@ -290,8 +291,12 @@ def _xpath_modify_xml(xml, modifications):
 
         # set text value
         for ele in tree.xpath(key):
-            logging.debug("Set value: %s %s", key, value)
-            ele.text = value
+            if len(value) != 0:
+                logging.debug("Set value: %s %s", key, value)
+                ele.text = value
+            else:
+                logging.debug("Removing: %s", key)
+                ele.getparent().remove(ele)
 
     xml = etree.tostring(tree, encoding='unicode')
     logging.debug(xml)
