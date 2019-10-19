@@ -519,8 +519,8 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
 class GroceryGround(GazeboEnvBase):
     """
     The envionment support agent type of pr2_noplugin, pioneer2dx_noplugin,
-    turtlebot, icub, and irobot create for now. Note that for the models without
-    camera sensor (like irobot create), you can not use image as observation.
+    turtlebot, icub, and kuka youbot for now. Note that for the models without
+    camera sensor like icub (without hands), you can not use image as observation.
 
     Joints of the agent are controllable by force or pid controller,
 
@@ -567,7 +567,7 @@ class GroceryGround(GazeboEnvBase):
                 a simple goal task: 'goal'
                 a simple kicking ball task: 'kickball'
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
-                pioneer2dx_noplugin, turtlebot, irobot create and icub_with_hands for now
+                pioneer2dx_noplugin, turtlebot, kuka youbot and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
             world_time_precision (float|None): if not none, the time precision of
                 simulator, i.e., the max_step_size defined in the agent cfg file, will be

@@ -75,10 +75,10 @@ A simple navigation task for a pioneer2dx agent with camera image as observation
     <img src="media/ac_simple_navigation.gif" width="320" height="240" alt="simple_navigation"/>
 
 ### [Grocery Ground](python/social_bot/envs/grocery_ground.py)
-A playground with groceries on it. You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, irobot create, and icub for now.
+A playground with groceries on it. You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, kuka youbot, and icub for now.
 [ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub equipped with 2 cameras and dexterous hands. The following are images of these 5 robots:
 
-<img src="media/pioneer.jpg" width="160" height="240" alt="pioneer"/> <img src="media/pr2.jpg" width="160" height="240" alt="pr2"/> <img src="media/turtlebot.jpg" width="160" height="240" alt="turtlebot"/> <img src="media/irobot_create.jpg" width="160" height="240" alt="irobot_create"/> <img src="media/icub.jpg" width="160" height="240" alt="icub"/>
+<img src="media/pioneer.jpg" width="160" height="240" alt="pioneer"/> <img src="media/pr2.jpg" width="160" height="240" alt="pr2"/> <img src="media/turtlebot.jpg" width="160" height="240" alt="turtlebot"/> <img src="media/icub.jpg" width="160" height="240" alt="icub"/> <img src="media/youbot.jpg" width="160" height="240" alt="youbot"/>
 
 The observation of the robots include internal states, target pose or camera image, and optional language instruction.
 
