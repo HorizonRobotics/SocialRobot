@@ -23,6 +23,7 @@ import gin
 import itertools
 import time
 import random
+import json
 
 import social_bot
 from social_bot import teacher
@@ -350,11 +351,11 @@ class ICubAuxiliaryTask(teacher.Task):
     """
 
     def __init__(self,
-                 reward_weight=1.0,
                  step_time=0.05,
                  target=None,
                  agent_init_pos=(0, 0),
-                 agent_pos_random_range=0):
+                 agent_pos_random_range=0,
+                 reward_weight=1.0):
         """
         Args:
             reward_weight (float): the weight of the reward, should be tuned
