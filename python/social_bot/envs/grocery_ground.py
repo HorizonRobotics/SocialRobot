@@ -330,42 +330,6 @@ class GroceryGround(GazeboEnvBase):
         return obs
 
 
-class GroceryGroundImage(GroceryGround):
-    def __init__(self, port=None):
-        super(GroceryGroundImage, self).__init__(
-            use_image_observation=True,
-            image_with_internal_states=False,
-            with_language=False,
-            port=port)
-
-
-class GroceryGroundLanguage(GroceryGround):
-    def __init__(self, port=None):
-        super(GroceryGroundLanguage, self).__init__(
-            use_image_observation=False,
-            image_with_internal_states=False,
-            with_language=True,
-            port=port)
-
-
-class GroceryGroundImageLanguage(GroceryGround):
-    def __init__(self, port=None):
-        super(GroceryGroundImageLanguage, self).__init__(
-            use_image_observation=True,
-            image_with_internal_states=False,
-            with_language=True,
-            port=port)
-
-
-class GroceryGroundImageSelfStatesLanguage(GroceryGround):
-    def __init__(self, port=None):
-        super(GroceryGroundImageSelfStatesLanguage, self).__init__(
-            use_image_observation=True,
-            image_with_internal_states=True,
-            with_language=True,
-            port=port)
-
-
 def main():
     """
     Simple testing of this environment.

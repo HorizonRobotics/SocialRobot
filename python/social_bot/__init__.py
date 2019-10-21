@@ -40,30 +40,6 @@ register(
 )
 
 register(
-    id='SocialBot-GroceryGroundImage-v0',
-    entry_point='social_bot.envs:GroceryGroundImage',
-    max_episode_steps=200,
-)
-
-register(
-    id='SocialBot-GroceryGroundLanguage-v0',
-    entry_point='social_bot.envs:GroceryGroundLanguage',
-    max_episode_steps=200,
-)
-
-register(
-    id='SocialBot-GroceryGroundImageLanguage-v0',
-    entry_point='social_bot.envs:GroceryGroundImageLanguage',
-    max_episode_steps=200,
-)
-
-register(
-    id='SocialBot-GroceryGroundImageSelfStatesLanguage-v0',
-    entry_point='social_bot.envs:GroceryGroundImageSelfStatesLanguage',
-    max_episode_steps=200,
-)
-
-register(
     id='SocialBot-ICubWalk-v0',
     entry_point='social_bot.envs:ICubWalk',
     max_episode_steps=200,
