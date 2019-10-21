@@ -68,7 +68,7 @@ class Task(object):
         self._world = world
         self._agent = self._world.get_agent()
         self._agent_name = agent_name
-        
+
     @abstractmethod
     def run(self):
         """
@@ -229,6 +229,7 @@ class Teacher(object):
     task can run at one time. A random task is chosen after the current task is
     finished.
     """
+
     def __init__(self, task_groups_exclusive=True):
         """Create a Teacher instance.
 
@@ -398,8 +399,7 @@ class Teacher(object):
                 g = self._task_groups.pop(active_group_id)
                 self._task_groups.insert(0, g)
             return_action = TeacherAction(final_reward, final_sentence, done)
-        logging.debug(
-            "Teacher Reward: %f, Sentence: %s, Done: %d",
-            return_action.reward, return_action.sentence,
-            return_action.done)
+        logging.debug("Teacher Reward: %f, Sentence: %s, Done: %d",
+                      return_action.reward, return_action.sentence,
+                      return_action.done)
         return return_action

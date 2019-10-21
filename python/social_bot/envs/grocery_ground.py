@@ -112,8 +112,9 @@ class GroceryGround(GazeboEnvBase):
                 to images with shape `(channels, height, width)`.
         """
 
-        with open (os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
-                   'r') as cfg_file:
+        with open(
+                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
         agent_cfg = agent_cfgs[agent_type]
 
@@ -125,7 +126,9 @@ class GroceryGround(GazeboEnvBase):
         if world_time_precision is None:
             world_time_precision = agent_cfg['max_sim_step_time']
         sub_steps = int(round(step_time / world_time_precision))
-        sim_time_cfg = ["//physics//max_step_size=" + str(world_time_precision)]
+        sim_time_cfg = [
+            "//physics//max_step_size=" + str(world_time_precision)
+        ]
 
         super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)
@@ -370,10 +373,11 @@ def main():
             plt.pause(0.00001)
         if done:
             env.reset()
-            step_per_sec = step_cnt / (time.time()-last_done_time)
+            step_per_sec = step_cnt / (time.time() - last_done_time)
             logging.info("step per second: " + str(step_per_sec))
             step_cnt = 0
             last_done_time = time.time()
+
 
 if __name__ == "__main__":
     logging.set_verbosity(logging.INFO)

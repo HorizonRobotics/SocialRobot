@@ -30,7 +30,9 @@ class TestGroceryGround(unittest.TestCase):
             'youbot_noplugin'
         ]
         tasks = ['goal', 'kickball']
-        with open (os.path.join(social_bot.get_model_dir(), "agent_cfg.json"), 'r') as cfg_file:
+        with open(
+                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
         for agent_type in agents:
             for task_name in tasks:
@@ -49,7 +51,8 @@ class TestGroceryGround(unittest.TestCase):
                         task_name=task_name)
                     step_cnt = 0
                     last_done_time = time.time()
-                    while step_cnt < 500 and (time.time() - last_done_time) < 10:
+                    while step_cnt < 500 and (
+                            time.time() - last_done_time) < 10:
                         actions = env._control_space.sample()
                         if with_language:
                             actions = dict(control=actions, sentence="hello")

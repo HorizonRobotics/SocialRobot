@@ -97,16 +97,16 @@ class GoalTask(teacher.Task):
         self.task_vocab = ['hello', 'goal', 'well', 'done', 'failed', 'to']
 
     def should_use_curriculum_training(self):
-        return (self._use_curriculum_training and
-            self._start_range >= self._success_distance_thresh * 1.2)
+        return (self._use_curriculum_training
+                and self._start_range >= self._success_distance_thresh * 1.2)
 
     def _push_reward_queue(self, value):
-        if (not self.should_use_curriculum_training() or
-            self._is_full_range_in_curriculum):
+        if (not self.should_use_curriculum_training()
+                or self._is_full_range_in_curriculum):
             return
         self._q.append(value)
-        if (value > 0 and len(self._q) == self._max_reward_q_length and
-            sum(self._q) >= self._max_reward_q_length *
+        if (value > 0 and len(self._q) == self._max_reward_q_length
+                and sum(self._q) >= self._max_reward_q_length *
                 self._reward_thresh_to_increase_range):
             self._random_range *= 1. + self._increase_range_by_percent
             if self._random_range > self._orig_random_range:
@@ -145,8 +145,8 @@ class GoalTask(teacher.Task):
             if dist < self._success_distance_thresh and dot > 0.707:
                 # within 45 degrees of the agent direction
                 self._push_reward_queue(1)
-                logging.debug("loc: " + str(loc) + " goal: " +
-                                str(goal_loc) + "dist: " + str(dist))
+                logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
+                              "dist: " + str(dist))
                 agent_sentence = yield TeacherAction(
                     reward=1.0, sentence="well done", done=False)
                 steps_since_last_reward = 0
@@ -164,17 +164,16 @@ class GoalTask(teacher.Task):
                 self._push_reward_queue(reward)
                 self._prev_dist = dist
                 agent_sentence = yield TeacherAction(
-                    reward=reward,
-                    sentence=self._goal_name)
+                    reward=reward, sentence=self._goal_name)
         logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                       "dist: " + str(dist))
         self._push_reward_queue(0)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def _move_goal(self, goal, agent_loc):
-        if (self.should_use_curriculum_training() and
-            self._percent_full_range_in_curriculum > 0 and
-            random.random() < self._percent_full_range_in_curriculum):
+        if (self.should_use_curriculum_training()
+                and self._percent_full_range_in_curriculum > 0
+                and random.random() < self._percent_full_range_in_curriculum):
             range = self._orig_random_range
             self._is_full_range_in_curriculum = True
         else:
@@ -287,10 +286,11 @@ class GroceryGroundGoalTask(GoalTask):
         if self._random_goal:
             self._goals = self._goal_name.split(',')
         logging.info("goal_name %s, random_goal %d, fail_distance_thresh %f,",
-            self._goal_name, self._random_goal, fail_distance_thresh)
+                     self._goal_name, self._random_goal, fail_distance_thresh)
         if GoalTask.should_use_curriculum_training(self):
             logging.info("start_range %f, reward_thresh_to_increase_range %f",
-                self._start_range, self._reward_thresh_to_increase_range)
+                         self._start_range,
+                         self._reward_thresh_to_increase_range)
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.reward_weight = reward_weight
@@ -382,8 +382,8 @@ class ICubAuxiliaryTask(teacher.Task):
         super().setup(world, agent_name)
         if self._target_name:
             self._target = world.get_agent(self._target_name)
-        with open (os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
-                   'r') as cfg_file:
+        with open(os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
         self._joints = agent_cfgs[self._agent_name]['control_joints']
 
@@ -418,13 +418,14 @@ class ICubAuxiliaryTask(teacher.Task):
             if self._target_name:
                 agent_pos = self.get_icub_extra_obs(agent)[:3]
                 head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
-                root_angle = self._get_angle_to_target(agent_pos, 'iCub::root_link')
+                root_angle = self._get_angle_to_target(agent_pos,
+                                                       'iCub::root_link')
                 l_foot_angle = self._get_angle_to_target(
                     agent_pos, 'iCub::l_leg::l_foot', np.pi)
                 r_foot_angle = self._get_angle_to_target(
                     agent_pos, 'iCub::r_leg::r_foot', np.pi)
                 orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
-                            np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
+                               np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
             else:
                 orient_cost = 0
             # sum all
@@ -505,14 +506,17 @@ class ICubAuxiliaryTask(teacher.Task):
             agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
             self._pre_agent_pos = agent_pos
             yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
-            angle_to_target = self._get_angle_to_target(agent_pos,
-                                                        'iCub::root_link')
+            angle_to_target = self._get_angle_to_target(
+                agent_pos, 'iCub::root_link')
             rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
-                                    [np.sin(-yaw), np.cos(-yaw), 0], [0, 0, 1]])
-            vx, vy, vz = np.dot(rot_minus_yaw, agent_speed)  # rotate to agent view
+                                      [np.sin(-yaw),
+                                       np.cos(-yaw), 0], [0, 0, 1]])
+            vx, vy, vz = np.dot(rot_minus_yaw,
+                                agent_speed)  # rotate to agent view
             orientation_ob = np.array(
                 [np.sin(angle_to_target),
-                np.cos(angle_to_target), vx, vy, vz], dtype=np.float32)
+                 np.cos(angle_to_target), vx, vy, vz],
+                dtype=np.float32)
             return np.concatenate([icub_extra_obs] + [orientation_ob])
         else:
             return icub_extra_obs
@@ -618,7 +622,8 @@ class GroceryGroundKickBallTask(GoalTask):
                 agent_loc, dir = agent.get_pose()
                 if self._agent_name.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
-                    agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
+                    agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(
+                        self._agent)[:3]
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
@@ -638,7 +643,8 @@ class GroceryGroundKickBallTask(GoalTask):
             else:
                 goal_loc, _ = goal.get_pose()
                 ball_loc, _ = ball.get_pose()
-                dist = np.linalg.norm(np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
+                dist = np.linalg.norm(
+                    np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
                 if dist < self._success_distance_thresh:
                     agent_sentence = yield TeacherAction(
                         reward=100.0, sentence="well done", done=True)
@@ -661,4 +667,3 @@ class GroceryGroundKickBallTask(GoalTask):
         model_poss = np.array(model_poss).flatten()
         model_vels = np.array(model_vels).flatten()
         return np.concatenate((model_poss, model_vels), axis=0)
-
