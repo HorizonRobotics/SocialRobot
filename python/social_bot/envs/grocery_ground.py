@@ -40,27 +40,8 @@ from social_bot.teacher_tasks import GoalTask
 import social_bot.pygazebo as gazebo
 
 
-class GroceryGroundTaskBase(teacher.Task):
-    """
-    A base task for grocery ground environment.
-    """
-
-    def __init__(self):
-        self._agent = None
-        self._world = None
-        self._agent_name = None
-
-    def setup(self, world, agent_name):
-        """
-        Setting things up during the initialization
-        """
-        self._world = world
-        self._agent = self._world.get_agent()
-        self._agent_name = agent_name
-
-
 @gin.configurable
-class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
+class GroceryGroundGoalTask(GoalTask):
     """
     A simple task to find a goal on grocery ground.
     The goal of this task is to train the agent to navigate to an object.
@@ -110,8 +91,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
         """
         assert goal_name is not None, "Goal name needs to be set, not None."
-        GoalTask.__init__(
-            self,
+        super().__init__(
             max_steps=max_steps,
             goal_name=goal_name,
             success_distance_thresh=success_distance_thresh,
@@ -124,7 +104,6 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
             reward_thresh_to_increase_range=reward_thresh_to_increase_range,
             percent_full_range_in_curriculum=percent_full_range_in_curriculum,
             max_reward_q_length=max_reward_q_length)
-        GroceryGroundTaskBase.__init__(self)
         self._random_goal = random_goal
         self._objects_in_world = [
             'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
@@ -151,7 +130,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
         """
         Setting things up during the initialization
         """
-        GroceryGroundTaskBase.setup(self, world, agent_name)
+        super().setup(world, agent_name)
         self._insert_objects(self._objects_to_insert)
 
     def run(self, agent, world):
@@ -195,7 +174,7 @@ class GroceryGroundGoalTask(GroceryGroundTaskBase, GoalTask):
 
 
 @gin.configurable
-class ICubAuxiliaryTask(GroceryGroundTaskBase):
+class ICubAuxiliaryTask(teacher.Task):
     """
     An auxiliary task spicified for iCub, to keep the agent from falling down
         and to encourage the agent walk
@@ -370,7 +349,7 @@ class ICubAuxiliaryTask(GroceryGroundTaskBase):
 
 
 @gin.configurable
-class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
+class GroceryGroundKickBallTask(GoalTask):
     """
     A simple task to kick a ball to the goal. Simple reward shaping is used to
     guide the agent run to the ball first:
@@ -411,7 +390,6 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
             goal_name=goal_name,
             fail_distance_thresh=fail_distance_thresh,
             random_range=random_range)
-        GroceryGroundTaskBase.__init__(self)
         self._goal_name = 'goal'
         self._success_distance_thresh = success_distance_thresh,
         self._objects_in_world = [
@@ -427,7 +405,7 @@ class GroceryGroundKickBallTask(GroceryGroundTaskBase, GoalTask):
         """
         Setting things up during the initialization
         """
-        GroceryGroundTaskBase.setup(self, world, agent_name)
+        super().setup(world, agent_name)
         goal_sdf = """
         <?xml version='1.0'?>
         <sdf version ='1.4'>
@@ -567,7 +545,7 @@ class GroceryGround(GazeboEnvBase):
                 a simple goal task: 'goal'
                 a simple kicking ball task: 'kickball'
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
-                pioneer2dx_noplugin, turtlebot, kuka youbot and icub_with_hands for now
+                pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
             world_time_precision (float|None): if not none, the time precision of
                 simulator, i.e., the max_step_size defined in the agent cfg file, will be
@@ -603,7 +581,7 @@ class GroceryGround(GazeboEnvBase):
         sub_steps = int(round(step_time / world_time_precision))
         sim_time_cfg = ["//physics//max_step_size=" + str(world_time_precision)]
 
-        super(GroceryGround, self).__init__(
+        super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
@@ -856,7 +834,7 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='pr2_noplugin',
+        agent_type='pioneer2dx_noplugin',
         task_name='goal')
     env.render()
     step_cnt = 0

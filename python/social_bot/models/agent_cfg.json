@@ -40,9 +40,9 @@
             "youbot::wheel_joint_br",
             "youbot::wheel_joint_fl",
             "youbot::wheel_joint_fr"],
-        "camera_sensor": " ",
+        "camera_sensor": "",
         "use_pid": false,
-        "max_sim_step_time": 0.001
+        "max_sim_step_time": 0.0025
     },
     "icub_with_hands": {
         "control_joints": [
@@ -103,7 +103,7 @@
             "iCub::r_shoulder_roll",
             "iCub::r_shoulder_yaw",
             "iCub::r_elbow"],
-        "camera_sensor": " ",
+        "camera_sensor": "",
         "use_pid": true,
         "pid_control_limit": 10,
         "max_sim_step_time": 0.001
