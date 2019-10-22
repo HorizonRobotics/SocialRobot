@@ -1,9 +1,9 @@
 # Training & playing the default goal task with Agent Learning Framework (Alf)
-# python -m alf.bin.train --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --alsologtostderr
-# python -m alf.bin.play --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --record_file=grocery.mp4
+# python -m alf.bin.train --root_dir=~/tmp/alf_ppo --gin_file=goaltask_alf_ppo.gin --alsologtostderr
+# python -m alf.bin.play --root_dir=~/tmp/alf_ppo --gin_file=goaltask_alf_ppo.gin --record_file=goaltask.mp4
 
 # Training with other task, 'kickball' for example:
-# python -m alf.bin.train --root_dir=~/tmp/gro_ppo --gin_file=grocery_alf_ppo.gin --alsologtostderr --gin_param="PlayGround.task_name='kickball'"
+# python -m alf.bin.train --root_dir=~/tmp/alf_ppo --gin_file=goaltask_alf_ppo.gin --alsologtostderr --gin_param="PlayGround.task_name='kickball'"
 
 # If you are not recording video and observation does not contain image, you can add 'DISPLAY=null' to skip camera rendering, which will speedup the simulation a lot:
 # DISPLAY=null python -m alf.bin.train ...

@@ -6,6 +6,6 @@ from .simple_navigation import SimpleNavigationLanguage
 from .simple_navigation import SimpleNavigationSelfStatesLanguage
 from .cartpole import CartPole
 from .pr2 import Pr2Gripper
-from .grocery_ground import PlayGround
+from .play_ground import PlayGround
 from .icub_walk import ICubWalk
 from .icub_walk import ICubWalkPID

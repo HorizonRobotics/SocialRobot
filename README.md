@@ -43,9 +43,9 @@ To see the graphics, you can open another terminal and run
 ```bash
 GAZEBO_MODEL_PATH=`pwd`/../python/social_bot/models gzclient
 ```
-#### [Grocery Ground Test](python/social_bot/envs/grocery_ground.py)
+#### [Grocery Ground Test](python/social_bot/envs/play_ground.py)
 ```bash
-python3 python/social_bot/envs/grocery_ground.py
+python3 python/social_bot/envs/play_ground.py
 ```
 
 ## Environments and Tasks
@@ -70,7 +70,7 @@ A simple navigation task for a pioneer2dx agent with camera image as observation
 
     <img src="media/ac_simple_navigation.gif" width="320" height="240" alt="simple_navigation"/>
 
-### [Grocery Ground](python/social_bot/envs/grocery_ground.py)
+### [Grocery Ground](python/social_bot/envs/play_ground.py)
 A playground with groceries on it. You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, kuka youbot, and icub for now.
 [ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub equipped with 2 cameras and dexterous hands. The following are images of these 5 robots:
 
@@ -78,13 +78,13 @@ A playground with groceries on it. You could choose the agent in the environment
 
 The observation of the robots include internal states, target pose or camera image, and optional language instruction.
 
-* [Goal task](python/social_bot/envs/grocery_ground.py): A task to chase a goal on the playground. The reward setting is the same as simple navigation goal task. A PPO training example can be found [here](examples/grocery_alf_ppo.gin).
+* [Goal task](python/social_bot/envs/play_ground.py): A task to chase a goal on the playground. The reward setting is the same as simple navigation goal task. A PPO training example can be found [here](examples/goaltask_alf_ppo.gin).
 
-    <img src="media/grocery_ground_pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/grocery_ground_icub.gif" width="360" height="240" alt="icub"/>
+    <img src="media/pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/play_ground_icub.gif" width="360" height="240" alt="icub"/>
 
-* [Ball task](python/social_bot/envs/grocery_ground.py): A task to kick a ball to the goal. Simple reward shaping is used to guide the agent run to the ball first.
+* [Ball task](python/social_bot/envs/play_ground.py): A task to kick a ball to the goal. Simple reward shaping is used to guide the agent run to the ball first.
 
-    <img src="media/grocery_ground_ball.gif" width="320" height="240" alt="ball"/>
+    <img src="media/play_ground_ball.gif" width="320" height="240" alt="ball"/>
 
 ### [PR2 Gripping](python/social_bot/envs/pr2.py)
 
@@ -110,7 +110,7 @@ python -m alf.bin.play --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_n
 ```
 The playing back can also be recorded to a video file like this:
 ```bash
-python -m alf.bin.play --root_dir=~/tmp/grocery_goal_task --gin_file=grocery_alf_ppo.gin --record_file=grocery.mp4
+python -m alf.bin.play --root_dir=~/tmp/goal_task --gin_file=goaltask_alf_ppo.gin --record_file=goal_task.mp4
 ```
 You can find the gin config files for other tasks [here](examples).
 

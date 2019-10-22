@@ -1,7 +1,7 @@
-# Training & playing the grocery ground goal task with ALF SAC algorithm
+# Training & playing the goal task with ALF SAC algorithm
 #
-# DISPLAY=null python -m alf.bin.train --root_dir=~/tmp/gro_goal_sac --gin_file=grocery_goaltask_sac.gin
-# python -m alf.bin.play --root_dir=~/tmp/gro_goal_sac --gin_file=grocery_goaltask_sac.gin
+# DISPLAY=null python -m alf.bin.train --root_dir=~/tmp/goal_sac --gin_file=goaltask_sac.gin
+# python -m alf.bin.play --root_dir=~/tmp/goal_sac --gin_file=goaltask_sac.gin
 
 include 'common_nonimage_sac.gin'
 import social_bot

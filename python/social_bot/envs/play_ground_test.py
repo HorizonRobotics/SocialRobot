@@ -19,11 +19,11 @@ import time
 import json
 import social_bot
 from absl import logging
-from grocery_ground import PlayGround
+from play_ground import PlayGround
 
 
 class TestPlayGround(unittest.TestCase):
-    def test_grocery(self):
+    def test_play_ground(self):
         with_language = True
         agents = [
             'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands',

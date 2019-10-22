@@ -1,8 +1,8 @@
-# Training & playing the grocery ground ball task with agent iCub and Sac algorithm
+# Training & playing the ball task with agent iCub and Sac algorithm
 # Note that task reward weight may need to be tuned since multiple tasks are used
 #
-# python -m alf.bin.train --root_dir=~/tmp/gro_ball_icub_sac --gin_file=grocery_balltask_icub_sac.gin
-# python -m alf.bin.play --root_dir=~/tmp/gro_ball_icub_sac --gin_file=grocery_balltask_icub_sac.gin
+# python -m alf.bin.train --root_dir=~/tmp/ball_icub_sac --gin_file=balltask_icub_sac.gin
+# python -m alf.bin.play --root_dir=~/tmp/ball_icub_sac --gin_file=balltask_icub_sac.gin
 
 # If you are not recording video and observation does not contain image, you can add 'DISPLAY=null' to skip camera rendering, which will speedup the simulation a lot:
 # DISPLAY=null python -m alf.bin.train ...

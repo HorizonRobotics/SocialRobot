@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A simple enviroment for an agent play on a groceryground
+A simple enviroment for an agent play on a play ground
 """
 import os
 import time
@@ -119,7 +119,7 @@ class PlayGround(GazeboEnvBase):
         agent_cfg = agent_cfgs[agent_type]
 
         wf_path = os.path.join(social_bot.get_world_dir(),
-                               "grocery_ground.world")
+                               "play_ground.world")
         with open(wf_path, 'r+') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
