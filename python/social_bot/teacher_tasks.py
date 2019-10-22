@@ -292,7 +292,8 @@ class GoalWithDistractionTask(GoalTask):
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.reward_weight = reward_weight
-        self.task_vocab = self.task_vocab + self._objects_to_insert + [goal_name]
+        self.task_vocab = self.task_vocab + [goal_name]
+        self.task_vocab = self.task_vocab + self._objects_to_insert
 
     def setup(self, world, agent_name):
         """
@@ -380,7 +381,8 @@ class ICubAuxiliaryTask(teacher.Task):
         super().setup(world, agent_name)
         if self._target_name:
             self._target = world.get_agent(self._target_name)
-        with open(os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+        with open(
+                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
         self._joints = agent_cfgs[self._agent_name]['control_joints']

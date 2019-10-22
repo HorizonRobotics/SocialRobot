@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A simple enviroment for an agent play on a play ground
+A simple enviroment for an agent play on the ground
 """
 import os
 import time
@@ -42,13 +42,15 @@ from social_bot.teacher_tasks import GoalWithDistractionTask, ICubAuxiliaryTask,
 class PlayGround(GazeboEnvBase):
     """
     This envionment support agent type of pr2_noplugin, pioneer2dx_noplugin,
-    turtlebot, icub, and kuka youbot for now. Note that for the models without
-    camera sensor like icub (without hands), you can not use image as observation.
+    turtlebot, icub, and kuka youbot for now. 
 
     Joints of the agent are controllable by force or pid controller,
 
     The observation space is a numpy array or a dict with keys 'image',
-    'states', 'sentence', depends on the configuration.
+    'states', 'sentence', depends on the configuration. Note that for the
+    models without camera sensor like icub (without hands), you can not
+    use image as observation.
+
     If without language and internal_states, observation is a numpy array:
         pure image (use_image_observation=True)
         pure low-dimentional states (use_image_observation=False)
@@ -100,14 +102,14 @@ class PlayGround(GazeboEnvBase):
             step_time (float): the peroid of one step of the environment.
                 step_time / world_time_precision is how many simulator substeps during one
                 environment step. for some complex agent like icub, using a step_time of
-                0.05 is more faster to converage
+                0.05 is more faster to converge on task need walking by 2 legs
             port: Gazebo port, need to specify when run multiple environment in parallel
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
                 to (width, height)
-            vocab_sequence_length (int): the length if encoded sequence
+            vocab_sequence_length (int): the length of encoded sequence
         """
 
         self._action_cost = action_cost
