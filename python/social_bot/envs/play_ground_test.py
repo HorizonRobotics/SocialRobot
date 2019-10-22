@@ -20,6 +20,7 @@ import json
 import social_bot
 from absl import logging
 from play_ground import PlayGround
+from social_bot.teacher_tasks import GoalWithDistractionTask, KickingBallTask
 
 
 class TestPlayGround(unittest.TestCase):
@@ -29,26 +30,26 @@ class TestPlayGround(unittest.TestCase):
             'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands',
             'youbot_noplugin'
         ]
-        tasks = ['goal', 'kickball']
+        tasks = [GoalWithDistractionTask, KickingBallTask]
         with open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
         for agent_type in agents:
-            for task_name in tasks:
+            for task in tasks:
                 for use_image_obs in [True, False]:
                     agent_cfg = agent_cfgs[agent_type]
                     if agent_cfg['camera_sensor'] == '' and use_image_obs:
                         continue
                     logging.info("Testing Case: Agent " + agent_type +
-                                 ", Task " + task_name + ", UseImage: " +
+                                 ", Task " + str(task) + ", UseImage: " +
                                  str(use_image_obs))
                     env = PlayGround(
                         with_language=with_language,
                         use_image_observation=use_image_obs,
                         image_with_internal_states=True,
                         agent_type=agent_type,
-                        task_name=task_name)
+                        task=task)
                     step_cnt = 0
                     last_done_time = time.time()
                     while step_cnt < 500 and (

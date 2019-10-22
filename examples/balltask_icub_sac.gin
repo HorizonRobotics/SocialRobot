@@ -17,7 +17,8 @@ create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.max_episode_steps=300
 
 PlayGround.agent_type='icub'
-PlayGround.task_name='kickball'
+PlayGround.task=@KickingBallTask
+PlayGround.secondary_task=@ICubAuxiliaryTask
 PlayGround.action_cost=1.0
 PlayGround.step_time=0.05
 KickingBallTask.random_range=4.0

@@ -13,7 +13,7 @@ create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.max_episode_steps=200
 
 PlayGround.agent_type='pioneer2dx_noplugin'
-PlayGround.task_name='goal'
+PlayGround.task=@GoalWithDistractionTask
 PlayGround.action_cost=0.0
 # 10Hz control freq
 PlayGround.step_time=0.1

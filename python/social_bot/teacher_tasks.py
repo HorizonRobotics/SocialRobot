@@ -226,6 +226,7 @@ class GoalWithDistractionTask(GoalTask):
                  random_range=10.0,
                  random_goal=False,
                  sparse_reward=True,
+                 step_time=0.1,
                  use_curriculum_training=False,
                  start_range=0,
                  increase_range_by_percent=50.,
@@ -245,6 +246,7 @@ class GoalWithDistractionTask(GoalTask):
             random_range (float): the goal's random position range
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with normalized distance the agent get closer to goal.
+            step_time (float): used to caculate speed of the agent
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
             start_range (float): for curriculum learning, the starting random_range to set the goal
