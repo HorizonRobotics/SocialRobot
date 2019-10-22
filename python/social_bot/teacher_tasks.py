@@ -287,7 +287,7 @@ class GroceryGroundGoalTask(GoalTask):
             self._goals = self._goal_name.split(',')
         logging.info("goal_name %s, random_goal %d, fail_distance_thresh %f,",
                      self._goal_name, self._random_goal, fail_distance_thresh)
-        if GoalTask.should_use_curriculum_training(self):
+        if self.should_use_curriculum_training():
             logging.info("start_range %f, reward_thresh_to_increase_range %f",
                          self._start_range,
                          self._reward_thresh_to_increase_range)
@@ -308,7 +308,7 @@ class GroceryGroundGoalTask(GoalTask):
         if self._random_goal:
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
-        yield from GoalTask.run(self, agent, world)
+        yield from super().run(agent, world)
 
     def _insert_objects(self, object_list):
         obj_num = len(object_list)
@@ -558,8 +558,7 @@ class GroceryGroundKickBallTask(GoalTask):
             step_time (float): used to caculate speed of the agent
             reward_weight (float): the weight of the reward
         """
-        GoalTask.__init__(
-            self,
+        super().__init__(
             max_steps=max_steps,
             goal_name=goal_name,
             fail_distance_thresh=fail_distance_thresh,
