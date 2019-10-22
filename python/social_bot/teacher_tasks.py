@@ -276,10 +276,6 @@ class GoalWithDistractionTask(GoalTask):
             percent_full_range_in_curriculum=percent_full_range_in_curriculum,
             max_reward_q_length=max_reward_q_length)
         self._random_goal = random_goal
-        self._objects_in_world = [
-            'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
-            'hammer_on_table', 'cafe_table', 'ball'
-        ]
         self._objects_to_insert = [
             'coke_can', 'table', 'bookshelf', 'car_wheel', 'plastic_cup',
             'beer', 'hammer'
@@ -296,7 +292,7 @@ class GoalWithDistractionTask(GoalTask):
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.reward_weight = reward_weight
-        self.task_vocab = self.task_vocab + self._objects_in_world + self._objects_to_insert
+        self.task_vocab = self.task_vocab + self._objects_to_insert + [goal_name]
 
     def setup(self, world, agent_name):
         """
@@ -566,15 +562,10 @@ class KickingBallTask(GoalTask):
             fail_distance_thresh=fail_distance_thresh,
             random_range=random_range)
         self._goal_name = 'goal'
-        self._success_distance_thresh = success_distance_thresh,
-        self._objects_in_world = [
-            'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
-            'hammer_on_table', 'cafe_table', 'ball'
-        ]
+        self._success_distance_thresh = success_distance_thresh
         self._step_time = step_time
         self._target_speed = target_speed
         self.reward_weight = reward_weight
-        self.task_vocab = self.task_vocab + self._objects_in_world
 
     def setup(self, world, agent_name):
         """

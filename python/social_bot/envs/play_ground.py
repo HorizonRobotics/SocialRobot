@@ -67,6 +67,7 @@ class PlayGround(GazeboEnvBase):
 
     def __init__(self,
                  agent_type='pioneer2dx_noplugin',
+                 world_name="play_ground.world",
                  task=GoalWithDistractionTask,
                  secondary_task=None,
                  with_language=False,
@@ -83,6 +84,8 @@ class PlayGround(GazeboEnvBase):
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
                 note that 'agent_type' should be the same str as the model's name
+            world_name (string): Select the world file, e.g., empty.world, play_ground.world, 
+                grocery_ground.world
             task, secondary_task (teacher.Task): the teacher task, like GoalTask, 
                 GoalWithDistractionTask, KickingBallTask, etc.
             with_language (bool): The observation will be a dict with an extra sentence
@@ -96,7 +99,8 @@ class PlayGround(GazeboEnvBase):
                 override. e.g., '0.002' for a 2ms sim step
             step_time (float): the peroid of one step of the environment.
                 step_time / world_time_precision is how many simulator substeps during one
-                environment step. for some complex agent, i.e., icub, using step_time of 0.05 is better
+                environment step. for some complex agent like icub, using a step_time of
+                0.05 is more faster to converage
             port: Gazebo port, need to specify when run multiple environment in parallel
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
@@ -119,9 +123,8 @@ class PlayGround(GazeboEnvBase):
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
         agent_cfg = agent_cfgs[agent_type]
-        worldfile_path = os.path.join(social_bot.get_world_dir(),
-                               "play_ground.world")
-        with open(worldfile_path, 'r+') as world_file:
+        wd_path = os.path.join(social_bot.get_world_dir(), world_name)
+        with open(wd_path, 'r+') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
         if world_time_precision is None:

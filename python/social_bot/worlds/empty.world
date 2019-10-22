@@ -36,39 +36,5 @@
       <uri>model://sun</uri>
     </include>
     <!-- AGENT-INSERTION-POINT -->
-    <model name='ball'>
-      <include>
-        <uri>model://ball</uri>
-      </include>
-      <pose frame=''>1.50 1.5 0.2 0 -0 0</pose>
-    </model>
-    <model name='grey_wall_left'>
-      <static>1</static>
-      <include>
-        <uri>model://grey_wall</uri>
-      </include>
-      <pose frame=''>-2 5.7 0 0 -0 0</pose>
-    </model>
-    <model name='grey_wall_right'>
-      <static>1</static>
-      <include>
-        <uri>model://grey_wall</uri>
-      </include>
-      <pose frame=''>-2 -5.7 0 0 -0 0</pose>
-    </model>
-    <model name='grey_wall_behind0'>
-      <static>1</static>
-      <include>
-        <uri>model://grey_wall</uri>
-      </include>
-      <pose frame=''>-5.7 2 0 0 -0 1.5708</pose>
-    </model>
-    <model name='grey_wall_behind1'>
-      <static>1</static>
-      <include>
-        <uri>model://grey_wall</uri>
-      </include>
-      <pose frame=''>-5.7 -2 0 0 -0 1.5708</pose>
-    </model>
   </world>
 </sdf>
