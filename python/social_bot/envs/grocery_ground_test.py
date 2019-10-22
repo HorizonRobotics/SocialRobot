@@ -16,21 +16,29 @@ import unittest
 import random
 import os
 import time
-from grocery_ground import GroceryGround
+import json
+import social_bot
 from absl import logging
+from grocery_ground import GroceryGround
 
 
 class TestGroceryGround(unittest.TestCase):
     def test_grocery(self):
         with_language = True
         agents = [
-            'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands'
+            'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands',
+            'youbot_noplugin'
         ]
         tasks = ['goal', 'kickball']
+        with open(
+                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                'r') as cfg_file:
+            agent_cfgs = json.load(cfg_file)
         for agent_type in agents:
             for task_name in tasks:
                 for use_image_obs in [True, False]:
-                    if agent_type == 'icub' and use_image_obs:
+                    agent_cfg = agent_cfgs[agent_type]
+                    if agent_cfg['camera_sensor'] == '' and use_image_obs:
                         continue
                     logging.info("Testing Case: Agent " + agent_type +
                                  ", Task " + task_name + ", UseImage: " +
@@ -43,7 +51,8 @@ class TestGroceryGround(unittest.TestCase):
                         task_name=task_name)
                     step_cnt = 0
                     last_done_time = time.time()
-                    while step_cnt < 500 and (time.time() - last_done_time) < 10:
+                    while step_cnt < 500 and (
+                            time.time() - last_done_time) < 10:
                         actions = env._control_space.sample()
                         if with_language:
                             actions = dict(control=actions, sentence="hello")

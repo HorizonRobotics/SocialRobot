@@ -8,7 +8,8 @@ import alf.algorithms.actor_critic_loss
 
 # environment config
 import alf.environments.wrappers
-create_environment.env_name='SocialBot-GroceryGroundImage-v0'
+create_environment.env_name='SocialBot-GroceryGround-v0'
+GroceryGround.use_image_observation=True
 create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
 create_environment.num_parallel_environments=12

@@ -56,10 +56,6 @@ We provide OpenAI gym interfaces to easily apply different RL algorithms into th
     SocialBot-SimpleNavigationLanguage-v0
     SocialBot-SimpleNavigationSelfStatesLanguage-v0
     SocialBot-GroceryGround-v0
-    SocialBot-GroceryGroundImage-v0
-    SocialBot-GroceryGroundLanguage-v0
-    SocialBot-GroceryGroundImageLanguage-v0
-    SocialBot-GroceryGroundImageSelfStatesLanguage-v0
     SocialBot-Pr2Gripper-v0
     SocialBot-ICubWalk-v0
     SocialBot-ICubWalkPID-v0
