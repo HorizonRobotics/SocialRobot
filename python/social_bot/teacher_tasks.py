@@ -65,7 +65,8 @@ class GoalTask(teacher.Task):
                 it's considered a failure and is given reward -1
             distraction_penalty_distance_thresh (float): if positive, penalize agent getting too close
                 to distraction objects (objects that are not the goal itself)
-            distraction_penalty (float): how much to penalize getting too close to distraction objects
+            distraction_penalty (float): positive float of how much to penalize getting too close to
+                distraction objects
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with normalized distance the agent get closer to goal.
             random_range (float): the goal's random position range
@@ -163,7 +164,7 @@ class GoalTask(teacher.Task):
 
             if dist < self._success_distance_thresh and dot > 0.707:
                 # within 45 degrees of the agent direction
-                reward = 1.0 + distraction_penalty
+                reward = 1.0 - distraction_penalty
                 self._push_reward_queue(reward)
                 logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                               "dist: " + str(dist))
@@ -172,7 +173,7 @@ class GoalTask(teacher.Task):
                 steps_since_last_reward = 0
                 self._move_goal(goal, loc)
             elif dist > self._initial_dist + self._fail_distance_thresh:
-                reward = -1.0 + distraction_penalty
+                reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
                 logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                               "dist: " + str(dist))
@@ -182,7 +183,7 @@ class GoalTask(teacher.Task):
                     reward = 0
                 else:
                     reward = (self._prev_dist - dist) / self._initial_dist
-                reward=reward + distraction_penalty
+                reward=reward - distraction_penalty
                 self._push_reward_queue(reward)
                 self._prev_dist = dist
                 agent_sentence = yield TeacherAction(
