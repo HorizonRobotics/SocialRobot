@@ -210,9 +210,9 @@ class GoalTask(teacher.Task):
 
 
 @gin.configurable
-class GroceryGroundGoalTask(GoalTask):
+class GoalWithDistractionTask(GoalTask):
     """
-    A simple task to find a goal on grocery ground.
+    A more complex goal task to find a goal on play ground.
     The goal of this task is to train the agent to navigate to an object.
     The name of the object is provided by the teacher. In each
     episode, the location of the goal object is randomly chosen.
@@ -523,7 +523,7 @@ class ICubAuxiliaryTask(teacher.Task):
 
 
 @gin.configurable
-class GroceryGroundKickBallTask(GoalTask):
+class KickingBallTask(GoalTask):
     """
     A simple task to kick a ball to the goal. Simple reward shaping is used to
     guide the agent run to the ball first:

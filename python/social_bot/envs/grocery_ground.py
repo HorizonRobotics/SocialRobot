@@ -35,12 +35,12 @@ from social_bot import teacher_tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
-from social_bot.teacher_tasks import GroceryGroundGoalTask, ICubAuxiliaryTask, GroceryGroundKickBallTask
+from social_bot.teacher_tasks import GoalWithDistractionTask, ICubAuxiliaryTask, KickingBallTask
 import social_bot.pygazebo as gazebo
 
 
 @gin.configurable
-class GroceryGround(GazeboEnvBase):
+class PlayGround(GazeboEnvBase):
     """
     The envionment support agent type of pr2_noplugin, pioneer2dx_noplugin,
     turtlebot, icub, and kuka youbot for now. Note that for the models without
@@ -135,9 +135,9 @@ class GroceryGround(GazeboEnvBase):
 
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         if task_name is None or task_name == 'goal':
-            main_task = GroceryGroundGoalTask()
+            main_task = GoalWithDistractionTask()
         elif task_name == 'kickball':
-            main_task = GroceryGroundKickBallTask(step_time=step_time)
+            main_task = KickingBallTask(step_time=step_time)
         else:
             logging.debug("unsupported task name: " + task_name)
 
@@ -343,7 +343,7 @@ def main():
     use_image_obs = False
     image_with_internal_states = True
     fig = None
-    env = GroceryGround(
+    env = PlayGround(
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,

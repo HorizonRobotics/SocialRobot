@@ -11,18 +11,18 @@ include 'common_nonimage_sac.gin'
 import social_bot
 
 # environment config
-create_environment.env_name="SocialBot-GroceryGround-v0"
+create_environment.env_name="SocialBot-PlayGround-v0"
 create_environment.num_parallel_environments=12
 create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.max_episode_steps=300
 
-GroceryGround.agent_type='icub'
-GroceryGround.task_name='kickball'
-GroceryGround.action_cost=1.0
-GroceryGround.step_time=0.05
-GroceryGroundKickBallTask.random_range=4.0
-GroceryGroundKickBallTask.target_speed=1.0
-GroceryGroundKickBallTask.reward_weight=5.0
+PlayGround.agent_type='icub'
+PlayGround.task_name='kickball'
+PlayGround.action_cost=1.0
+PlayGround.step_time=0.05
+KickingBallTask.random_range=4.0
+KickingBallTask.target_speed=1.0
+KickingBallTask.reward_weight=5.0
 ICubAuxiliaryTask.target='ball'
 ICubAuxiliaryTask.agent_init_pos=(1.0, 0)
 ICubAuxiliaryTask.agent_pos_random_range=1.0

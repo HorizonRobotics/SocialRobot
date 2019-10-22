@@ -7,17 +7,17 @@ include 'common_nonimage_sac.gin'
 import social_bot
 
 # environment config
-create_environment.env_name="SocialBot-GroceryGround-v0"
+create_environment.env_name="SocialBot-PlayGround-v0"
 create_environment.num_parallel_environments=12
 create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.max_episode_steps=200
 
-GroceryGround.agent_type='pioneer2dx_noplugin'
-GroceryGround.task_name='goal'
-GroceryGround.action_cost=0.0
+PlayGround.agent_type='pioneer2dx_noplugin'
+PlayGround.task_name='goal'
+PlayGround.action_cost=0.0
 # 10Hz control freq
-GroceryGround.step_time=0.1
-GroceryGroundGoalTask.sparse_reward=False
+PlayGround.step_time=0.1
+GoalWithDistractionTask.sparse_reward=False
 
 # override algorithm and training config
 actor/ActorDistributionNetwork.fc_layer_params=(128, 64)

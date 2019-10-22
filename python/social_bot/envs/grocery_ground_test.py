@@ -19,10 +19,10 @@ import time
 import json
 import social_bot
 from absl import logging
-from grocery_ground import GroceryGround
+from grocery_ground import PlayGround
 
 
-class TestGroceryGround(unittest.TestCase):
+class TestPlayGround(unittest.TestCase):
     def test_grocery(self):
         with_language = True
         agents = [
@@ -43,7 +43,7 @@ class TestGroceryGround(unittest.TestCase):
                     logging.info("Testing Case: Agent " + agent_type +
                                  ", Task " + task_name + ", UseImage: " +
                                  str(use_image_obs))
-                    env = GroceryGround(
+                    env = PlayGround(
                         with_language=with_language,
                         use_image_observation=use_image_obs,
                         image_with_internal_states=True,

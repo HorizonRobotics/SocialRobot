@@ -34,8 +34,8 @@ register(
 )
 
 register(
-    id='SocialBot-GroceryGround-v0',
-    entry_point='social_bot.envs:GroceryGround',
+    id='SocialBot-PlayGround-v0',
+    entry_point='social_bot.envs:PlayGround',
     max_episode_steps=200,
 )
 
