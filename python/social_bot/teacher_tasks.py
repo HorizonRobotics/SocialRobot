@@ -47,7 +47,7 @@ class GoalTask(teacher.Task):
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
                  distraction_penalty_distance_thresh=0,
-                 distraction_penalty=0,
+                 distraction_penalty=0.5,
                  sparse_reward=True,
                  random_range=2.0,
                  use_curriculum_training=False,
@@ -333,7 +333,7 @@ class GroceryGroundGoalTask(GoalTask):
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
         yield from GoalTask.run(self, agent, world,
-            distractions=self._objects_in_world + self._objects_to_insert)
+            distractions=self._objects_to_insert)
 
     def _insert_objects(self, object_list):
         obj_num = len(object_list)
