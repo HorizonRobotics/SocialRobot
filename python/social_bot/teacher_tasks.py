@@ -53,7 +53,8 @@ class GoalTask(teacher.Task):
                  increase_range_by_percent=50.,
                  reward_thresh_to_increase_range=0.4,
                  percent_full_range_in_curriculum=0.1,
-                 max_reward_q_length=100):
+                 max_reward_q_length=100,
+                 reward_weight=1.0):
         """
         Args:
             max_steps (int): episode will end if not reaching gaol in so many steps
@@ -73,6 +74,7 @@ class GoalTask(teacher.Task):
             percent_full_range_in_curriculum (float): if above 0, randomly throw in x% of training examples
                 where random_range is the full range instead of the easier ones in the curriculum.
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
+            reward_weight (float): the weight of the reward, is used in multi-task case
         """
         super().__init__()
         self._goal_name = goal_name
@@ -83,6 +85,7 @@ class GoalTask(teacher.Task):
         self._use_curriculum_training = use_curriculum_training
         self._start_range = start_range
         self._is_full_range_in_curriculum = False
+        self.reward_weight = reward_weight
         if self.should_use_curriculum_training():
             logging.info("Setting random_range to %f", self._start_range)
             self._orig_random_range = random_range

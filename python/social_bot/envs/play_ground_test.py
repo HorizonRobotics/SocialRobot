@@ -49,7 +49,7 @@ class TestPlayGround(unittest.TestCase):
                         use_image_observation=use_image_obs,
                         image_with_internal_states=True,
                         agent_type=agent_type,
-                        task=task)
+                        tasks=[task])
                     step_cnt = 0
                     last_done_time = time.time()
                     while step_cnt < 500 and (

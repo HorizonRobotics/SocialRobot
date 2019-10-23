@@ -3,7 +3,7 @@
 # python -m alf.bin.play --root_dir=~/tmp/alf_ppo --gin_file=goaltask_alf_ppo.gin --record_file=goaltask.mp4
 
 # Training with other task, 'kickball' for example:
-# python -m alf.bin.train --root_dir=~/tmp/alf_ppo --gin_file=goaltask_alf_ppo.gin --alsologtostderr --gin_param="PlayGround.task=@KickingBallTask"
+# python -m alf.bin.train --root_dir=~/tmp/alf_ppo --gin_file=goaltask_alf_ppo.gin --alsologtostderr --gin_param="PlayGround.tasks=[@KickingBallTask]"
 
 # If you are not recording video and observation does not contain image, you can add 'DISPLAY=null' to skip camera rendering, which will speedup the simulation a lot:
 # DISPLAY=null python -m alf.bin.train ...

@@ -70,8 +70,7 @@ class PlayGround(GazeboEnvBase):
     def __init__(self,
                  agent_type='pioneer2dx_noplugin',
                  world_name="play_ground.world",
-                 task=GoalWithDistractionTask,
-                 secondary_task=None,
+                 tasks=[GoalWithDistractionTask],
                  with_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
@@ -88,7 +87,7 @@ class PlayGround(GazeboEnvBase):
                 note that 'agent_type' should be the same str as the model's name
             world_name (string): Select the world file, e.g., empty.world, play_ground.world, 
                 grocery_ground.world
-            task, secondary_task (teacher.Task): the teacher task, like GoalTask, 
+            tasks (a list of teacher.Task): the teacher task, like GoalTask, 
                 GoalWithDistractionTask, KickingBallTask, etc.
             with_language (bool): The observation will be a dict with an extra sentence
             use_image_observation (bool): Use image, or use low-dimentional states as
@@ -142,15 +141,11 @@ class PlayGround(GazeboEnvBase):
 
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
-        main_task = task(step_time=step_time)
-        task_group = TaskGroup()
-        task_group.add_task(main_task)
-        self._teacher.add_task_group(task_group)
-        if secondary_task != None:
-            task_2 = secondary_task(step_time=step_time)
-            task_group_2 = TaskGroup()
-            task_group_2.add_task(task_2)
-            self._teacher.add_task_group(task_group_2)
+        for task in tasks:
+            main_task = task(step_time=step_time)
+            task_group = TaskGroup()
+            task_group.add_task(main_task)
+            self._teacher.add_task_group(task_group)
         self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
         if self._teacher.vocab_size:
@@ -335,7 +330,7 @@ def main():
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
         agent_type='pioneer2dx_noplugin',
-        task=GoalWithDistractionTask)
+        tasks=[GoalWithDistractionTask])
     env.render()
     step_cnt = 0
     last_done_time = time.time()
