@@ -95,13 +95,15 @@ class PlayGround(GazeboEnvBase):
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
-            world_time_precision (float|None): if not none, the time precision of
-                simulator, i.e., the max_step_size defined in the agent cfg file, will be
-                override. e.g., '0.002' for a 2ms sim step
-            step_time (float): the peroid of one step of the environment.
+            world_time_precision (float|None): this parameter depends on the agent. 
+                if not none, the default time precision of simulator, i.e., the max_step_size
+                defined in the agent cfg file, will be override. Note that pr2 and iCub
+                requires a max_step_size <= 0.001, otherwise cannot train a successful policy.
+            step_time (float): the peroid of one step() function of the environment in simulation.
                 step_time / world_time_precision is how many simulator substeps during one
-                environment step. for some complex agent like icub, using a step_time of
-                0.05 is more faster to converge on task need walking by 2 legs
+                environment step. for the tasks need higher control frequency (such as the 
+                tasks need walking by 2 legs), using a smaller step_time like 0.05 is better.
+                experiments show that iCub can not learn how to walk in a 0.1 step_time
             port: Gazebo port, need to specify when run multiple environment in parallel
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
