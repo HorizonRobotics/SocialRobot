@@ -304,8 +304,8 @@ class GoalWithDistractionTask(GoalTask):
             percent_full_range_in_curriculum=percent_full_range_in_curriculum,
             max_reward_q_length=max_reward_q_length)
         self._random_goal = random_goal
-        self._objects_to_insert = distraction_list
-        self._goals = self._objects_to_insert
+        self._distraction_list = distraction_list
+        self._goals = self._distraction_list
         if self._random_goal:
             self._goals = self._goal_name.split(',')
         logging.info(
@@ -319,14 +319,14 @@ class GoalWithDistractionTask(GoalTask):
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.reward_weight = reward_weight
-        self.task_vocab += [goal_name] + self._objects_to_insert
+        self.task_vocab += [goal_name] + self._distraction_list
 
     def setup(self, world, agent_name, env):
         """
         Setting things up during the initialization
         """
         super().setup(world, agent_name, env)
-        self._insert_objects(self._objects_to_insert)
+        self._insert_objects(self._distraction_list)
 
     def run(self, agent, world):
         self._random_move_objects()
@@ -334,7 +334,7 @@ class GoalWithDistractionTask(GoalTask):
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
         yield from super().run(
-            agent, world, distractions=self._objects_to_insert)
+            agent, world, distractions=self._distraction_list)
 
     def _insert_objects(self, object_list):
         obj_num = len(object_list)
@@ -349,10 +349,10 @@ class GoalWithDistractionTask(GoalTask):
             time.sleep(0.2)
 
     def _random_move_objects(self, random_range=10.0):
-        obj_num = len(self._objects_to_insert)
+        obj_num = len(self._distraction_list)
         obj_pos_list = random.sample(self._pos_list, obj_num)
         for obj_id in range(obj_num):
-            model_name = self._objects_to_insert[obj_id]
+            model_name = self._distraction_list[obj_id]
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
