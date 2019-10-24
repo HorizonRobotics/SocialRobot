@@ -1,6 +1,6 @@
 # training & playing with Agent Learning Framework (Alf)
-# python -m alf.bin.train --root_dir=~/tmp/img_ppo --gin_file=goaltask_img_ppo.gin --alsologtostderr
-# python -m alf.bin.play --root_dir=~/tmp/img_ppo --gin_file=goaltask_img_ppo.gin
+# python -m alf.bin.train --root_dir=~/tmp/img_ppo --gin_file=goaltask_img_ppo_pioneer.gin --alsologtostderr
+# python -m alf.bin.play --root_dir=~/tmp/img_ppo --gin_file=goaltask_img_ppo_pioneer.gin
 
 import alf.algorithms.ppo_algorithm
 import alf.algorithms.ppo_loss
