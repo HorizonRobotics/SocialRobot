@@ -469,8 +469,15 @@ void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=fal
 }
 
 void Close() {
-  gazebo::shutdown();
-  gazebo::client::shutdown();
+  gazebo::physics::stop_worlds();
+  gazebo::sensors::stop();
+  gazebo::util::LogRecord::Instance()->Stop();
+  gazebo::transport::stop();
+
+  gazebo::transport::fini();
+  gazebo::physics::fini();
+  gazebo::sensors::fini();
+
   gazebo_initialized  = false;
   gazebo_sensor_initialized  = false;
 }
