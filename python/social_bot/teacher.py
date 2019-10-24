@@ -242,7 +242,6 @@ class Teacher(object):
         self._vocab_list = None
         self._task_groups = []
         self._weights = []
-        self._task_groups_exclusive = True
         self.vocab_size = 0
 
     def add_task_group(self, task_group, weight=1):
