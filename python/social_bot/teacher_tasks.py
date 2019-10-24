@@ -32,6 +32,7 @@ import social_bot.pygazebo as gazebo
 
 from absl import logging
 
+
 @gin.configurable
 class GoalTask(teacher.Task):
     """
@@ -180,13 +181,14 @@ class GoalTask(teacher.Task):
                 self._push_reward_queue(0)
                 logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                               "dist: " + str(dist))
-                yield TeacherAction(reward=reward, sentence="failed", done=True)
+                yield TeacherAction(
+                    reward=reward, sentence="failed", done=True)
             else:
                 if self._sparse_reward:
                     reward = 0
                 else:
                     reward = (self._prev_dist - dist) / self._initial_dist
-                reward=reward - distraction_penalty
+                reward = reward - distraction_penalty
                 self._push_reward_queue(reward)
                 self._prev_dist = dist
                 agent_sentence = yield TeacherAction(
@@ -307,7 +309,8 @@ class GoalWithDistractionTask(GoalTask):
         self._goals = self._objects_to_insert
         if self._random_goal:
             self._goals = self._goal_name.split(',')
-        logging.info("goal_name %s, random_goal %d, random_range %d," +
+        logging.info(
+            "goal_name %s, random_goal %d, random_range %d," +
             " fail_distance_thresh %f,", self._goal_name, self._random_goal,
             self._random_range, fail_distance_thresh)
         if self.should_use_curriculum_training():
@@ -317,8 +320,7 @@ class GoalWithDistractionTask(GoalTask):
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.reward_weight = reward_weight
-        self.task_vocab += [goal_name]
-        self.task_vocab += self._objects_in_world + self._objects_to_insert
+        self.task_vocab += [goal_name] + self._objects_to_insert
 
     def setup(self, world, agent_name, env):
         """
@@ -332,8 +334,8 @@ class GoalWithDistractionTask(GoalTask):
         if self._random_goal:
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
-        yield from super().run(self, agent, world,
-            distractions=self._objects_to_insert)
+        yield from super().run(
+            agent, world, distractions=self._objects_to_insert)
 
     def _insert_objects(self, object_list):
         obj_num = len(object_list)
@@ -526,7 +528,8 @@ class ICubAuxiliaryTask(teacher.Task):
         icub_extra_obs = self.get_icub_extra_obs(self._agent)
         if self._target_name:
             agent_pos = icub_extra_obs[:3]
-            agent_speed = (agent_pos - self._pre_agent_pos) / self._env.get_step_time()
+            agent_speed = (
+                agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos
             yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
             angle_to_target = self._get_angle_to_target(
@@ -642,8 +645,9 @@ class KickingBallTask(GoalTask):
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
                 # distance/step_time so that number is in m/s, trunk to target_speed
-                progress_reward = min(self._target_speed,
-                                      (prev_dist - dist) / self._env.get_step_time())
+                progress_reward = min(
+                    self._target_speed,
+                    (prev_dist - dist) / self._env.get_step_time())
                 prev_dist = dist
                 if dist < 0.3:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
