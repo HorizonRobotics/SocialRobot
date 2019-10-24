@@ -118,7 +118,6 @@ class PlayGround(GazeboEnvBase):
         self._use_image_obs = use_image_observation
         self._image_with_internal_states = self._use_image_obs and image_with_internal_states
         self._resized_image_size = resized_image_size
-        self._substep_time = world_time_precision
 
         # Load agent and world file
         with open(
@@ -132,21 +131,20 @@ class PlayGround(GazeboEnvBase):
                 world_file, agent_type)
         if world_time_precision is None:
             world_time_precision = agent_cfg['max_sim_step_time']
-        sub_steps = int(round(step_time / world_time_precision))
-        self._sub_steps = sub_steps
+        self._sub_steps = int(round(step_time / world_time_precision))
+        self._step_time = world_time_precision * self._sub_steps
         sim_time_cfg = [
             "//physics//max_step_size=" + str(world_time_precision)
         ]
-
         super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)
+        logging.debug(self._world.info())
 
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         for task in tasks:
-            main_task = task(step_time=step_time)
             task_group = TaskGroup()
-            task_group.add_task(main_task)
+            task_group.add_task(task())
             self._teacher.add_task_group(task_group)
         self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
@@ -157,10 +155,9 @@ class PlayGround(GazeboEnvBase):
         self._agent = self._world.get_agent()
         for task_group in self._teacher.get_task_groups():
             for task in task_group.get_tasks():
-                task.setup(self._world, agent_type)
+                task.setup(self._world, agent_type, self)
 
         # Setup action space
-        logging.debug(self._world.info())
         self._agent_joints = agent_cfg['control_joints']
         joint_states = list(
             map(lambda s: self._agent.get_joint_state(s), self._agent_joints))
@@ -263,6 +260,15 @@ class PlayGround(GazeboEnvBase):
             logging.debug("episode ends at cum reward:" +
                           str(self._cum_reward))
         return obs, reward, teacher_action.done, {}
+
+    def get_step_time(self):
+        """
+        Args:
+            None
+        Returns:
+            The time span of an environment step
+        """
+        return self._step_time
 
     def _insert_agent_to_world_file(self, world_file, model):
         content = world_file.read()

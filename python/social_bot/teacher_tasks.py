@@ -229,7 +229,6 @@ class GoalWithDistractionTask(GoalTask):
                  random_range=10.0,
                  random_goal=False,
                  sparse_reward=True,
-                 step_time=0.1,
                  use_curriculum_training=False,
                  start_range=0,
                  increase_range_by_percent=50.,
@@ -249,7 +248,6 @@ class GoalWithDistractionTask(GoalTask):
             random_range (float): the goal's random position range
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with normalized distance the agent get closer to goal.
-            step_time (float): used to caculate speed of the agent
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
             start_range (float): for curriculum learning, the starting random_range to set the goal
@@ -298,11 +296,11 @@ class GoalWithDistractionTask(GoalTask):
         self.task_vocab = self.task_vocab + [goal_name]
         self.task_vocab = self.task_vocab + self._objects_to_insert
 
-    def setup(self, world, agent_name):
+    def setup(self, world, agent_name, env):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name)
+        super().setup(world, agent_name, env)
         self._insert_objects(self._objects_to_insert)
 
     def run(self, agent, world):
@@ -353,7 +351,6 @@ class ICubAuxiliaryTask(teacher.Task):
     """
 
     def __init__(self,
-                 step_time=0.05,
                  target=None,
                  agent_init_pos=(0, 0),
                  agent_pos_random_range=0,
@@ -362,7 +359,6 @@ class ICubAuxiliaryTask(teacher.Task):
         Args:
             reward_weight (float): the weight of the reward, should be tuned
                 accroding to reward range of other tasks 
-            step_time (float): used to caculate speed of the agent
             target (string): this is the target icub should face towards, since
                 you may want the agent interact with something
             agent_init_pos (tuple): the expected initial position of the agent
@@ -371,17 +367,16 @@ class ICubAuxiliaryTask(teacher.Task):
         super().__init__()
         self.reward_weight = reward_weight
         self.task_vocab = ['icub']
-        self._step_time = step_time
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
         self._agent_init_pos = agent_init_pos
         self._random_range = agent_pos_random_range
 
-    def setup(self, world, agent_name):
+    def setup(self, world, agent_name, env):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name)
+        super().setup(world, agent_name, env)
         if self._target_name:
             self._target = world.get_agent(self._target_name)
         with open(
@@ -506,7 +501,7 @@ class ICubAuxiliaryTask(teacher.Task):
         icub_extra_obs = self.get_icub_extra_obs(self._agent)
         if self._target_name:
             agent_pos = icub_extra_obs[:3]
-            agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
+            agent_speed = (agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos
             yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
             angle_to_target = self._get_angle_to_target(
@@ -546,7 +541,6 @@ class KickingBallTask(GoalTask):
                  fail_distance_thresh=0.5,
                  random_range=5.0,
                  target_speed=2.0,
-                 step_time=0.1,
                  reward_weight=1.0):
         """
         Args:
@@ -558,7 +552,6 @@ class KickingBallTask(GoalTask):
             random_range (float): the goal's random position range
             target_speed (float): the target speed runing to the ball. The agent will receive no more 
                 higher reward when its speed is higher than target_speed.
-            step_time (float): used to caculate speed of the agent
             reward_weight (float): the weight of the reward
         """
         super().__init__(
@@ -568,15 +561,14 @@ class KickingBallTask(GoalTask):
             random_range=random_range)
         self._goal_name = 'goal'
         self._success_distance_thresh = success_distance_thresh
-        self._step_time = step_time
         self._target_speed = target_speed
         self.reward_weight = reward_weight
 
-    def setup(self, world, agent_name):
+    def setup(self, world, agent_name, env):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name)
+        super().setup(world, agent_name, env)
         goal_sdf = """
         <?xml version='1.0'?>
         <sdf version ='1.4'>
@@ -626,7 +618,7 @@ class KickingBallTask(GoalTask):
                     np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
                 # distance/step_time so that number is in m/s, trunk to target_speed
                 progress_reward = min(self._target_speed,
-                                      (prev_dist - dist) / self._step_time)
+                                      (prev_dist - dist) / self._env.get_step_time())
                 prev_dist = dist
                 if dist < 0.3:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])

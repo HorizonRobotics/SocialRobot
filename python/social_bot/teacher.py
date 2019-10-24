@@ -61,13 +61,14 @@ class Task(object):
         self._agent_name = None
         self.reward_weight = 1.0
 
-    def setup(self, world, agent_name):
+    def setup(self, world, agent_name, env):
         """
         Setting things up during the initialization
         """
         self._world = world
         self._agent = self._world.get_agent()
         self._agent_name = agent_name
+        self._env = env
 
     @abstractmethod
     def run(self):
