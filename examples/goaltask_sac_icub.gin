@@ -1,8 +1,8 @@
 # Training & playing the ball task with agent iCub and Sac algorithm
 # Note that task reward weight may need to be tuned since multiple tasks are used
 #
-# python -m alf.bin.train --root_dir=~/tmp/ball_icub_sac --gin_file=balltask_icub_sac.gin
-# python -m alf.bin.play --root_dir=~/tmp/ball_icub_sac --gin_file=balltask_icub_sac.gin
+# python -m alf.bin.train --root_dir=~/tmp/icub_sac --gin_file=goaltask_sac_icub.gin
+# python -m alf.bin.play --root_dir=~/tmp/icub_sac --gin_file=goaltask_sac_icub.gin
 
 # If you are not recording video and observation does not contain image, you can add 'DISPLAY=null' to skip camera rendering, which will speedup the simulation a lot:
 # DISPLAY=null python -m alf.bin.train ...
@@ -17,7 +17,7 @@ create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.max_episode_steps=300
 
 PlayGround.agent_type='icub'
-PlayGround.tasks=[@KickingBallTask, @ICubAuxiliaryTask]
+PlayGround.tasks=[@GoalWithDistractionTask, @ICubAuxiliaryTask]
 PlayGround.action_cost=1.0
 PlayGround.step_time=0.05
 KickingBallTask.random_range=4.0

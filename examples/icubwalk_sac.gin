@@ -1,5 +1,5 @@
 # training & playing with Agent Learning Framework (Alf)
-# python -m alf.bin.train --root_dir=~/tmp/icub_sac --gin_file=icub_alf_sac.gin --alsologtostderr
+# python -m alf.bin.train --root_dir=~/tmp/icub_sac --gin_file=icubwalk_sac.gin --alsologtostderr
 
 include 'common_nonimage_sac.gin'
 import social_bot

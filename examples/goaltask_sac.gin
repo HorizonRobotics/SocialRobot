@@ -2,6 +2,8 @@
 #
 # DISPLAY=null python -m alf.bin.train --root_dir=~/tmp/goal_sac --gin_file=goaltask_sac.gin
 # python -m alf.bin.play --root_dir=~/tmp/goal_sac --gin_file=goaltask_sac.gin
+#
+# This file also works perfectly for kickingball task by setting PlayGround.tasks=[@KickingBallTask]
 
 include 'common_nonimage_sac.gin'
 import social_bot
