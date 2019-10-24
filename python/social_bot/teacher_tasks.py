@@ -249,6 +249,7 @@ class GoalWithDistractionTask(GoalTask):
     def __init__(self,
                  max_steps=500,
                  goal_name="ball",
+                 distraction_list=['coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'],
                  success_distance_thresh=0.5,
                  fail_distance_thresh=3,
                  random_range=10.0,
@@ -267,6 +268,7 @@ class GoalWithDistractionTask(GoalTask):
                 higher than max_episode_steps when register to gym, so that return of last step could be
                 handled correctly
             goal_name (string): name of the goal in the world
+            distraction_list (list of string): a list of model. the model shoud be in gazebo database
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is givne reward -1
@@ -302,10 +304,7 @@ class GoalWithDistractionTask(GoalTask):
             percent_full_range_in_curriculum=percent_full_range_in_curriculum,
             max_reward_q_length=max_reward_q_length)
         self._random_goal = random_goal
-        self._objects_to_insert = [
-            'coke_can', 'table', 'bookshelf', 'car_wheel', 'plastic_cup',
-            'beer', 'hammer'
-        ]
+        self._objects_to_insert = distraction_list
         self._goals = self._objects_to_insert
         if self._random_goal:
             self._goals = self._goal_name.split(',')
