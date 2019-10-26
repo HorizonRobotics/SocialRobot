@@ -67,7 +67,7 @@ class Task(object):
         """
         self._env = env
         self._world = env._world
-        self._agent = env._world
+        self._agent = env._agent
         self._agent_type = env._agent_type
 
     @abstractmethod
