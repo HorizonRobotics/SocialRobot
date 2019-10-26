@@ -20,7 +20,7 @@ import json
 import social_bot
 from absl import logging
 from play_ground import PlayGround
-from social_bot.teacher_tasks import GoalWithDistractionTask, KickingBallTask, ICubAuxiliaryTask
+from social_bot.teacher_tasks import GoalTask, GoalWithDistractionTask, KickingBallTask, ICubAuxiliaryTask
 
 
 class TestPlayGround(unittest.TestCase):
@@ -30,7 +30,7 @@ class TestPlayGround(unittest.TestCase):
             'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands',
             'youbot_noplugin'
         ]
-        tasks = [GoalWithDistractionTask, KickingBallTask]
+        tasks = [GoalTask, GoalWithDistractionTask, KickingBallTask]
         with open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:

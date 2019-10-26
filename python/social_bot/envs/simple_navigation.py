@@ -80,6 +80,7 @@ class SimpleNavigation(GazeboEnvBase):
         super(SimpleNavigation, self).__init__(
             world_file='pioneer2dx_camera.world', port=port)
         self._agent = self._world.get_agent()
+        self._agent_type = 'pioneer2dx_noplugin'
         self._rendering_cam_pose = "4 -4 3 0 0.4 2.3"
         assert self._agent is not None
         logging.debug("joint names: %s" % self._agent.get_joint_names())
@@ -88,8 +89,12 @@ class SimpleNavigation(GazeboEnvBase):
             filter(lambda s: s.find('wheel') != -1, self._all_joints))
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
-        task_group.add_task(GoalTask())
+        task = GoalTask(
+            goal_name="goal",
+            random_range=2.0)
+        task_group.add_task(task)
         self._teacher.add_task_group(task_group)
+        task.setup(self)
         self._seq_length = 20
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)

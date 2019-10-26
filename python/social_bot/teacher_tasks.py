@@ -44,13 +44,13 @@ class GoalTask(teacher.Task):
 
     def __init__(self,
                  max_steps=500,
-                 goal_name="goal",
+                 goal_name="ball",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
                  sparse_reward=True,
-                 random_range=2.0,
+                 random_range=5.0,
                  use_curriculum_training=False,
                  start_range=0,
                  increase_range_by_percent=50.,
@@ -106,6 +106,15 @@ class GoalTask(teacher.Task):
         else:
             self._random_range = random_range
         self.task_vocab = ['hello', 'goal', 'well', 'done', 'failed', 'to']
+        if not goal_name in self.task_vocab:
+            self.task_vocab.append(goal_name)
+
+    def setup(self, env):
+        """
+        Setting things up during the initialization
+        """
+        super().setup(env)
+        self._insert_objects([self._goal_name])
 
     def should_use_curriculum_training(self):
         return (self._use_curriculum_training
@@ -238,6 +247,30 @@ class GoalTask(teacher.Task):
         logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
 
+    def _insert_objects(self, object_list):
+        obj_num = len(object_list)
+        for obj_id in range(obj_num):
+            model_name = object_list[obj_id]
+            if self._world.model_list_info().find(model_name) == -1:
+                self._world.insertModelFile('model://' + model_name)
+                logging.debug('model ' + model_name + ' inserted')
+                # Sleep for a while waiting for Gazebo server to finish the inserting
+                # operation. Or the model may not be completely inserted, boost will
+                # throw 'px!=0' error when set_pose/get_pose of the model is called
+                time.sleep(0.2)
+                self._world.step(20)
+
+    def task_specific_observation(self):
+        """
+        Args:
+            None
+        Returns:
+            np.array of the extra observations should be added into the
+            observation besides self states, for the non-image case
+        """
+        goal = self._world.get_model(self._goal_name)
+        return np.array(goal.get_pose()[0]).flatten()
+
 
 @gin.configurable
 class GoalWithDistractionTask(GoalTask):
@@ -307,9 +340,8 @@ class GoalWithDistractionTask(GoalTask):
             max_reward_q_length=max_reward_q_length,
             reward_weight=reward_weight)
         self._random_goal = random_goal
-        if not goal_name in distraction_list:
-            distraction_list.append(goal_name)
         self._distraction_list = distraction_list
+        self._object_list = distraction_list + [goal_name]
         self._goals = self._distraction_list
         if self._random_goal:
             self._goals = self._goal_name.split(',')
@@ -330,7 +362,7 @@ class GoalWithDistractionTask(GoalTask):
         Setting things up during the initialization
         """
         super().setup(env)
-        self._insert_objects(self._distraction_list)
+        self._insert_objects(self._object_list)
 
     def run(self):
         self._random_move_objects()
@@ -339,37 +371,14 @@ class GoalWithDistractionTask(GoalTask):
             self.set_goal_name(self._goals[random_id])
         yield from super().run(distractions=self._distraction_list)
 
-    def _insert_objects(self, object_list):
-        obj_num = len(object_list)
-        for obj_id in range(obj_num):
-            model_name = object_list[obj_id]
-            self._world.insertModelFile('model://' + model_name)
-            logging.debug('model ' + model_name + ' inserted')
-            self._world.step(20)
-            # Sleep for a while waiting for Gazebo server to finish the inserting
-            # operation. Or the model may not be completely inserted, boost will
-            # throw 'px!=0' error when set_pose/get_pose of the model is called
-            time.sleep(0.2)
-
     def _random_move_objects(self, random_range=10.0):
-        obj_num = len(self._distraction_list)
+        obj_num = len(self._object_list)
         obj_pos_list = random.sample(self._pos_list, obj_num)
         for obj_id in range(obj_num):
-            model_name = self._distraction_list[obj_id]
+            model_name = self._object_list[obj_id]
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
-
-    def task_specific_observation(self):
-        """
-        Args:
-            None
-        Returns:
-            np.array of the extra observations should be added into the
-            observation besides self states, for the non-image case
-        """
-        goal = self._world.get_model(self._goal_name)
-        return np.array(goal.get_pose()[0]).flatten()
 
 
 @gin.configurable
@@ -596,7 +605,7 @@ class KickingBallTask(GoalTask):
         """
         Setting things up during the initialization
         """
-        super().setup(env)
+        teacher.Task.setup(self, env)
         goal_sdf = """
         <?xml version='1.0'?>
         <sdf version ='1.4'>
@@ -610,6 +619,20 @@ class KickingBallTask(GoalTask):
         </sdf>
         """
         self._world.insertModelFromSdfString(goal_sdf)
+        time.sleep(0.2)
+        self._world.step(20)
+        ball_sdf = """
+        <?xml version='1.0'?>
+        <sdf version ='1.4'>
+        <model name='ball'>
+            <include>
+                <uri>model://ball</uri>
+            </include>
+            <pose frame=''>1.50 1.5 0.2 0 -0 0</pose>
+        </model>
+        </sdf>
+        """
+        self._world.insertModelFromSdfString(ball_sdf)
         time.sleep(0.2)
         self._world.step(20)
 

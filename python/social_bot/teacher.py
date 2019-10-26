@@ -58,7 +58,7 @@ class Task(object):
     def __init__(self, reward_weight=1.0):
         self._agent = None
         self._world = None
-        self._agent_name = None
+        self._agent_type = None
         self.reward_weight = reward_weight
 
     def setup(self, env):
