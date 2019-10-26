@@ -128,7 +128,7 @@ class GoalTask(teacher.Task):
     def get_random_range(self):
         return self._random_range
 
-    def run(self, agent, world, distractions=None):
+    def run(self, distractions=None):
         """
         Start a teaching episode for this task.
         Args:
@@ -136,15 +136,15 @@ class GoalTask(teacher.Task):
             world (pygazebo.World): the simulation world
         """
         agent_sentence = yield
-        agent.reset()
-        goal = world.get_agent(self._goal_name)
-        loc, dir = agent.get_pose()
+        self._agent.reset()
+        goal = self._world.get_agent(self._goal_name)
+        loc, dir = self._agent.get_pose()
         loc = np.array(loc)
         self._move_goal(goal, loc)
         steps_since_last_reward = 0
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
-            loc, dir = agent.get_pose()
+            loc, dir = self._agent.get_pose()
             if self._agent_type.find('icub') != -1:
                 # For agent icub, we need to use the average pos here
                 loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
@@ -160,7 +160,7 @@ class GoalTask(teacher.Task):
             distraction_penalty = 0
             if self._distraction_penalty_distance_thresh > 0 and distractions:
                 for obj_name in distractions:
-                    obj = world.get_agent(obj_name)
+                    obj = self._world.get_agent(obj_name)
                     if obj:
                         obj_loc, obj_dir = obj.get_pose()
                         obj_loc = np.array(obj_loc)
@@ -332,13 +332,12 @@ class GoalWithDistractionTask(GoalTask):
         super().setup(env)
         self._insert_objects(self._distraction_list)
 
-    def run(self, agent, world):
+    def run(self):
         self._random_move_objects()
         if self._random_goal:
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
-        yield from super().run(
-            agent, world, distractions=self._distraction_list)
+        yield from super().run(distractions=self._distraction_list)
 
     def _insert_objects(self, object_list):
         obj_num = len(object_list)
@@ -407,31 +406,31 @@ class ICubAuxiliaryTask(teacher.Task):
         """
         super().setup(env)
         if self._target_name:
-            self._target = world.get_agent(self._target_name)
+            self._target = self._world.get_agent(self._target_name)
         with open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
         self._joints = agent_cfgs[self._agent_type]['control_joints']
 
-    def run(self, agent, world):
+    def run(self):
         """
         Start a teaching episode for this task.
         Args:
             agent (pygazebo.Agent): the learning agent 
             world (pygazebo.World): the simulation world
         """
-        self._pre_agent_pos = self.get_icub_extra_obs(agent)[:3]
+        self._pre_agent_pos = self.get_icub_extra_obs(self._agent)[:3]
         agent_sentence = yield
         done = False
         # set icub random initial pose
         x = self._agent_init_pos[0] + random.random() * self._random_range
         y = self._agent_init_pos[1] + random.random() * self._random_range
         orient = (random.random() - 0.5) * np.pi
-        agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
+        self._agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
         while not done:
             # reward for not falling (alive reward)
-            agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
+            agent_height = np.array(self._agent.get_link_pose('iCub::head'))[0][2]
             done = agent_height < 0.7  # fall down
             standing_reward = agent_height
             # movement cost, to avoid uncessary movements
@@ -614,7 +613,7 @@ class KickingBallTask(GoalTask):
         time.sleep(0.2)
         self._world.step(20)
 
-    def run(self, agent, world):
+    def run(self):
         """
         Start a teaching episode for this task.
         Args:
@@ -622,11 +621,11 @@ class KickingBallTask(GoalTask):
             world (pygazebo.World): the simulation world
         """
         agent_sentence = yield
-        goal = world.get_agent(self._goal_name)
-        ball = world.get_agent('ball')
+        goal = self._world.get_agent(self._goal_name)
+        ball = self._world.get_agent('ball')
         goal_loc, dir = goal.get_pose()
         self._move_goal(ball, np.array(goal_loc))
-        agent_loc, dir = agent.get_pose()
+        agent_loc, dir = self._agent.get_pose()
         ball_loc, _ = ball.get_pose()
         prev_dist = np.linalg.norm(
             np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
@@ -637,7 +636,7 @@ class KickingBallTask(GoalTask):
         while steps < self._max_steps:
             steps += 1
             if not hitted_ball:
-                agent_loc, dir = agent.get_pose()
+                agent_loc, dir = self._agent.get_pose()
                 if self._agent_type.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
                     agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(

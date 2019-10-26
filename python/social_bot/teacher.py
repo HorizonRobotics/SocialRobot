@@ -76,7 +76,7 @@ class Task(object):
         run() use yield to generate TeacherAction
         Structure of run():
         ```python
-        def run(self, agent, world):
+        def run(self):
           ...
           # agent_sentence is provided by Teacher using send() in TaskGroup.teach()
           agent_sentence = yield  # the first yielded value is ignored
@@ -180,7 +180,7 @@ class TaskGroup(object):
     def _get_current_task(self):
         if self._current_task is None:
             tid = random.randint(0, len(self._tasks) - 1)
-            self._current_task = self._tasks[tid].run(self._agent, self._world)
+            self._current_task = self._tasks[tid].run()
             self._current_reward_weight = self._tasks[tid].reward_weight
             # This send will cause self._current_task to execute until the first
             # yield. We ignore the first yielded value.
