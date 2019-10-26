@@ -55,20 +55,20 @@ class Task(object):
     A Task is for teaching a single task.
     """
 
-    def __init__(self):
+    def __init__(self, reward_weight=1.0):
         self._agent = None
         self._world = None
         self._agent_name = None
-        self.reward_weight = 1.0
+        self.reward_weight = reward_weight
 
-    def setup(self, world, agent_name, env):
+    def setup(self, env):
         """
         Setting things up during the initialization
         """
-        self._world = world
-        self._agent = self._world.get_agent()
-        self._agent_name = agent_name
         self._env = env
+        self._world = env._world
+        self._agent = env._world
+        self._agent_type = env._agent_type
 
     @abstractmethod
     def run(self):

@@ -100,6 +100,7 @@ class PlayGround(GazeboEnvBase):
                 defined in the agent cfg file, will be override. Note that pr2 and iCub
                 requires a max_step_size <= 0.001, otherwise cannot train a successful policy.
             step_time (float): the peroid of one step() function of the environment in simulation.
+                step_time is rounded to multiples of world_time_precision
                 step_time / world_time_precision is how many simulator substeps during one
                 environment step. for the tasks need higher control frequency (such as the 
                 tasks need walking by 2 legs), using a smaller step_time like 0.05 is better.
@@ -113,6 +114,7 @@ class PlayGround(GazeboEnvBase):
             vocab_sequence_length (int): the length of encoded sequence
         """
 
+        self._agent_type = agent_type
         self._action_cost = action_cost
         self._with_language = with_language
         self._use_image_obs = use_image_observation
@@ -155,7 +157,7 @@ class PlayGround(GazeboEnvBase):
         self._agent = self._world.get_agent()
         for task_group in self._teacher.get_task_groups():
             for task in task_group.get_tasks():
-                task.setup(self._world, agent_type, self)
+                task.setup(self)
 
         # Setup action space
         self._agent_joints = agent_cfg['control_joints']

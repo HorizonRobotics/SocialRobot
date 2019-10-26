@@ -83,7 +83,7 @@ class GoalTask(teacher.Task):
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
         """
-        super().__init__()
+        super().__init__(reward_weight=reward_weight)
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
@@ -94,7 +94,6 @@ class GoalTask(teacher.Task):
         self._use_curriculum_training = use_curriculum_training
         self._start_range = start_range
         self._is_full_range_in_curriculum = False
-        self.reward_weight = reward_weight
         if self.should_use_curriculum_training():
             logging.info("Setting random_range to %f", self._start_range)
             self._orig_random_range = random_range
@@ -240,7 +239,7 @@ class GoalTask(teacher.Task):
 @gin.configurable
 class GoalWithDistractionTask(GoalTask):
     """
-    A more complex goal task to find a goal on play ground.
+    A more complex goal task to find a randomly selected goal on play ground.
     The goal of this task is to train the agent to navigate to an object.
     The name of the object is provided by the teacher. In each
     episode, the location of the goal object is randomly chosen.
@@ -302,8 +301,11 @@ class GoalWithDistractionTask(GoalTask):
             increase_range_by_percent=increase_range_by_percent,
             reward_thresh_to_increase_range=reward_thresh_to_increase_range,
             percent_full_range_in_curriculum=percent_full_range_in_curriculum,
-            max_reward_q_length=max_reward_q_length)
+            max_reward_q_length=max_reward_q_length,
+            reward_weight=reward_weight)
         self._random_goal = random_goal
+        if not goal_name in distraction_list:
+            distraction_list.append(goal_name)
         self._distraction_list = distraction_list
         self._goals = self._distraction_list
         if self._random_goal:
@@ -318,14 +320,13 @@ class GoalWithDistractionTask(GoalTask):
                          self._reward_thresh_to_increase_range)
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
-        self.reward_weight = reward_weight
-        self.task_vocab += [goal_name] + self._distraction_list
+        self.task_vocab += self._distraction_list
 
-    def setup(self, world, agent_name, env):
+    def setup(self, env):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name, env)
+        super().setup(env)
         self._insert_objects(self._distraction_list)
 
     def run(self, agent, world):
@@ -390,26 +391,25 @@ class ICubAuxiliaryTask(teacher.Task):
             agent_init_pos (tuple): the expected initial position of the agent
             pos_random_range (float): random range of the initial position
         """
-        super().__init__()
-        self.reward_weight = reward_weight
+        super().__init__(reward_weight=reward_weight)
         self.task_vocab = ['icub']
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
         self._agent_init_pos = agent_init_pos
         self._random_range = agent_pos_random_range
 
-    def setup(self, world, agent_name, env):
+    def setup(self, env):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name, env)
+        super().setup(env)
         if self._target_name:
             self._target = world.get_agent(self._target_name)
         with open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
-        self._joints = agent_cfgs[self._agent_name]['control_joints']
+        self._joints = agent_cfgs[self._agent_type]['control_joints']
 
     def run(self, agent, world):
         """
@@ -584,18 +584,17 @@ class KickingBallTask(GoalTask):
         super().__init__(
             max_steps=max_steps,
             goal_name=goal_name,
+            success_distance_thresh=success_distance_thresh,
             fail_distance_thresh=fail_distance_thresh,
-            random_range=random_range)
-        self._goal_name = 'goal'
-        self._success_distance_thresh = success_distance_thresh
+            random_range=random_range,
+            reward_weight=reward_weight)
         self._target_speed = target_speed
-        self.reward_weight = reward_weight
 
-    def setup(self, world, agent_name, env):
+    def setup(self, env):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name, env)
+        super().setup(env)
         goal_sdf = """
         <?xml version='1.0'?>
         <sdf version ='1.4'>
@@ -636,7 +635,7 @@ class KickingBallTask(GoalTask):
             steps += 1
             if not hitted_ball:
                 agent_loc, dir = agent.get_pose()
-                if self._agent_name.find('icub') != -1:
+                if self._agent_type.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
                     agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(
                         self._agent)[:3]
