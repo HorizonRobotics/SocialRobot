@@ -50,12 +50,6 @@
       </include>
       <pose frame=''>-4.20 4.90 1.00   0 -0 0</pose>
     </model>
-    <model name='ball'>
-      <include>
-        <uri>model://ball</uri>
-      </include>
-      <pose frame=''>1.50 1.5 0.2 0 -0 0</pose>
-    </model>
     <model name='plastic_cup_on_table'>
       <static>1</static>
       <include>

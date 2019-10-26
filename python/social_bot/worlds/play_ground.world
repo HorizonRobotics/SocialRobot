@@ -33,12 +33,6 @@
       <uri>model://sun</uri>
     </include>
     <!-- AGENT-INSERTION-POINT -->
-    <model name='ball'>
-      <include>
-        <uri>model://ball</uri>
-      </include>
-      <pose frame=''>1.50 1.5 0.2 0 -0 0</pose>
-    </model>
     <model name='grey_wall_left'>
       <static>1</static>
       <include>
