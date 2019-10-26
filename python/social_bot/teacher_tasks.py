@@ -145,6 +145,9 @@ class GoalTask(teacher.Task):
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
             loc, dir = agent.get_pose()
+            if self._agent_type.find('icub') != -1:
+                # For agent icub, we need to use the average pos here
+                loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
             goal_loc, _ = goal.get_pose()
             loc = np.array(loc)
             goal_loc = np.array(goal_loc)
