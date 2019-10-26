@@ -451,7 +451,7 @@ class ICubAuxiliaryTask(teacher.Task):
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
             # orientation cost, the agent should face towards the target
             if self._target_name:
-                agent_pos = self.get_icub_extra_obs(agent)[:3]
+                agent_pos = self.get_icub_extra_obs(self._agent)[:3]
                 head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
                 root_angle = self._get_angle_to_target(agent_pos,
                                                        'iCub::root_link')
