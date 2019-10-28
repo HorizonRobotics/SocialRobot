@@ -1,6 +1,6 @@
 # training & playing with Agent Learning Framework (Alf)
-# python -m alf.bin.train --root_dir=~/tmp/gro_img_ppo --gin_file=grocery_goaltask_img_ppo.gin --alsologtostderr
-# python -m alf.bin.play --root_dir=~/tmp/gro_img_ppo --gin_file=grocery_goaltask_img_ppo.gin
+# python -m alf.bin.train --root_dir=~/tmp/img_ppo --gin_file=goaltask_img_ppo_pioneer.gin --alsologtostderr
+# python -m alf.bin.play --root_dir=~/tmp/img_ppo --gin_file=goaltask_img_ppo_pioneer.gin
 
 import alf.algorithms.ppo_algorithm
 import alf.algorithms.ppo_loss
@@ -10,13 +10,13 @@ import alf.networks.stable_normal_projection_network
 
 # environment config
 import alf.environments.wrappers
-create_environment.env_name='SocialBot-GroceryGround-v0'
-GroceryGround.use_image_observation=True
+create_environment.env_name='SocialBot-PlayGround-v0'
+PlayGround.use_image_observation=True
 create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
 create_environment.num_parallel_environments=16
-GroceryGround.resized_image_size=(48, 48)
-GroceryGroundGoalTask.sparse_reward=False
+PlayGround.resized_image_size=(48, 48)
+GoalWithDistractionTask.sparse_reward=False
 
 PolicyDriver.observation_transformer=@image_scale_transformer
 

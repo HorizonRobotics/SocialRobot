@@ -1,6 +1,6 @@
 # training & playing with Agent Learning Framework (Alf)
-# python -m alf.bin.train --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --alsologtostderr
-# python -m alf.bin.play --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --num_episodes=20 --record_file=simple_navigation.mp4
+# python -m alf.bin.train --root_dir=~/tmp/simple_navigation --gin_file=simple_navigation_ac.gin --alsologtostderr
+# python -m alf.bin.play --root_dir=~/tmp/simple_navigation --gin_file=simple_navigation_ac.gin --num_episodes=20 --record_file=simple_navigation.mp4
 
 import alf.trainers.on_policy_trainer
 

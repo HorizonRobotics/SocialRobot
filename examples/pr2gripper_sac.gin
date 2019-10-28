@@ -1,4 +1,4 @@
-# DISPLAY=null python -m alf.bin.train --root_dir=~/tmp/pr2_sac --gin_file=sac_pr2.gin
+# DISPLAY=null python -m alf.bin.train --root_dir=~/tmp/pr2_sac --gin_file=pr2gripper_sac.gin
 
 include 'common_nonimage_sac.gin'
 import social_bot

@@ -55,19 +55,20 @@ class Task(object):
     A Task is for teaching a single task.
     """
 
-    def __init__(self):
+    def __init__(self, reward_weight=1.0):
         self._agent = None
         self._world = None
-        self._agent_name = None
-        self.reward_weight = 1.0
+        self._agent_type = None
+        self.reward_weight = reward_weight
 
-    def setup(self, world, agent_name):
+    def setup(self, env):
         """
         Setting things up during the initialization
         """
-        self._world = world
-        self._agent = self._world.get_agent()
-        self._agent_name = agent_name
+        self._env = env
+        self._world = env._world
+        self._agent = env._agent
+        self._agent_type = env._agent_type
 
     @abstractmethod
     def run(self):
@@ -75,7 +76,7 @@ class Task(object):
         run() use yield to generate TeacherAction
         Structure of run():
         ```python
-        def run(self, agent, world):
+        def run(self):
           ...
           # agent_sentence is provided by Teacher using send() in TaskGroup.teach()
           agent_sentence = yield  # the first yielded value is ignored
@@ -179,7 +180,7 @@ class TaskGroup(object):
     def _get_current_task(self):
         if self._current_task is None:
             tid = random.randint(0, len(self._tasks) - 1)
-            self._current_task = self._tasks[tid].run(self._agent, self._world)
+            self._current_task = self._tasks[tid].run()
             self._current_reward_weight = self._tasks[tid].reward_weight
             # This send will cause self._current_task to execute until the first
             # yield. We ignore the first yielded value.
@@ -241,7 +242,6 @@ class Teacher(object):
         self._vocab_list = None
         self._task_groups = []
         self._weights = []
-        self._task_groups_exclusive = True
         self.vocab_size = 0
 
     def add_task_group(self, task_group, weight=1):

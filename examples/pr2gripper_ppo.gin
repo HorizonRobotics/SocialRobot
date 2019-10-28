@@ -1,5 +1,5 @@
 # training with Agent Learning Framework (Alf)
-# python -m alf.bin.train --root_dir=~/tmp/ppo_pr2_griper --gin_file=ppo_pr2.gin
+# python -m alf.bin.train --root_dir=~/tmp/ppo_pr2_griper --gin_file=pr2gripper_ppo.gin
 
 import alf.algorithms.ppo_algorithm
 import alf.algorithms.ppo_loss

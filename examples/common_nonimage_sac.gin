@@ -1,4 +1,4 @@
-# Common configuration for grocery ground non-image with ALF SAC algorithm
+# Common configuration for non-image tasks with ALF SAC algorithm
 
 import alf.trainers.off_policy_trainer
 import alf.algorithms.sac_algorithm

@@ -32,6 +32,7 @@ import social_bot.pygazebo as gazebo
 
 from absl import logging
 
+
 @gin.configurable
 class GoalTask(teacher.Task):
     """
@@ -43,19 +44,20 @@ class GoalTask(teacher.Task):
 
     def __init__(self,
                  max_steps=500,
-                 goal_name="goal",
+                 goal_name="ball",
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
                  sparse_reward=True,
-                 random_range=2.0,
+                 random_range=5.0,
                  use_curriculum_training=False,
                  start_range=0,
                  increase_range_by_percent=50.,
                  reward_thresh_to_increase_range=0.4,
                  percent_full_range_in_curriculum=0.1,
-                 max_reward_q_length=100):
+                 max_reward_q_length=100,
+                 reward_weight=1.0):
         """
         Args:
             max_steps (int): episode will end if not reaching gaol in so many steps
@@ -79,8 +81,9 @@ class GoalTask(teacher.Task):
             percent_full_range_in_curriculum (float): if above 0, randomly throw in x% of training examples
                 where random_range is the full range instead of the easier ones in the curriculum.
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
+            reward_weight (float): the weight of the reward, is used in multi-task case
         """
-        super().__init__()
+        super().__init__(reward_weight=reward_weight)
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
@@ -103,6 +106,15 @@ class GoalTask(teacher.Task):
         else:
             self._random_range = random_range
         self.task_vocab = ['hello', 'goal', 'well', 'done', 'failed', 'to']
+        if not goal_name in self.task_vocab:
+            self.task_vocab.append(goal_name)
+
+    def setup(self, env):
+        """
+        Setting things up during the initialization
+        """
+        super().setup(env)
+        self._insert_objects([self._goal_name])
 
     def should_use_curriculum_training(self):
         return (self._use_curriculum_training
@@ -125,23 +137,25 @@ class GoalTask(teacher.Task):
     def get_random_range(self):
         return self._random_range
 
-    def run(self, agent, world, distractions=None):
+    def run(self, distractions=None):
         """
         Start a teaching episode for this task.
         Args:
-            agent (pygazebo.Agent): the learning agent
-            world (pygazebo.World): the simulation world
+            distractions (list): the list of distraction models
         """
         agent_sentence = yield
-        agent.reset()
-        goal = world.get_agent(self._goal_name)
-        loc, dir = agent.get_pose()
+        self._agent.reset()
+        goal = self._world.get_agent(self._goal_name)
+        loc, dir = self._agent.get_pose()
         loc = np.array(loc)
         self._move_goal(goal, loc)
         steps_since_last_reward = 0
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
-            loc, dir = agent.get_pose()
+            loc, dir = self._agent.get_pose()
+            if self._agent_type.find('icub') != -1:
+                # For agent icub, we need to use the average pos here
+                loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
             goal_loc, _ = goal.get_pose()
             loc = np.array(loc)
             goal_loc = np.array(goal_loc)
@@ -154,7 +168,7 @@ class GoalTask(teacher.Task):
             distraction_penalty = 0
             if self._distraction_penalty_distance_thresh > 0 and distractions:
                 for obj_name in distractions:
-                    obj = world.get_agent(obj_name)
+                    obj = self._world.get_agent(obj_name)
                     if obj:
                         obj_loc, obj_dir = obj.get_pose()
                         obj_loc = np.array(obj_loc)
@@ -177,13 +191,14 @@ class GoalTask(teacher.Task):
                 self._push_reward_queue(0)
                 logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
                               "dist: " + str(dist))
-                yield TeacherAction(reward=reward, sentence="failed", done=True)
+                yield TeacherAction(
+                    reward=reward, sentence="failed", done=True)
             else:
                 if self._sparse_reward:
                     reward = 0
                 else:
                     reward = (self._prev_dist - dist) / self._initial_dist
-                reward=reward - distraction_penalty
+                reward = reward - distraction_penalty
                 self._push_reward_queue(reward)
                 self._prev_dist = dist
                 agent_sentence = yield TeacherAction(
@@ -231,11 +246,35 @@ class GoalTask(teacher.Task):
         logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
 
+    def _insert_objects(self, object_list):
+        obj_num = len(object_list)
+        for obj_id in range(obj_num):
+            model_name = object_list[obj_id]
+            if self._world.model_list_info().find(model_name) == -1:
+                self._world.insertModelFile('model://' + model_name)
+                logging.debug('model ' + model_name + ' inserted')
+                # Sleep for a while waiting for Gazebo server to finish the inserting
+                # operation. Or the model may not be completely inserted, boost will
+                # throw 'px!=0' error when set_pose/get_pose of the model is called
+                time.sleep(0.2)
+                self._world.step(20)
+
+    def task_specific_observation(self):
+        """
+        Args:
+            None
+        Returns:
+            np.array of the extra observations should be added into the
+            observation besides self states, for the non-image case
+        """
+        goal = self._world.get_model(self._goal_name)
+        return np.array(goal.get_pose()[0]).flatten()
+
 
 @gin.configurable
-class GroceryGroundGoalTask(GoalTask):
+class GoalWithDistractionTask(GoalTask):
     """
-    A simple task to find a goal on grocery ground.
+    A more complex goal task to find a randomly selected goal on play ground.
     The goal of this task is to train the agent to navigate to an object.
     The name of the object is provided by the teacher. In each
     episode, the location of the goal object is randomly chosen.
@@ -244,6 +283,7 @@ class GroceryGroundGoalTask(GoalTask):
     def __init__(self,
                  max_steps=500,
                  goal_name="ball",
+                 distraction_list=['coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'],
                  success_distance_thresh=0.5,
                  fail_distance_thresh=3,
                  random_range=10.0,
@@ -262,6 +302,7 @@ class GroceryGroundGoalTask(GoalTask):
                 higher than max_episode_steps when register to gym, so that return of last step could be
                 handled correctly
             goal_name (string): name of the goal in the world
+            distraction_list (list of string): a list of model. the model shoud be in gazebo database
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is givne reward -1
@@ -295,77 +336,48 @@ class GroceryGroundGoalTask(GoalTask):
             increase_range_by_percent=increase_range_by_percent,
             reward_thresh_to_increase_range=reward_thresh_to_increase_range,
             percent_full_range_in_curriculum=percent_full_range_in_curriculum,
-            max_reward_q_length=max_reward_q_length)
+            max_reward_q_length=max_reward_q_length,
+            reward_weight=reward_weight)
         self._random_goal = random_goal
-        self._objects_in_world = [
-            'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
-            'hammer_on_table', 'cafe_table', 'ball'
-        ]
-        self._objects_to_insert = [
-            'coke_can', 'table', 'bookshelf', 'car_wheel', 'plastic_cup',
-            'beer', 'hammer'
-        ]
-        self._goals = self._objects_to_insert
+        self._distraction_list = distraction_list
+        self._object_list = distraction_list + [goal_name]
+        self._goals = self._distraction_list
         if self._random_goal:
             self._goals = self._goal_name.split(',')
-        logging.info("goal_name %s, random_goal %d, random_range %d," +
+        logging.info(
+            "goal_name %s, random_goal %d, random_range %d," +
             " fail_distance_thresh %f,", self._goal_name, self._random_goal,
             self._random_range, fail_distance_thresh)
-        if GoalTask.should_use_curriculum_training(self):
+        if self.should_use_curriculum_training():
             logging.info("start_range %f, reward_thresh_to_increase_range %f",
                          self._start_range,
                          self._reward_thresh_to_increase_range)
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
-        self.reward_weight = reward_weight
-        self.task_vocab += self._objects_in_world + self._objects_to_insert
+        self.task_vocab += self._distraction_list
 
-    def setup(self, world, agent_name):
+    def setup(self, env):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name)
-        self._insert_objects(self._objects_to_insert)
+        super().setup(env)
+        self._insert_objects(self._object_list)
 
-    def run(self, agent, world):
+    def run(self):
         self._random_move_objects()
         if self._random_goal:
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
-        yield from GoalTask.run(self, agent, world,
-            distractions=self._objects_to_insert)
-
-    def _insert_objects(self, object_list):
-        obj_num = len(object_list)
-        for obj_id in range(obj_num):
-            model_name = object_list[obj_id]
-            self._world.insertModelFile('model://' + model_name)
-            logging.debug('model ' + model_name + ' inserted')
-            self._world.step(20)
-            # Sleep for a while waiting for Gazebo server to finish the inserting
-            # operation. Or the model may not be completely inserted, boost will
-            # throw 'px!=0' error when set_pose/get_pose of the model is called
-            time.sleep(0.2)
+        yield from super().run(distractions=self._distraction_list)
 
     def _random_move_objects(self, random_range=10.0):
-        obj_num = len(self._objects_to_insert)
+        obj_num = len(self._object_list)
         obj_pos_list = random.sample(self._pos_list, obj_num)
         for obj_id in range(obj_num):
-            model_name = self._objects_to_insert[obj_id]
+            model_name = self._object_list[obj_id]
             loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
             pose = (np.array(loc), (0, 0, 0))
             self._world.get_model(model_name).set_pose(pose)
-
-    def task_specific_observation(self):
-        """
-        Args:
-            None
-        Returns:
-            np.array of the extra observations should be added into the
-            observation besides self states, for the non-image case
-        """
-        goal = self._world.get_model(self._goal_name)
-        return np.array(goal.get_pose()[0]).flatten()
 
 
 @gin.configurable
@@ -376,7 +388,6 @@ class ICubAuxiliaryTask(teacher.Task):
     """
 
     def __init__(self,
-                 step_time=0.05,
                  target=None,
                  agent_init_pos=(0, 0),
                  agent_pos_random_range=0,
@@ -385,51 +396,46 @@ class ICubAuxiliaryTask(teacher.Task):
         Args:
             reward_weight (float): the weight of the reward, should be tuned
                 accroding to reward range of other tasks 
-            step_time (float): used to caculate speed of the agent
             target (string): this is the target icub should face towards, since
                 you may want the agent interact with something
             agent_init_pos (tuple): the expected initial position of the agent
             pos_random_range (float): random range of the initial position
         """
-        super().__init__()
-        self.reward_weight = reward_weight
+        super().__init__(reward_weight=reward_weight)
         self.task_vocab = ['icub']
-        self._step_time = step_time
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
         self._agent_init_pos = agent_init_pos
         self._random_range = agent_pos_random_range
 
-    def setup(self, world, agent_name):
+    def setup(self, env):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name)
+        super().setup(env)
         if self._target_name:
-            self._target = world.get_agent(self._target_name)
-        with open(os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+            self._target = self._world.get_agent(self._target_name)
+        with open(
+                os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
-        self._joints = agent_cfgs[self._agent_name]['control_joints']
+        self._joints = agent_cfgs[self._agent_type]['control_joints']
 
-    def run(self, agent, world):
+    def run(self):
         """
         Start a teaching episode for this task.
-        Args:
-            agent (pygazebo.Agent): the learning agent 
-            world (pygazebo.World): the simulation world
         """
-        self._pre_agent_pos = self.get_icub_extra_obs(agent)[:3]
+        self._pre_agent_pos = self.get_icub_extra_obs(self._agent)[:3]
         agent_sentence = yield
         done = False
         # set icub random initial pose
         x = self._agent_init_pos[0] + random.random() * self._random_range
         y = self._agent_init_pos[1] + random.random() * self._random_range
         orient = (random.random() - 0.5) * np.pi
-        agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
+        self._agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
         while not done:
             # reward for not falling (alive reward)
-            agent_height = np.array(agent.get_link_pose('iCub::head'))[0][2]
+            agent_height = np.array(self._agent.get_link_pose('iCub::head'))[0][2]
             done = agent_height < 0.7  # fall down
             standing_reward = agent_height
             # movement cost, to avoid uncessary movements
@@ -441,7 +447,7 @@ class ICubAuxiliaryTask(teacher.Task):
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
             # orientation cost, the agent should face towards the target
             if self._target_name:
-                agent_pos = self.get_icub_extra_obs(agent)[:3]
+                agent_pos = self.get_icub_extra_obs(self._agent)[:3]
                 head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
                 root_angle = self._get_angle_to_target(agent_pos,
                                                        'iCub::root_link')
@@ -528,7 +534,8 @@ class ICubAuxiliaryTask(teacher.Task):
         icub_extra_obs = self.get_icub_extra_obs(self._agent)
         if self._target_name:
             agent_pos = icub_extra_obs[:3]
-            agent_speed = (agent_pos - self._pre_agent_pos) / self._step_time
+            agent_speed = (
+                agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos
             yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
             angle_to_target = self._get_angle_to_target(
@@ -548,7 +555,7 @@ class ICubAuxiliaryTask(teacher.Task):
 
 
 @gin.configurable
-class GroceryGroundKickBallTask(GoalTask):
+class KickingBallTask(GoalTask):
     """
     A simple task to kick a ball to the goal. Simple reward shaping is used to
     guide the agent run to the ball first:
@@ -568,7 +575,6 @@ class GroceryGroundKickBallTask(GoalTask):
                  fail_distance_thresh=0.5,
                  random_range=5.0,
                  target_speed=2.0,
-                 step_time=0.1,
                  reward_weight=1.0):
         """
         Args:
@@ -580,31 +586,22 @@ class GroceryGroundKickBallTask(GoalTask):
             random_range (float): the goal's random position range
             target_speed (float): the target speed runing to the ball. The agent will receive no more 
                 higher reward when its speed is higher than target_speed.
-            step_time (float): used to caculate speed of the agent
             reward_weight (float): the weight of the reward
         """
-        GoalTask.__init__(
-            self,
+        super().__init__(
             max_steps=max_steps,
             goal_name=goal_name,
+            success_distance_thresh=success_distance_thresh,
             fail_distance_thresh=fail_distance_thresh,
-            random_range=random_range)
-        self._goal_name = 'goal'
-        self._success_distance_thresh = success_distance_thresh,
-        self._objects_in_world = [
-            'placing_table', 'plastic_cup_on_table', 'coke_can_on_table',
-            'hammer_on_table', 'cafe_table', 'ball'
-        ]
-        self._step_time = step_time
+            random_range=random_range,
+            reward_weight=reward_weight)
         self._target_speed = target_speed
-        self.reward_weight = reward_weight
-        self.task_vocab = self.task_vocab + self._objects_in_world
 
-    def setup(self, world, agent_name):
+    def setup(self, env):
         """
         Setting things up during the initialization
         """
-        super().setup(world, agent_name)
+        teacher.Task.setup(self, env)
         goal_sdf = """
         <?xml version='1.0'?>
         <sdf version ='1.4'>
@@ -620,20 +617,31 @@ class GroceryGroundKickBallTask(GoalTask):
         self._world.insertModelFromSdfString(goal_sdf)
         time.sleep(0.2)
         self._world.step(20)
+        ball_sdf = """
+        <?xml version='1.0'?>
+        <sdf version ='1.4'>
+        <model name='ball'>
+            <include>
+                <uri>model://ball</uri>
+            </include>
+            <pose frame=''>1.50 1.5 0.2 0 -0 0</pose>
+        </model>
+        </sdf>
+        """
+        self._world.insertModelFromSdfString(ball_sdf)
+        time.sleep(0.2)
+        self._world.step(20)
 
-    def run(self, agent, world):
+    def run(self):
         """
         Start a teaching episode for this task.
-        Args:
-            agent (pygazebo.Agent): the learning agent
-            world (pygazebo.World): the simulation world
         """
         agent_sentence = yield
-        goal = world.get_agent(self._goal_name)
-        ball = world.get_agent('ball')
+        goal = self._world.get_agent(self._goal_name)
+        ball = self._world.get_agent('ball')
         goal_loc, dir = goal.get_pose()
         self._move_goal(ball, np.array(goal_loc))
-        agent_loc, dir = agent.get_pose()
+        agent_loc, dir = self._agent.get_pose()
         ball_loc, _ = ball.get_pose()
         prev_dist = np.linalg.norm(
             np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
@@ -644,8 +652,8 @@ class GroceryGroundKickBallTask(GoalTask):
         while steps < self._max_steps:
             steps += 1
             if not hitted_ball:
-                agent_loc, dir = agent.get_pose()
-                if self._agent_name.find('icub') != -1:
+                agent_loc, dir = self._agent.get_pose()
+                if self._agent_type.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
                     agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(
                         self._agent)[:3]
@@ -653,8 +661,9 @@ class GroceryGroundKickBallTask(GoalTask):
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
                 # distance/step_time so that number is in m/s, trunk to target_speed
-                progress_reward = min(self._target_speed,
-                                      (prev_dist - dist) / self._step_time)
+                progress_reward = min(
+                    self._target_speed,
+                    (prev_dist - dist) / self._env.get_step_time())
                 prev_dist = dist
                 if dist < 0.3:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
