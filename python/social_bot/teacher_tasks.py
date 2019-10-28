@@ -141,8 +141,7 @@ class GoalTask(teacher.Task):
         """
         Start a teaching episode for this task.
         Args:
-            agent (pygazebo.Agent): the learning agent
-            world (pygazebo.World): the simulation world
+            distractions (list): the list of distraction models
         """
         agent_sentence = yield
         self._agent.reset()
@@ -425,9 +424,6 @@ class ICubAuxiliaryTask(teacher.Task):
     def run(self):
         """
         Start a teaching episode for this task.
-        Args:
-            agent (pygazebo.Agent): the learning agent 
-            world (pygazebo.World): the simulation world
         """
         self._pre_agent_pos = self.get_icub_extra_obs(self._agent)[:3]
         agent_sentence = yield
@@ -639,9 +635,6 @@ class KickingBallTask(GoalTask):
     def run(self):
         """
         Start a teaching episode for this task.
-        Args:
-            agent (pygazebo.Agent): the learning agent
-            world (pygazebo.World): the simulation world
         """
         agent_sentence = yield
         goal = self._world.get_agent(self._goal_name)
