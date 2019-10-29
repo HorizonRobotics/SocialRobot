@@ -45,7 +45,7 @@ class Task(object):
         Setting things up during the initialization
 
         Args:
-            env (gym.Env): an instance of Environment
+            env (social_bot.GazeboEnvBase): an instance of Gym Environment
             reward_weight(float): the weight of reward for caculating final_reward in teacher.teach()
         Returns:
             None
@@ -170,7 +170,7 @@ class GoalTask(Task):
         self.task_vocab = self.task_vocab + ['goal']
         if not goal_name in self.task_vocab:
             self.task_vocab.append(goal_name)
-        self._insert_objects([self._goal_name])
+        self._env.insert_model_list([self._goal_name])
 
     def should_use_curriculum_training(self):
         return (self._use_curriculum_training
@@ -302,19 +302,6 @@ class GoalTask(Task):
         logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
 
-    def _insert_objects(self, object_list):
-        obj_num = len(object_list)
-        for obj_id in range(obj_num):
-            model_name = object_list[obj_id]
-            if self._world.model_list_info().find(model_name) == -1:
-                self._world.insertModelFile('model://' + model_name)
-                logging.debug('model ' + model_name + ' inserted')
-                # Sleep for a while waiting for Gazebo server to finish the inserting
-                # operation. Or the model may not be completely inserted, boost will
-                # throw 'px!=0' error when set_pose/get_pose of the model is called
-                time.sleep(0.2)
-                self._world.step(20)
-
     def task_specific_observation(self):
         """
         Args:
@@ -414,7 +401,7 @@ class GoalWithDistractionTask(GoalTask):
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.task_vocab += self._distraction_list
-        self._insert_objects(self._object_list)
+        self._env.insert_model_list(self._object_list)
 
     def run(self):
         self._random_move_objects()
@@ -642,35 +629,14 @@ class KickingBallTask(Task):
         self._random_range=random_range
         self._success_distance_thresh=success_distance_thresh
         self._target_speed = target_speed
-        goal_sdf = """
-        <?xml version='1.0'?>
-        <sdf version ='1.4'>
-        <model name ='goal'>
-            <static>1</static>
-            <include>
-                <uri>model://robocup_3Dsim_goal</uri>
-            </include>
-            <pose frame=''>-5.0 0 0 0 -0 3.14159265</pose>
-        </model>
-        </sdf>
-        """
-        self._world.insertModelFromSdfString(goal_sdf)
-        time.sleep(0.2)
-        self._world.step(20)
-        ball_sdf = """
-        <?xml version='1.0'?>
-        <sdf version ='1.4'>
-        <model name='ball'>
-            <include>
-                <uri>model://ball</uri>
-            </include>
-            <pose frame=''>1.50 1.5 0.2 0 -0 0</pose>
-        </model>
-        </sdf>
-        """
-        self._world.insertModelFromSdfString(ball_sdf)
-        time.sleep(0.2)
-        self._world.step(20)
+        self._env.insert_model(
+            model="robocup_3Dsim_goal",
+            name="goal",
+            pose="-5.0 0 0 0 -0 3.14159265")
+        self._env.insert_model(
+            model="ball",
+            name="ball",
+            pose="1.50 1.5 0.2 0 -0 0")
 
     def run(self):
         """

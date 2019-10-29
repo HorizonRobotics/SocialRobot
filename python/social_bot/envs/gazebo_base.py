@@ -49,7 +49,7 @@ class GazeboEnvBase(gym.Env):
              world_file (str|None): world file path
              world_string (str|None): world xml string content,
              world_config (list[str]): list of str config `key=value`
-                see `_xpath_modify_xml` for details
+                see `_modify_world_xml` for details
              sim_time_precision (float): the time precision of the simulator
              port (int): Gazebo port
              quiet (bool) Set quiet output
@@ -71,7 +71,7 @@ class GazeboEnvBase(gym.Env):
             world_string = gazebo.world_sdf(world_file_abs_path)
 
         if world_config:
-            world_string = _xpath_modify_xml(world_string, world_config)
+            world_string = _modify_world_xml(world_string, world_config)
 
         self._world = gazebo.new_world_from_string(world_string)
 
@@ -133,6 +133,49 @@ class GazeboEnvBase(gym.Env):
     def close(self):
         super().close()
         gazebo.close_without_model_base_fini()
+    
+    def insert_model(self, model, name=None, pose="0 0 0 0 0 0"):
+        """
+        Insert a model with into a specific position of the world
+        Args:
+            model (string): the name of the model in the model database
+            name (string): the name of the model in the world
+            pose (string): the pose of the model, format is "x y z r p y"
+        """
+        if name == None:
+            name = model
+        model_sdf = """
+        <?xml version='1.0'?>
+        <sdf version ='1.4'>
+        <model name=""" + name + """>
+            <include>
+                <uri>model://""" + model + """</uri>
+            </include>
+            <pose frame=''>""" + pose + """</pose>
+        </model>
+        </sdf>
+        """
+        self._world.insertModelFromSdfString(model_sdf)
+        time.sleep(0.2)
+        self._world.step(20)
+
+    def insert_model_list(self, model_list):
+        """
+        Insert models into the world
+        Args:
+            model_list (list) : the list of the models
+        """
+        obj_num = len(model_list)
+        for obj_id in range(obj_num):
+            model_name = model_list[obj_id]
+            if self._world.model_list_info().find(model_name) == -1:
+                self._world.insertModelFile('model://' + model_name)
+                logging.debug('model ' + model_name + ' inserted')
+                # Sleep for a while waiting for Gazebo server to finish the inserting
+                # operation. Or the model may not be completely inserted, boost will
+                # throw 'px!=0' error when set_pose/get_pose of the model is called
+                time.sleep(0.2)
+                self._world.step(20)
 
     def _get_internal_states(self, agent, agent_joints):
         joint_pos = []
@@ -151,6 +194,7 @@ class GazeboEnvBase(gym.Env):
 
     def _construct_dict_space(self, obs_sample, vocab_size):
         """
+        Constrcut observation in dict if gym.spaces.Dict is used
         Args:
             obs_sample (dict) : a sample observation
             vocab_size (int): the vocab size for the sentence sequence
@@ -189,7 +233,7 @@ class GazeboEnvBase(gym.Env):
             self._rendering_process.terminate()
 
 
-def _xpath_modify_xml(xml, modifications):
+def _modify_world_xml(xml, modifications):
     """Modify world xml content
     eg:
     <sensor name="head_mount_sensor" type="camera">
