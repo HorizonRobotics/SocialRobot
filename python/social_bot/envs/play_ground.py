@@ -12,44 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A simple enviroment for an agent play on a groceryground
+A simple enviroment for an agent play on the ground
 """
 import os
 import time
-from abc import abstractmethod
 import math
 import numpy as np
 import random
 import json
 import PIL
-from absl import logging
-
+import gin
 import gym
 from gym import spaces
-import gin
+from absl import logging
+from abc import abstractmethod
 from collections import OrderedDict
 
 import social_bot
+import social_bot.pygazebo as gazebo
 from social_bot import teacher
 from social_bot import teacher_tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
-from social_bot.teacher_tasks import GroceryGroundGoalTask, ICubAuxiliaryTask, GroceryGroundKickBallTask
-import social_bot.pygazebo as gazebo
+from social_bot.teacher_tasks import GoalWithDistractionTask, ICubAuxiliaryTask, KickingBallTask
 
 
 @gin.configurable
-class GroceryGround(GazeboEnvBase):
+class PlayGround(GazeboEnvBase):
     """
-    The envionment support agent type of pr2_noplugin, pioneer2dx_noplugin,
-    turtlebot, icub, and kuka youbot for now. Note that for the models without
-    camera sensor like icub (without hands), you can not use image as observation.
+    This envionment support agent type of pr2_noplugin, pioneer2dx_noplugin,
+    turtlebot, icub, and kuka youbot for now. 
 
     Joints of the agent are controllable by force or pid controller,
 
     The observation space is a numpy array or a dict with keys 'image',
-    'states', 'sentence', depends on the configuration.
+    'states', 'sentence', depends on the configuration. Note that for the
+    models without camera sensor like icub (without hands), you can not
+    use image as observation.
+
     If without language and internal_states, observation is a numpy array:
         pure image (use_image_observation=True)
         pure low-dimentional states (use_image_observation=False)
@@ -67,104 +68,98 @@ class GroceryGround(GazeboEnvBase):
     """
 
     def __init__(self,
+                 agent_type='pioneer2dx_noplugin',
+                 world_name="play_ground.world",
+                 tasks=[GoalWithDistractionTask],
                  with_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
-                 task_name='goal',
-                 agent_type='pioneer2dx_noplugin',
                  world_time_precision=None,
                  step_time=0.1,
                  port=None,
                  action_cost=0.0,
                  resized_image_size=(64, 64),
-                 image_data_format='channels_last',
                  vocab_sequence_length=20):
         """
         Args:
+            agent_type (string): Select the agent robot, supporting pr2_noplugin,
+                pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
+                note that 'agent_type' should be the same str as the model's name
+            world_name (string): Select the world file, e.g., empty.world, play_ground.world, 
+                grocery_ground.world
+            tasks (a list of teacher.Task): the teacher task, like GoalTask, 
+                GoalWithDistractionTask, KickingBallTask, etc.
             with_language (bool): The observation will be a dict with an extra sentence
             use_image_observation (bool): Use image, or use low-dimentional states as
                 observation. Poses in the states observation are in world coordinate
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
-            task_name (string): the teacher task, now there are 2 tasks,
-                a simple goal task: 'goal'
-                a simple kicking ball task: 'kickball'
-            agent_type (string): Select the agent robot, supporting pr2_noplugin,
-                pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
-                note that 'agent_type' should be the same str as the model's name
-            world_time_precision (float|None): if not none, the time precision of
-                simulator, i.e., the max_step_size defined in the agent cfg file, will be
-                override. e.g., '0.002' for a 2ms sim step
-            step_time (float): the peroid of one step of the environment.
+            world_time_precision (float|None): this parameter depends on the agent. 
+                if not none, the default time precision of simulator, i.e., the max_step_size
+                defined in the agent cfg file, will be override. Note that pr2 and iCub
+                requires a max_step_size <= 0.001, otherwise cannot train a successful policy.
+            step_time (float): the peroid of one step() function of the environment in simulation.
+                step_time is rounded to multiples of world_time_precision
                 step_time / world_time_precision is how many simulator substeps during one
-                environment step. for some complex agent, i.e., icub, using step_time of 0.05 is better
+                environment step. for the tasks need higher control frequency (such as the 
+                tasks need walking by 2 legs), using a smaller step_time like 0.05 is better.
+                experiments show that iCub can not learn how to walk in a 0.1 step_time
             port: Gazebo port, need to specify when run multiple environment in parallel
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
                 to (width, height)
-            image_data_format (str):  One of `channels_last` or `channels_first`.
-                The ordering of the dimensions in the images.
-                `channels_last` corresponds to images with shape
-                `(height, width, channels)` while `channels_first` corresponds
-                to images with shape `(channels, height, width)`.
+            vocab_sequence_length (int): the length of encoded sequence
         """
 
+        self._agent_type = agent_type
+        self._action_cost = action_cost
+        self._with_language = with_language
+        self._use_image_obs = use_image_observation
+        self._image_with_internal_states = self._use_image_obs and image_with_internal_states
+        self._resized_image_size = resized_image_size
+
+        # Load agent and world file
         with open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
         agent_cfg = agent_cfgs[agent_type]
-
-        wf_path = os.path.join(social_bot.get_world_dir(),
-                               "grocery_ground.world")
-        with open(wf_path, 'r+') as world_file:
+        wd_path = os.path.join(social_bot.get_world_dir(), world_name)
+        with open(wd_path, 'r+') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
         if world_time_precision is None:
             world_time_precision = agent_cfg['max_sim_step_time']
-        sub_steps = int(round(step_time / world_time_precision))
+        self._sub_steps = int(round(step_time / world_time_precision))
+        self._step_time = world_time_precision * self._sub_steps
         sim_time_cfg = [
             "//physics//max_step_size=" + str(world_time_precision)
         ]
-
         super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)
+        logging.debug(self._world.info())
 
+        # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
-        if task_name is None or task_name == 'goal':
-            main_task = GroceryGroundGoalTask()
-        elif task_name == 'kickball':
-            main_task = GroceryGroundKickBallTask(step_time=step_time)
-        else:
-            logging.debug("unsupported task name: " + task_name)
-
-        main_task_group = TaskGroup()
-        main_task_group.add_task(main_task)
-        self._teacher.add_task_group(main_task_group)
-        if agent_type.find('icub') != -1:
-            icub_aux_task_group = TaskGroup()
-            icub_standing_task = ICubAuxiliaryTask(step_time=step_time)
-            icub_aux_task_group.add_task(icub_standing_task)
-            self._teacher.add_task_group(icub_aux_task_group)
+        for task in tasks:
+            task_group = TaskGroup()
+            task_group.add_task(task())
+            self._teacher.add_task_group(task_group)
         self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
         if self._teacher.vocab_size:
-            # using MultiDiscrete instead of DiscreteSequence so gym
-            # _spec_from_gym_space won't complain.
             self._sentence_space = gym.spaces.MultiDiscrete(
                 [self._teacher.vocab_size] * self._seq_length)
-        self._sub_steps = sub_steps
-
         self._world.step(20)
         self._agent = self._world.get_agent()
         for task_group in self._teacher.get_task_groups():
             for task in task_group.get_tasks():
-                task.setup(self._world, agent_type)
+                task.setup(self)
 
-        logging.debug(self._world.info())
+        # Setup action space
         self._agent_joints = agent_cfg['control_joints']
         joint_states = list(
             map(lambda s: self._agent.get_joint_state(s), self._agent_joints))
@@ -181,19 +176,7 @@ class GroceryGround(GazeboEnvBase):
             self._agent_control_range = agent_cfg['pid_control_limit']
         else:
             self._agent_control_range = np.array(self._joints_limits)
-        self._agent_camera = agent_cfg['camera_sensor']
-
         logging.debug("joints to control: %s" % self._agent_joints)
-
-        self._action_cost = action_cost
-        self._with_language = with_language
-        self._use_image_obs = use_image_observation
-        self._image_with_internal_states = self._use_image_obs and image_with_internal_states
-        assert image_data_format in ('channels_first', 'channels_last')
-        self._data_format = image_data_format
-        self._resized_image_size = resized_image_size
-        self._substep_time = world_time_precision
-
         self._control_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
@@ -205,6 +188,8 @@ class GroceryGround(GazeboEnvBase):
         else:
             self.action_space = self._control_space
 
+        # Setup observation space
+        self._agent_camera = agent_cfg['camera_sensor']
         self.reset()
         obs_sample = self._get_observation_with_sentence("hello")
         if self._with_language or self._image_with_internal_states:
@@ -232,7 +217,7 @@ class GroceryGround(GazeboEnvBase):
         self._steps_in_this_episode = 0
         self._world.reset()
         self._teacher.reset(self._agent, self._world)
-        # the first call of "teach() after "done" will reset the task
+        # The first call of "teach() after "done" will reset the task
         teacher_action = self._teacher.teach("")
         # Give an intilal random pose offset by take random action
         actions = self._control_space.sample()
@@ -278,6 +263,15 @@ class GroceryGround(GazeboEnvBase):
                           str(self._cum_reward))
         return obs, reward, teacher_action.done, {}
 
+    def get_step_time(self):
+        """
+        Args:
+            None
+        Returns:
+            The time span of an environment step
+        """
+        return self._step_time
+
     def _insert_agent_to_world_file(self, world_file, model):
         content = world_file.read()
         insert_pos = content.find("<!-- AGENT-INSERTION-POINT -->")
@@ -294,8 +288,6 @@ class GroceryGround(GazeboEnvBase):
             image = PIL.Image.fromarray(image).resize(self._resized_image_size,
                                                       PIL.Image.ANTIALIAS)
             image = np.array(image, copy=False)
-        if self._data_format == "channels_first":
-            image = np.transpose(image, [2, 0, 1])
         return image
 
     def _get_low_dim_full_states(self):
@@ -343,12 +335,12 @@ def main():
     use_image_obs = False
     image_with_internal_states = True
     fig = None
-    env = GroceryGround(
+    env = PlayGround(
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
         agent_type='pioneer2dx_noplugin',
-        task_name='goal')
+        tasks=[GoalWithDistractionTask])
     env.render()
     step_cnt = 0
     last_done_time = time.time()
