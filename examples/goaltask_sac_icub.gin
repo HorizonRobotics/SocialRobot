@@ -15,7 +15,7 @@ import social_bot
 create_environment.env_name="SocialBot-PlayGround-v0"
 create_environment.num_parallel_environments=12
 create_environment.env_load_fn=@suite_socialbot.load
-suite_socialbot.load.max_episode_steps=300
+suite_socialbot.load.max_episode_steps=200
 
 PlayGround.agent_type='icub'
 PlayGround.tasks=[@GoalWithDistractionTask, @ICubAuxiliaryTask]

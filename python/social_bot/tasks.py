@@ -468,6 +468,10 @@ class ICubAuxiliaryTask(Task):
         x = self._agent_init_pos[0] + random.random() * self._random_range
         y = self._agent_init_pos[1] + random.random() * self._random_range
         orient = (random.random() - 0.5) * np.pi
+        if self._target_name and random.randint(0, 1) == 0:
+            # a trick from roboschool humanoid flag run, important to learn to steer
+            pos = np.array([x, y, 0.6])
+            orient = self._get_angle_to_target(pos, 'iCub::root_link', np.pi)
         self._agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
         while not done:
             # reward for not falling (alive reward)
