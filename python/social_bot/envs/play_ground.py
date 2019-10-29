@@ -31,11 +31,11 @@ from collections import OrderedDict
 import social_bot
 import social_bot.pygazebo as gazebo
 from social_bot import teacher
-from social_bot import teacher_tasks
+from social_bot import tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
-from social_bot.teacher_tasks import GoalWithDistractionTask, ICubAuxiliaryTask, KickingBallTask
+from social_bot.tasks import GoalWithDistractionTask, ICubAuxiliaryTask, KickingBallTask
 
 
 @gin.configurable
@@ -140,24 +140,20 @@ class PlayGround(GazeboEnvBase):
         ]
         super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)
+        self._agent = self._world.get_agent()
         logging.debug(self._world.info())
 
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         for task in tasks:
             task_group = TaskGroup()
-            task_group.add_task(task())
+            task_group.add_task(task(env=self))
             self._teacher.add_task_group(task_group)
         self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
         if self._teacher.vocab_size:
             self._sentence_space = gym.spaces.MultiDiscrete(
                 [self._teacher.vocab_size] * self._seq_length)
-        self._world.step(20)
-        self._agent = self._world.get_agent()
-        for task_group in self._teacher.get_task_groups():
-            for task in task_group.get_tasks():
-                task.setup(self)
 
         # Setup action space
         self._agent_joints = agent_cfg['control_joints']

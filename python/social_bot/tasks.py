@@ -16,6 +16,7 @@ A variety of teacher tasks.
 """
 
 from collections import deque
+from abc import abstractmethod
 import math
 import numpy as np
 import os
@@ -33,8 +34,67 @@ import social_bot.pygazebo as gazebo
 from absl import logging
 
 
+class Task(object):
+    """Base class for Task.
+
+    A Task is for teaching a single task.
+    """
+
+    def __init__(self, env, reward_weight=1.0):
+        """
+        Setting things up during the initialization
+
+        Args:
+            env (gym.Env): an instance of Environment
+            reward_weight(float): the weight of reward for caculating final_reward in teacher.teach()
+        Returns:
+            None
+        """
+        self._env = env
+        self._world = env._world
+        self._agent = env._agent
+        self._agent_type = env._agent_type
+        self.reward_weight = reward_weight
+        self.task_vocab = ['hello', 'well', 'done', 'failed', 'to']
+
+    @abstractmethod
+    def run(self):
+        """
+        run() use yield to generate TeacherAction
+        Structure of run():
+        ```python
+        def run(self):
+          ...
+          # agent_sentence is provided by Teacher using send() in TaskGroup.teach()
+          agent_sentence = yield  # the first yielded value is ignored
+          ...
+          # TeacherAction will be passed to Teacher as the return value of send() in TaskGroup.teach()
+          agent_sentence = yield TeacherAction(...)
+          ...
+          agent_sentence = yield TeacherAction(...)
+          ...
+          yield TeacherAction(done=True)
+        ```
+
+        Returns:
+            None
+        """
+        pass
+
+    def task_specific_observation(self):
+        """
+        Args:
+            None
+        Returns:
+            np.array, the extra observations should be added into the observation
+            besides original observation from the environment. This can be overide
+            by the sub task
+        """
+        return np.array([])
+
+
 @gin.configurable
-class GoalTask(teacher.Task):
+class GoalTask(Task):
     """
     A simple teacher task to find a goal.
     For this task, the agent will receive reward 1 when it is close enough to the goal.
@@ -43,6 +103,7 @@ class GoalTask(teacher.Task):
     """
 
     def __init__(self,
+                 env,
                  max_steps=500,
                  goal_name="ball",
                  success_distance_thresh=0.5,
@@ -60,6 +121,7 @@ class GoalTask(teacher.Task):
                  reward_weight=1.0):
         """
         Args:
+            env (gym.Env): an instance of Environment
             max_steps (int): episode will end if not reaching gaol in so many steps
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
@@ -83,7 +145,7 @@ class GoalTask(teacher.Task):
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
         """
-        super().__init__(reward_weight=reward_weight)
+        super().__init__(env=env, reward_weight=reward_weight)
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
@@ -105,15 +167,9 @@ class GoalTask(teacher.Task):
             self._percent_full_range_in_curriculum = percent_full_range_in_curriculum
         else:
             self._random_range = random_range
-        self.task_vocab = ['hello', 'goal', 'well', 'done', 'failed', 'to']
+        self.task_vocab = self.task_vocab + ['goal']
         if not goal_name in self.task_vocab:
             self.task_vocab.append(goal_name)
-
-    def setup(self, env):
-        """
-        Setting things up during the initialization
-        """
-        super().setup(env)
         self._insert_objects([self._goal_name])
 
     def should_use_curriculum_training(self):
@@ -281,6 +337,7 @@ class GoalWithDistractionTask(GoalTask):
     """
 
     def __init__(self,
+                 env,
                  max_steps=500,
                  goal_name="ball",
                  distraction_list=['coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'],
@@ -298,6 +355,7 @@ class GoalWithDistractionTask(GoalTask):
                  reward_weight=1.0):
         """
         Args:
+            env (gym.Env): an instance of Environment
             max_steps (int): episode will end if not reaching goal in so many steps, typically should be
                 higher than max_episode_steps when register to gym, so that return of last step could be
                 handled correctly
@@ -325,6 +383,7 @@ class GoalWithDistractionTask(GoalTask):
         """
         assert goal_name is not None, "Goal name needs to be set, not None."
         super().__init__(
+            env=env,
             max_steps=max_steps,
             goal_name=goal_name,
             success_distance_thresh=success_distance_thresh,
@@ -355,12 +414,6 @@ class GoalWithDistractionTask(GoalTask):
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self.task_vocab += self._distraction_list
-
-    def setup(self, env):
-        """
-        Setting things up during the initialization
-        """
-        super().setup(env)
         self._insert_objects(self._object_list)
 
     def run(self):
@@ -381,19 +434,21 @@ class GoalWithDistractionTask(GoalTask):
 
 
 @gin.configurable
-class ICubAuxiliaryTask(teacher.Task):
+class ICubAuxiliaryTask(Task):
     """
     An auxiliary task spicified for iCub, to keep the agent from falling down
         and to encourage the agent walk
     """
 
     def __init__(self,
+                 env,
                  target=None,
                  agent_init_pos=(0, 0),
                  agent_pos_random_range=0,
                  reward_weight=1.0):
         """
         Args:
+            env (gym.Env): an instance of Environment
             reward_weight (float): the weight of the reward, should be tuned
                 accroding to reward range of other tasks 
             target (string): this is the target icub should face towards, since
@@ -401,18 +456,12 @@ class ICubAuxiliaryTask(teacher.Task):
             agent_init_pos (tuple): the expected initial position of the agent
             pos_random_range (float): random range of the initial position
         """
-        super().__init__(reward_weight=reward_weight)
+        super().__init__(env=env, reward_weight=reward_weight)
         self.task_vocab = ['icub']
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
         self._agent_init_pos = agent_init_pos
         self._random_range = agent_pos_random_range
-
-    def setup(self, env):
-        """
-        Setting things up during the initialization
-        """
-        super().setup(env)
         if self._target_name:
             self._target = self._world.get_agent(self._target_name)
         with open(
@@ -555,7 +604,7 @@ class ICubAuxiliaryTask(teacher.Task):
 
 
 @gin.configurable
-class KickingBallTask(GoalTask):
+class KickingBallTask(Task):
     """
     A simple task to kick a ball to the goal. Simple reward shaping is used to
     guide the agent run to the ball first:
@@ -569,39 +618,30 @@ class KickingBallTask(GoalTask):
     """
 
     def __init__(self,
+                 env,
                  max_steps=500,
                  goal_name="goal",
                  success_distance_thresh=0.5,
-                 fail_distance_thresh=0.5,
-                 random_range=5.0,
+                 random_range=3.0,
                  target_speed=2.0,
                  reward_weight=1.0):
         """
         Args:
+            env (gym.Env): an instance of Environment
             max_steps (int): episode will end if not reaching goal in so many steps
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
-            fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
-                it's considered a failure and is given reward -1
             random_range (float): the goal's random position range
             target_speed (float): the target speed runing to the ball. The agent will receive no more 
                 higher reward when its speed is higher than target_speed.
             reward_weight (float): the weight of the reward
         """
-        super().__init__(
-            max_steps=max_steps,
-            goal_name=goal_name,
-            success_distance_thresh=success_distance_thresh,
-            fail_distance_thresh=fail_distance_thresh,
-            random_range=random_range,
-            reward_weight=reward_weight)
+        super().__init__(env=env, reward_weight=reward_weight)
+        self._max_steps=max_steps
+        self._goal_name=goal_name
+        self._random_range=random_range
+        self._success_distance_thresh=success_distance_thresh
         self._target_speed = target_speed
-
-    def setup(self, env):
-        """
-        Setting things up during the initialization
-        """
-        teacher.Task.setup(self, env)
         goal_sdf = """
         <?xml version='1.0'?>
         <sdf version ='1.4'>
@@ -640,7 +680,7 @@ class KickingBallTask(GoalTask):
         goal = self._world.get_agent(self._goal_name)
         ball = self._world.get_agent('ball')
         goal_loc, dir = goal.get_pose()
-        self._move_goal(ball, np.array(goal_loc))
+        self._move_ball(ball, np.array(goal_loc))
         agent_loc, dir = self._agent.get_pose()
         ball_loc, _ = ball.get_pose()
         prev_dist = np.linalg.norm(
@@ -701,3 +741,12 @@ class KickingBallTask(GoalTask):
         model_poss = np.array(model_poss).flatten()
         model_vels = np.array(model_vels).flatten()
         return np.concatenate((model_poss, model_vels), axis=0)
+    
+    def _move_ball(self, ball, goal_loc):
+        range = self._random_range
+        while True:
+            loc = (random.random() * range - range / 2,
+                   random.random() * range - range / 2, 0)
+            self._initial_dist = np.linalg.norm(loc - goal_loc)
+            if self._initial_dist > self._success_distance_thresh:
+                break

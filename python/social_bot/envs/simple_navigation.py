@@ -30,7 +30,7 @@ from social_bot import teacher
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
-from social_bot.teacher_tasks import GoalTask
+from social_bot.tasks import GoalTask
 import social_bot.pygazebo as gazebo
 
 
@@ -90,11 +90,11 @@ class SimpleNavigation(GazeboEnvBase):
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
         task = GoalTask(
+            env=self,
             goal_name="goal",
             random_range=2.0)
         task_group.add_task(task)
         self._teacher.add_task_group(task_group)
-        task.setup(self)
         self._seq_length = 20
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
