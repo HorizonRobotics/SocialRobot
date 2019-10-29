@@ -18,6 +18,7 @@ import os
 import time
 import json
 import social_bot
+import social_bot.pygazebo as gazebo
 from absl import logging
 from play_ground import PlayGround
 from social_bot.teacher_tasks import GoalTask, GoalWithDistractionTask, KickingBallTask, ICubAuxiliaryTask
@@ -65,6 +66,7 @@ class TestPlayGround(unittest.TestCase):
                     step_per_sec = step_cnt / (time.time() - last_done_time)
                     logging.info("Test Passed, FPS: " + str(step_per_sec))
                     env.close()
+                    gazebo.close()
 
 
 if __name__ == '__main__':

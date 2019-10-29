@@ -132,7 +132,7 @@ class GazeboEnvBase(gym.Env):
 
     def close(self):
         super().close()
-        gazebo.close()
+        gazebo.close_without_model_base_fini()
 
     def _get_internal_states(self, agent, agent_joints):
         joint_pos = []

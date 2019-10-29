@@ -468,9 +468,22 @@ void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=fal
   gazebo_initialized = true;
 }
 
+void CloseWithoutModelbaseFini() {
+  gazebo::physics::stop_worlds();
+  gazebo::sensors::stop();
+  gazebo::util::LogRecord::Instance()->Stop();
+  gazebo::transport::stop();
+
+  gazebo::transport::fini();
+  gazebo::physics::fini();
+  gazebo::sensors::fini();
+
+  gazebo_initialized  = false;
+  gazebo_sensor_initialized  = false;
+}
+
 void Close() {
   gazebo::shutdown();
-  gazebo::client::shutdown();
   gazebo_initialized  = false;
   gazebo_sensor_initialized  = false;
 }
@@ -533,7 +546,13 @@ PYBIND11_MODULE(pygazebo, m) {
 
   m.def("close",
         &Close,
-        "Close");
+        "Shutdown everything of gazebo");
+
+  m.def("close_without_model_base_fini",
+        &CloseWithoutModelbaseFini,
+        "A customized close function without execute ModelbaseFini"
+        "For some unknwon reason, ModelbaseFini() in the gazebo.shutdown() makes the"
+        "process fail to exit when the environment is wrapped with process");
 
   m.def("world_sdf",
         &WorldSDF,
