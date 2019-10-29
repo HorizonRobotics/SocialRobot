@@ -609,7 +609,7 @@ class KickingBallTask(Task):
                  max_steps=500,
                  goal_name="goal",
                  success_distance_thresh=0.5,
-                 random_range=3.0,
+                 random_range=4.0,
                  target_speed=2.0,
                  reward_weight=1.0):
         """
@@ -629,14 +629,11 @@ class KickingBallTask(Task):
         self._random_range=random_range
         self._success_distance_thresh=success_distance_thresh
         self._target_speed = target_speed
-        self._env.insert_model(
-            model="robocup_3Dsim_goal",
-            name="goal",
-            pose="-5.0 0 0 0 -0 3.14159265")
-        self._env.insert_model(
-            model="ball",
-            name="ball",
-            pose="1.50 1.5 0.2 0 -0 0")
+        self._env.insert_model(model="robocup_3Dsim_goal",
+                               name="goal",
+                               pose="-5.0 0 0 0 -0 3.14159265")
+        self._env.insert_model(model="ball",
+                               pose="1.50 1.5 0.2 0 -0 0")
 
     def run(self):
         """
@@ -666,7 +663,7 @@ class KickingBallTask(Task):
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
-                # distance/step_time so that number is in m/s, trunk to target_speed
+                # trunk progress_reward to target_speed
                 progress_reward = min(
                     self._target_speed,
                     (prev_dist - dist) / self._env.get_step_time())
@@ -713,6 +710,6 @@ class KickingBallTask(Task):
         while True:
             loc = (random.random() * range - range / 2,
                    random.random() * range - range / 2, 0)
-            self._initial_dist = np.linalg.norm(loc - goal_loc)
-            if self._initial_dist > self._success_distance_thresh:
+            if np.linalg.norm(loc - goal_loc) > self._success_distance_thresh:
                 break
+        ball.set_pose((loc, (0, 0, 0)))

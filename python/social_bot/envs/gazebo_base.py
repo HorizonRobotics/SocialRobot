@@ -140,7 +140,7 @@ class GazeboEnvBase(gym.Env):
         Args:
             model (string): the name of the model in the model database
             name (string): the name of the model in the world
-            pose (string): the pose of the model, format is "x y z r p y"
+            pose (string): the pose of the model, format is "x y z roll pitch yaw"
         """
         if name == None:
             name = model
@@ -156,6 +156,8 @@ class GazeboEnvBase(gym.Env):
         </sdf>
         """
         self._world.insertModelFromSdfString(model_sdf)
+        # Sleep for a while waiting for gzserver to finish the inserting
+        # operation. Or it may not be successfully inserted and report error.
         time.sleep(0.2)
         self._world.step(20)
 
@@ -171,9 +173,6 @@ class GazeboEnvBase(gym.Env):
             if self._world.model_list_info().find(model_name) == -1:
                 self._world.insertModelFile('model://' + model_name)
                 logging.debug('model ' + model_name + ' inserted')
-                # Sleep for a while waiting for Gazebo server to finish the inserting
-                # operation. Or the model may not be completely inserted, boost will
-                # throw 'px!=0' error when set_pose/get_pose of the model is called
                 time.sleep(0.2)
                 self._world.step(20)
 
@@ -194,7 +193,7 @@ class GazeboEnvBase(gym.Env):
 
     def _construct_dict_space(self, obs_sample, vocab_size):
         """
-        Constrcut observation in dict if gym.spaces.Dict is used
+        A helper function when gym.spaces.Dict is used as observation
         Args:
             obs_sample (dict) : a sample observation
             vocab_size (int): the vocab size for the sentence sequence
