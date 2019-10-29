@@ -34,6 +34,10 @@ if cmake .. complains about cannot find configuration file provided by "gazebo",
 ```sudo apt install libgazebo9-dev``` where the version number 9 comes from ```gazebo --version```
 
 ## To run test
+#### [Play Ground Test](python/social_bot/envs/play_ground.py)
+```bash
+python3 python/social_bot/envs/play_ground.py
+```
 #### [Simple Navigation Test](examples/test_simple_navigation.py)
 ```bash
 cd REPO_ROOT/examples
@@ -43,23 +47,35 @@ To see the graphics, you can open another terminal and run
 ```bash
 GAZEBO_MODEL_PATH=`pwd`/../python/social_bot/models gzclient
 ```
-#### [Grocery Ground Test](python/social_bot/envs/play_ground.py)
-```bash
-python3 python/social_bot/envs/play_ground.py
-```
 
 ## Environments and Tasks
 We provide OpenAI gym interfaces to easily apply different RL algorithms into these different environments. The registered names for them are listed as below:
 
+    SocialBot-PlayGround-v0
     SocialBot-SimpleNavigation-v0
     SocialBot-SimpleNavigationDiscreteAction-v0
     SocialBot-SimpleNavigationLanguage-v0
     SocialBot-SimpleNavigationSelfStatesLanguage-v0
-    SocialBot-PlayGround-v0
     SocialBot-Pr2Gripper-v0
     SocialBot-ICubWalk-v0
     SocialBot-ICubWalkPID-v0
-Some environments support the teacher-student learning procedure, in which the task is defined by the teacher, and an interaction with the teacher via a sentence is performed during each environment step. You could enable the procedure by using the environment whose name contains "language".
+Some environments support the teacher-student learning procedure, in which the task is defined by the teacher, and an interaction with the teacher via a sentence is performed during each environment step. You could enable the procedure by using the environment whose name contains "language" or through gin configuration.
+
+### [Play Ground](python/social_bot/envs/play_ground.py)
+A flexiable environment in which worldfile, tasks and agent are all configurable through gin file. The default configuration for play ground is goal task and pioneer agent. 
+You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, kuka youbot, and icub for now. [ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub equipped with 2 cameras and dexterous hands. The following are images of these 5 robots:
+
+<img src="media/pioneer.jpg" width="160" height="240" alt="pioneer"/> <img src="media/pr2.jpg" width="160" height="240" alt="pr2"/> <img src="media/turtlebot.jpg" width="160" height="240" alt="turtlebot"/> <img src="media/icub.jpg" width="160" height="240" alt="icub"/> <img src="media/youbot.jpg" width="160" height="240" alt="youbot"/>
+
+The observation of the agent is also configuable, including internal states, target pose or camera image, and optional language instructions. The action specification is defined in the joint list of file [agent_cfg.json](python/social_bot/models/agent_cfg.json)
+
+* [Goal task](python/social_bot/teacher_tasks.py): A task to chase a goal. The agent will receive reward 1 when it is close enough to the goal, and get -1 it becomes too far away from the goal or timeout. A training example can be found [here](examples/goaltask_sac_pioneer.gin).
+
+    <img src="media/pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/play_ground_icub.gif" width="360" height="240" alt="icub"/>
+
+* [Kicking-ball task](python/social_bot/teacher_tasks.py): A task to kick a ball into the goal. Simple reward shaping is used to guide the agent run to the ball first.
+
+    <img src="media/play_ground_ball.gif" width="320" height="240" alt="ball"/>
 
 ### [Simple Navigation](python/social_bot/envs/simple_navigation.py)
 A simple navigation task for a pioneer2dx agent with camera image as observation.
@@ -69,22 +85,6 @@ A simple navigation task for a pioneer2dx agent with camera image as observation
     A simple navigation task to chase a goal. The agent will receive reward 1 when it is close enough to the goal, and get -1 it becomes too far away from the goal or timeout.
 
     <img src="media/ac_simple_navigation.gif" width="320" height="240" alt="simple_navigation"/>
-
-### [Grocery Ground](python/social_bot/envs/play_ground.py)
-A playground with groceries on it. You could choose the agent in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, kuka youbot, and icub for now.
-[ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub equipped with 2 cameras and dexterous hands. The following are images of these 5 robots:
-
-<img src="media/pioneer.jpg" width="160" height="240" alt="pioneer"/> <img src="media/pr2.jpg" width="160" height="240" alt="pr2"/> <img src="media/turtlebot.jpg" width="160" height="240" alt="turtlebot"/> <img src="media/icub.jpg" width="160" height="240" alt="icub"/> <img src="media/youbot.jpg" width="160" height="240" alt="youbot"/>
-
-The observation of the robots include internal states, target pose or camera image, and optional language instruction.
-
-* [Goal task](python/social_bot/envs/play_ground.py): A task to chase a goal on the playground. The reward setting is the same as simple navigation goal task. A PPO training example can be found [here](examples/goaltask_alf_ppo.gin).
-
-    <img src="media/pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/play_ground_icub.gif" width="360" height="240" alt="icub"/>
-
-* [Ball task](python/social_bot/envs/play_ground.py): A task to kick a ball to the goal. Simple reward shaping is used to guide the agent run to the ball first.
-
-    <img src="media/play_ground_ball.gif" width="320" height="240" alt="ball"/>
 
 ### [PR2 Gripping](python/social_bot/envs/pr2.py)
 
@@ -99,18 +99,18 @@ The observation of the robots include internal states, target pose or camera ima
     <img src="media/icub_walk.gif" width="320" height="240" alt="pioneer"/>
 
 ### Training Examples with [Agent Learning Framework (Alf)](https://github.com/HorizonRobotics/alf)
-Train simple navigation task with [Alf actor-critic](examples/ac_simple_navigation.gin)
+Train goal_task task with [Alf actor-critic](examples/ac_simple_navigation.gin)
 ```bash
 cd REPO_ROOT/examples/
-python -m alf.bin.train --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --alsologtostderr
+python -m alf.bin.train --root_dir=~/tmp/goal_task --gin_file=goaltask_sac_pioneer.gin --alsologtostderr
 ```
 To play:
 ```bash
-python -m alf.bin.play --root_dir=~/tmp/simple_navigation --gin_file=ac_simple_navigation.gin --num_episodes=20
+python -m alf.bin.play --root_dir=~/tmp/goal_task --gin_file=goaltask_sac_pioneer.gin --num_episodes=20
 ```
 The playing back can also be recorded to a video file like this:
 ```bash
-python -m alf.bin.play --root_dir=~/tmp/goal_task --gin_file=goaltask_alf_ppo.gin --record_file=goal_task.mp4
+python -m alf.bin.play --root_dir=~/tmp/goal_task --gin_file=goaltask_sac_pioneer.gin --record_file=goal_task.mp4
 ```
 You can find the gin config files for other tasks [here](examples).
 
