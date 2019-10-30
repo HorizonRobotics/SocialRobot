@@ -21,7 +21,7 @@ import social_bot
 import social_bot.pygazebo as gazebo
 from absl import logging
 from play_ground import PlayGround
-from social_bot.tasks import GoalTask, GoalWithDistractionTask, KickingBallTask, ICubAuxiliaryTask
+from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask
 
 
 class TestPlayGround(unittest.TestCase):
@@ -31,7 +31,7 @@ class TestPlayGround(unittest.TestCase):
             'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands',
             'youbot_noplugin'
         ]
-        tasks = [GoalTask, GoalWithDistractionTask, KickingBallTask]
+        tasks = [GoalTask, KickingBallTask]
         with open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:

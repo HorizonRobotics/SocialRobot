@@ -91,7 +91,9 @@ class SimpleNavigation(GazeboEnvBase):
         task_group = teacher.TaskGroup()
         task = GoalTask(
             env=self,
+            max_steps=120,
             goal_name="goal",
+            distraction_list=[],
             random_range=2.0)
         task_group.add_task(task)
         self._teacher.add_task_group(task_group)

@@ -35,7 +35,7 @@ from social_bot import tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
-from social_bot.tasks import GoalWithDistractionTask, ICubAuxiliaryTask, KickingBallTask
+from social_bot.tasks import GoalTask, ICubAuxiliaryTask, KickingBallTask
 
 
 @gin.configurable
@@ -70,7 +70,7 @@ class PlayGround(GazeboEnvBase):
     def __init__(self,
                  agent_type='pioneer2dx_noplugin',
                  world_name="play_ground.world",
-                 tasks=[GoalWithDistractionTask],
+                 tasks=[GoalTask],
                  with_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
@@ -87,8 +87,7 @@ class PlayGround(GazeboEnvBase):
                 note that 'agent_type' should be the same str as the model's name
             world_name (string): Select the world file, e.g., empty.world, play_ground.world, 
                 grocery_ground.world
-            tasks (a list of teacher.Task): the teacher task, like GoalTask, 
-                GoalWithDistractionTask, KickingBallTask, etc.
+            tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
             with_language (bool): The observation will be a dict with an extra sentence
             use_image_observation (bool): Use image, or use low-dimentional states as
                 observation. Poses in the states observation are in world coordinate
@@ -336,7 +335,7 @@ def main():
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
         agent_type='pioneer2dx_noplugin',
-        tasks=[GoalWithDistractionTask])
+        tasks=[GoalTask])
     env.render()
     step_cnt = 0
     last_done_time = time.time()

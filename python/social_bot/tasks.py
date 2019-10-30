@@ -104,14 +104,16 @@ class GoalTask(Task):
 
     def __init__(self,
                  env,
-                 max_steps=500,
+                 max_steps=200,
                  goal_name="ball",
+                 distraction_list=['coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'],
                  success_distance_thresh=0.5,
                  fail_distance_thresh=0.5,
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
                  sparse_reward=True,
                  random_range=5.0,
+                 random_goal=False,
                  use_curriculum_training=False,
                  start_range=0,
                  increase_range_by_percent=50.,
@@ -124,6 +126,7 @@ class GoalTask(Task):
             env (gym.Env): an instance of Environment
             max_steps (int): episode will end if not reaching gaol in so many steps
             goal_name (string): name of the goal in the world
+            distraction_list (list of string): a list of model. the model shoud be in gazebo database
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
@@ -134,6 +137,7 @@ class GoalTask(Task):
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with normalized distance the agent get closer to goal.
             random_range (float): the goal's random position range
+            random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
             start_range (float): for curriculum learning, the starting random_range to set the goal
             increase_range_by_percent (float): for curriculum learning, how much to increase random range
@@ -156,8 +160,15 @@ class GoalTask(Task):
         self._use_curriculum_training = use_curriculum_training
         self._start_range = start_range
         self._is_full_range_in_curriculum = False
+        self._random_goal = random_goal
+        self._distraction_list = distraction_list
+        self._object_list = distraction_list
+        if not goal_name in distraction_list:
+            self._object_list.append(goal_name)
+        self._goals = self._object_list
+        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._pos_list.remove((0, 0))
         if self.should_use_curriculum_training():
-            logging.info("Setting random_range to %f", self._start_range)
             self._orig_random_range = random_range
             self._random_range = start_range
             self._max_reward_q_length = max_reward_q_length
@@ -165,12 +176,13 @@ class GoalTask(Task):
             self._reward_thresh_to_increase_range = reward_thresh_to_increase_range
             self._increase_range_by_percent = increase_range_by_percent
             self._percent_full_range_in_curriculum = percent_full_range_in_curriculum
+            logging.info("start_range %f, reward_thresh_to_increase_range %f",
+                         self._start_range,
+                         self._reward_thresh_to_increase_range)
         else:
             self._random_range = random_range
-        self.task_vocab = self.task_vocab + ['goal']
-        if not goal_name in self.task_vocab:
-            self.task_vocab.append(goal_name)
-        self._env.insert_model_list([self._goal_name])
+        self.task_vocab += self._object_list
+        self._env.insert_model_list(self._object_list)
 
     def should_use_curriculum_training(self):
         return (self._use_curriculum_training
@@ -193,17 +205,19 @@ class GoalTask(Task):
     def get_random_range(self):
         return self._random_range
 
-    def run(self, distractions=None):
+    def run(self):
         """
         Start a teaching episode for this task.
-        Args:
-            distractions (list): the list of distraction models
         """
         agent_sentence = yield
         self._agent.reset()
-        goal = self._world.get_agent(self._goal_name)
         loc, dir = self._agent.get_pose()
         loc = np.array(loc)
+        self._random_move_objects()
+        if self._random_goal:
+            random_id = random.randrange(len(self._goals))
+            self.set_goal_name(self._goals[random_id])
+        goal = self._world.get_agent(self._goal_name)
         self._move_goal(goal, loc)
         steps_since_last_reward = 0
         while steps_since_last_reward < self._max_steps:
@@ -283,6 +297,15 @@ class GoalTask(Task):
         goal.reset()
         goal.set_pose((loc, (0, 0, 0)))
 
+    def _random_move_objects(self, random_range=10.0):
+        obj_num = len(self._object_list)
+        obj_pos_list = random.sample(self._pos_list, obj_num)
+        for obj_id in range(obj_num):
+            model_name = self._object_list[obj_id]
+            loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
+            pose = (np.array(loc), (0, 0, 0))
+            self._world.get_model(model_name).set_pose(pose)
+
     def get_goal_name(self):
         """
         Args:
@@ -312,112 +335,6 @@ class GoalTask(Task):
         """
         goal = self._world.get_model(self._goal_name)
         return np.array(goal.get_pose()[0]).flatten()
-
-
-@gin.configurable
-class GoalWithDistractionTask(GoalTask):
-    """
-    A more complex goal task to find a randomly selected goal on play ground.
-    The goal of this task is to train the agent to navigate to an object.
-    The name of the object is provided by the teacher. In each
-    episode, the location of the goal object is randomly chosen.
-    """
-
-    def __init__(self,
-                 env,
-                 max_steps=500,
-                 goal_name="ball",
-                 distraction_list=['coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'],
-                 success_distance_thresh=0.5,
-                 fail_distance_thresh=3,
-                 random_range=10.0,
-                 random_goal=False,
-                 sparse_reward=True,
-                 use_curriculum_training=False,
-                 start_range=0,
-                 increase_range_by_percent=50.,
-                 reward_thresh_to_increase_range=0.4,
-                 percent_full_range_in_curriculum=0.1,
-                 max_reward_q_length=100,
-                 reward_weight=1.0):
-        """
-        Args:
-            env (gym.Env): an instance of Environment
-            max_steps (int): episode will end if not reaching goal in so many steps, typically should be
-                higher than max_episode_steps when register to gym, so that return of last step could be
-                handled correctly
-            goal_name (string): name of the goal in the world
-            distraction_list (list of string): a list of model. the model shoud be in gazebo database
-            success_distance_thresh (float): the goal is reached if it's within this distance to the agent
-            fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
-                it's considered a failure and is givne reward -1
-            random_range (float): the goal's random position range
-            sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
-                with normalized distance the agent get closer to goal.
-            random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
-            use_curriculum_training (bool): when true, use curriculum in goal task training
-            start_range (float): for curriculum learning, the starting random_range to set the goal
-                Enables curriculum learning if start_range > 1.2 * success_distance_thresh.
-                NOTE: Because curriculum learning is implemented using teacher in the environment,
-                currently teacher status are not stored in model checkpoints.  Resuming is not supported.
-            increase_range_by_percent (float): for curriculum learning, how much to increase random range
-                every time agent reached the specified amount of reward.
-            reward_thresh_to_increase_range (float): for curriculum learning, how much reward to reach
-                before the teacher increases random range.
-            percent_full_range_in_curriculum (float): if above 0, randomly throw in x% of training examples
-                where random_range is the full range instead of the easier ones in the curriculum.
-            max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
-        """
-        assert goal_name is not None, "Goal name needs to be set, not None."
-        super().__init__(
-            env=env,
-            max_steps=max_steps,
-            goal_name=goal_name,
-            success_distance_thresh=success_distance_thresh,
-            fail_distance_thresh=fail_distance_thresh,
-            sparse_reward=sparse_reward,
-            random_range=random_range,
-            use_curriculum_training=use_curriculum_training,
-            start_range=start_range,
-            increase_range_by_percent=increase_range_by_percent,
-            reward_thresh_to_increase_range=reward_thresh_to_increase_range,
-            percent_full_range_in_curriculum=percent_full_range_in_curriculum,
-            max_reward_q_length=max_reward_q_length,
-            reward_weight=reward_weight)
-        self._random_goal = random_goal
-        self._distraction_list = distraction_list
-        self._object_list = distraction_list + [goal_name]
-        self._goals = self._distraction_list
-        if self._random_goal:
-            self._goals = self._goal_name.split(',')
-        logging.info(
-            "goal_name %s, random_goal %d, random_range %d," +
-            " fail_distance_thresh %f,", self._goal_name, self._random_goal,
-            self._random_range, fail_distance_thresh)
-        if self.should_use_curriculum_training():
-            logging.info("start_range %f, reward_thresh_to_increase_range %f",
-                         self._start_range,
-                         self._reward_thresh_to_increase_range)
-        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
-        self._pos_list.remove((0, 0))
-        self.task_vocab += self._distraction_list
-        self._env.insert_model_list(self._object_list)
-
-    def run(self):
-        self._random_move_objects()
-        if self._random_goal:
-            random_id = random.randrange(len(self._goals))
-            self.set_goal_name(self._goals[random_id])
-        yield from super().run(distractions=self._distraction_list)
-
-    def _random_move_objects(self, random_range=10.0):
-        obj_num = len(self._object_list)
-        obj_pos_list = random.sample(self._pos_list, obj_num)
-        for obj_id in range(obj_num):
-            model_name = self._object_list[obj_id]
-            loc = (obj_pos_list[obj_id][0], obj_pos_list[obj_id][1], 0)
-            pose = (np.array(loc), (0, 0, 0))
-            self._world.get_model(model_name).set_pose(pose)
 
 
 @gin.configurable
