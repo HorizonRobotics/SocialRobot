@@ -15,7 +15,7 @@ import social_bot
 create_environment.env_name="SocialBot-PlayGround-v0"
 create_environment.num_parallel_environments=12
 create_environment.env_load_fn=@suite_socialbot.load
-suite_socialbot.load.max_episode_steps=300
+suite_socialbot.load.max_episode_steps=200
 
 PlayGround.agent_type='icub'
 PlayGround.tasks=[@GoalWithDistractionTask, @ICubAuxiliaryTask]
@@ -23,11 +23,11 @@ PlayGround.action_cost=1.0
 PlayGround.step_time=0.05
 GoalWithDistractionTask.sparse_reward=False
 GoalWithDistractionTask.distraction_list=[]
-GoalWithDistractionTask.reward_weight=50.0
+GoalWithDistractionTask.reward_weight=100.0
 KickingBallTask.random_range=4.0
 KickingBallTask.target_speed=1.0
 KickingBallTask.reward_weight=5.0
 ICubAuxiliaryTask.target='ball'
 ICubAuxiliaryTask.agent_init_pos=(1.0, 0)
 ICubAuxiliaryTask.agent_pos_random_range=1.0
-ICubAuxiliaryTask.reward_weight=0.1
+ICubAuxiliaryTask.reward_weight=1.0

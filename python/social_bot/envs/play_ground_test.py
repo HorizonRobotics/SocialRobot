@@ -21,7 +21,7 @@ import social_bot
 import social_bot.pygazebo as gazebo
 from absl import logging
 from play_ground import PlayGround
-from social_bot.teacher_tasks import GoalTask, GoalWithDistractionTask, KickingBallTask, ICubAuxiliaryTask
+from social_bot.tasks import GoalTask, GoalWithDistractionTask, KickingBallTask, ICubAuxiliaryTask
 
 
 class TestPlayGround(unittest.TestCase):

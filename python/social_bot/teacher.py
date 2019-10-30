@@ -13,7 +13,6 @@
 # limitations under the License.
 """Teacher framework."""
 
-from abc import abstractmethod
 import numpy as np
 import random
 import gym
@@ -47,63 +46,6 @@ class TeacherAction(object):
         self.sentence = sentence
         self.done = done
         self.is_idle = is_idle
-
-
-class Task(object):
-    """Base class for Task.
-
-    A Task is for teaching a single task.
-    """
-
-    def __init__(self, reward_weight=1.0):
-        self._agent = None
-        self._world = None
-        self._agent_type = None
-        self.reward_weight = reward_weight
-
-    def setup(self, env):
-        """
-        Setting things up during the initialization
-        """
-        self._env = env
-        self._world = env._world
-        self._agent = env._agent
-        self._agent_type = env._agent_type
-
-    @abstractmethod
-    def run(self):
-        """
-        run() use yield to generate TeacherAction
-        Structure of run():
-        ```python
-        def run(self):
-          ...
-          # agent_sentence is provided by Teacher using send() in TaskGroup.teach()
-          agent_sentence = yield  # the first yielded value is ignored
-          ...
-          # TeacherAction will be passed to Teacher as the return value of send() in TaskGroup.teach()
-          agent_sentence = yield TeacherAction(...)
-          ...
-          agent_sentence = yield TeacherAction(...)
-          ...
-          yield TeacherAction(done=True)
-        ```
-
-        Returns:
-            None
-        """
-        pass
-
-    def task_specific_observation(self):
-        """
-        Args:
-            None
-        Returns:
-            np.array, the extra observations should be added into the observation
-            besides original observation from the environment. This can be overide
-            by the sub task
-        """
-        return np.array([])
 
 
 class TaskGroup(object):
