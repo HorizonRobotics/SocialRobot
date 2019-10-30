@@ -5,6 +5,7 @@ import random
 import gin
 from absl import logging
 import time
+from collections import OrderedDict
 from gym import spaces
 from social_bot.envs.gazebo_base import GazeboEnvBase
 import social_bot.pygazebo as gazebo
@@ -31,6 +32,11 @@ PR2_WORLD_SETTING = [
     "//link[contains(@name, 'wheel')]=",
     "//joint[contains(@name, 'caster')]=",
     "//link[contains(@name, 'caster')]=",
+    "//sensor[@name='head_mount_sensor']=",
+    "//sensor[@name='head_mount_prosilica_link_sensor']=",
+    "//sensor[@name='l_forearm_cam_sensor']=",
+    "//sensor[@name='r_forearm_cam_sensor']=",
+
     # remove unused collision and sensor
     # "//link[contains(@name, 'pr2::l_')]/collision=",
     # "//sensor[contains(@name, 'wide')]=",
@@ -177,15 +183,17 @@ class Pr2Gripper(GazeboEnvBase):
             self.observation_space = gym.spaces.Box(
                 low=-np.inf, high=np.inf, shape=obs.shape, dtype=np.float32)
         else:
-            self.observation_space = gym.spaces.Tuple([
-                gym.spaces.Box(
-                    low=0, high=255, shape=obs[0].shape, dtype=obs[0].dtype),
-                gym.spaces.Box(
+            self.observation_space = gym.spaces.Dict(
+                image=gym.spaces.Box(
+                    low=0,
+                    high=255,
+                    shape=obs['image'].shape,
+                    dtype=obs['image'].dtype),
+                states=gym.spaces.Box(
                     low=-np.inf,
                     high=np.inf,
-                    shape=obs[1].shape,
-                    dtype=np.float32)
-            ])
+                    shape=obs['states'].shape,
+                    dtype=np.float32))
         self.action_space = gym.spaces.Box(
             low=-1, high=1, shape=[len(self._r_arm_joints)], dtype=np.float32)
 
@@ -236,10 +244,11 @@ class Pr2Gripper(GazeboEnvBase):
         joint_positions = [s.get_positions()[0] for s in joint_states]
         joint_velocities = [s.get_velocities()[0] for s in joint_states]
 
+        l_finger_tip_loc, l_finger_tip_loc_a = self._l_finger_pose
+        r_finger_tip_loc, r_finger_tip_loc_a = self._r_finger_pose
+
         if self._use_internal_states_only:
             loc, loc_a = self._goal_pose
-            l_finger_tip_loc, l_finger_tip_loc_a = self._l_finger_pose
-            r_finger_tip_loc, r_finger_tip_loc_a = self._r_finger_pose
 
             l_dist = np.linalg.norm(np.array(l_finger_tip_loc) - np.array(loc))
             r_dist = np.linalg.norm(np.array(r_finger_tip_loc) - np.array(loc))
@@ -253,6 +262,8 @@ class Pr2Gripper(GazeboEnvBase):
         else:
             states = np.concatenate(
                 (np.array(joint_positions), np.array(joint_velocities),
+                 np.array(l_finger_tip_loc), np.array(l_finger_tip_loc_a),
+                 np.array(r_finger_tip_loc), np.array(r_finger_tip_loc_a),
                  np.array([self._l_touch, self._r_touch]).astype(np.float32)),
                 0)
 
@@ -262,7 +273,8 @@ class Pr2Gripper(GazeboEnvBase):
             img2 = get_camera_observation(
                 "default::pr2::pr2::head_tilt_link::wide_stereo_gazebo_r_stereo_camera_sensor"
             )
-            obs = (np.concatenate((img, img2), axis=-1), states)
+            obs = OrderedDict(
+                image=np.concatenate((img, img2), axis=-1), states=states)
 
         return obs
 
