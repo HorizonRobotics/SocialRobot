@@ -205,11 +205,9 @@ class GoalTask(Task):
     def get_random_range(self):
         return self._random_range
 
-    def run(self, distractions=None):
+    def run(self):
         """
         Start a teaching episode for this task.
-        Args:
-            distractions (list): the list of distraction models
         """
         agent_sentence = yield
         self._agent.reset()
