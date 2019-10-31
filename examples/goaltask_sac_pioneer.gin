@@ -15,11 +15,11 @@ create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.max_episode_steps=200
 
 PlayGround.agent_type='pioneer2dx_noplugin'
-PlayGround.tasks=[@GoalWithDistractionTask]
+PlayGround.tasks=[@GoalTask]
 PlayGround.action_cost=0.0
 # 10Hz control freq
 PlayGround.step_time=0.1
-GoalWithDistractionTask.sparse_reward=False
+GoalTask.sparse_reward=False
 
 # override algorithm and training config
 actor/ActorDistributionNetwork.fc_layer_params=(128, 64)
