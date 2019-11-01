@@ -340,7 +340,7 @@ class Teacher(object):
                 g = self._task_groups.pop(active_group_id)
                 self._task_groups.insert(0, g)
             return_action = TeacherAction(final_reward, final_sentence, done)
-        logging.debug("Teacher Reward: %f, Sentence: %s, Done: %d",
-                      return_action.reward, return_action.sentence,
-                      return_action.done)
+        # logging.debug("Teacher Reward: %f, Sentence: %s, Done: %d",
+        #               return_action.reward, return_action.sentence,
+        #               return_action.done)
         return return_action

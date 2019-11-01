@@ -191,22 +191,22 @@ class GoalTask(Task):
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._distraction_penalty_distance_thresh = distraction_penalty_distance_thresh
+        if distraction_penalty_distance_thresh > 0:
+            assert distraction_penalty_distance_thresh < success_distance_thresh
         self._distraction_penalty = distraction_penalty
         self._sparse_reward = sparse_reward
         self._use_curriculum_training = use_curriculum_training
         self._start_range = start_range
         self._is_full_range_in_curriculum = False
         self._random_goal = random_goal
+        if random_goal and goal_name not in distraction_list:
+            distraction_list.append(goal_name)
         self._distraction_list = distraction_list
         self._object_list = distraction_list
-<<<<<<< HEAD
         self._move_goal_during_episode = move_goal_during_episode
         self._success_with_angle_requirement = success_with_angle_requirement
         self._additional_observation_list = additional_observation_list
-        if goal_name not in distraction_list:
-=======
         if goal_name and goal_name not in distraction_list:
->>>>>>> fix bugs, remove language from agent's output due to tf complaining
             self._object_list.append(goal_name)
         self._goals = self._object_list
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
@@ -263,6 +263,7 @@ class GoalTask(Task):
         goal = self._world.get_model(self._goal_name)
         self._move_goal(goal, loc)
         steps_since_last_reward = 0
+        prev_min_dist_to_distraction = 100
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
             loc, dir = self._agent.get_pose()
@@ -278,23 +279,15 @@ class GoalTask(Task):
             goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
             dot = sum(dir * goal_dir)
 
-            distraction_penalty = 0
-            if self._distraction_penalty_distance_thresh > 0 and self._distraction_list:
-                for obj_name in self._distraction_list:
-                    obj = self._world.get_model(obj_name)
-                    if obj:
-                        obj_loc, _ = obj.get_pose()
-                        obj_loc = np.array(obj_loc)
-                        distraction_dist = np.linalg.norm(loc - obj_loc)
-                        if distraction_dist < self._distraction_penalty_distance_thresh:
-                            distraction_penalty += self._distraction_penalty
+            distraction_penalty, prev_min_dist_to_distraction = (
+                self._get_distraction_penalty(
+                    loc, dot, prev_min_dist_to_distraction))
 
             if dist < self._success_distance_thresh and ((dot > 0.707) or (not self._success_with_angle_requirement)):
                 # within 45 degrees of the agent direction
                 reward = 1.0 - distraction_penalty
-                self._push_reward_queue(reward)
-                logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
-                              "dist: " + str(dist))
+                self._push_reward_queue(max(reward, 0))
+                logging.debug("yielding reward: " + str(reward))
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done", done=False)
                 steps_since_last_reward = 0
@@ -303,8 +296,7 @@ class GoalTask(Task):
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
-                logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
-                              "dist: " + str(dist))
+                logging.debug("yielding reward: " + str(reward))
                 yield TeacherAction(
                     reward=reward, sentence="failed", done=True)
             else:
@@ -313,14 +305,47 @@ class GoalTask(Task):
                 else:
                     reward = (self._prev_dist - dist) / self._initial_dist
                 reward = reward - distraction_penalty
-                self._push_reward_queue(reward)
+                if distraction_penalty > 0:
+                    logging.debug("yielding reward: " + str(reward))
+                    self._push_reward_queue(0)
                 self._prev_dist = dist
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence=self._goal_name)
-        logging.debug("loc: " + str(loc) + " goal: " + str(goal_loc) +
-                      "dist: " + str(dist))
+        reward = -1.0
+        logging.debug("yielding reward: " + str(reward))
         self._push_reward_queue(0)
-        yield TeacherAction(reward=-1.0, sentence="failed", done=True)
+        logging.debug("reward queue len: {}, sum: {}".format(
+            str(len(self._q)), str(sum(self._q))))
+        yield TeacherAction(reward=reward, sentence="failed", done=True)
+
+    def _get_distraction_penalty(self, agent_loc, dot, prev_min_dist_to_distraction):
+        """
+        Calculate penalty for hitting/getting close to distraction objects
+        """
+        distraction_penalty = 0
+        if (self._distraction_penalty_distance_thresh > 0 and
+            self._distraction_list):
+            curr_min_dist = 100
+            for obj_name in self._distraction_list:
+                obj = self._world.get_agent(obj_name)
+                if not obj:
+                    continue
+                obj_loc, _ = obj.get_pose()
+                obj_loc = np.array(obj_loc)
+                distraction_dist = np.linalg.norm(agent_loc - obj_loc)
+                if (distraction_dist >=
+                    self._distraction_penalty_distance_thresh):
+                    continue
+                if obj_name == self._goal_name and dot > 0.707:
+                    continue  # correctly getting to goal, no penalty
+                if distraction_dist < curr_min_dist:
+                    curr_min_dist = distraction_dist
+                if (prev_min_dist_to_distraction >
+                    self._distraction_penalty_distance_thresh):
+                    logging.debug("hitting object: " + obj_name)
+                    distraction_penalty += self._distraction_penalty
+            prev_min_dist_to_distraction = curr_min_dist
+        return distraction_penalty, prev_min_dist_to_distraction
 
     def _move_goal(self, goal, agent_loc):
         """
