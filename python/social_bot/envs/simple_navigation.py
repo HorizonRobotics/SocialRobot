@@ -146,7 +146,7 @@ class SimpleNavigation(GazeboEnvBase):
         """
         Args:
             action (dict|int): If with_language, action is a dictionary with key "control" and "sentence".
-                    action['control'] is a vector whose dimention is
+                    action['control'] is a vector whose dimension is
                     len(_joint_names). action['sentence'] is a sentence sequence.
                     If not with_language, it is an int for the action id.
         Returns:
