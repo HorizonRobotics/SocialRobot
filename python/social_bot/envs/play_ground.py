@@ -208,7 +208,7 @@ class PlayGround(GazeboEnvBase):
             If with_language, it is a dictionary with key 'data' and 'sentence'
             If not with_language, it is a numpy.array or image for observation
         """
-        if self._with_language:
+        if False and self._with_language:
             sentence = action.get('sentence', None)
             if type(sentence) != str:
                 sentence = self._teacher.sequence_to_sentence(sentence)

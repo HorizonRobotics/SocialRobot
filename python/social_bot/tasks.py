@@ -22,7 +22,7 @@ import gin
 import itertools
 import random
 import json
-from collections import deque
+from collections import deque, OrderedDict
 from abc import abstractmethod
 from absl import logging
 import social_bot
@@ -199,10 +199,14 @@ class GoalTask(Task):
         self._random_goal = random_goal
         self._distraction_list = distraction_list
         self._object_list = distraction_list
+<<<<<<< HEAD
         self._move_goal_during_episode = move_goal_during_episode
         self._success_with_angle_requirement = success_with_angle_requirement
         self._additional_observation_list = additional_observation_list
         if goal_name not in distraction_list:
+=======
+        if goal_name and goal_name not in distraction_list:
+>>>>>>> fix bugs, remove language from agent's output due to tf complaining
             self._object_list.append(goal_name)
         self._goals = self._object_list
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
@@ -279,7 +283,7 @@ class GoalTask(Task):
                 for obj_name in self._distraction_list:
                     obj = self._world.get_model(obj_name)
                     if obj:
-                        obj_loc, obj_dir = obj.get_pose()
+                        obj_loc, _ = obj.get_pose()
                         obj_loc = np.array(obj_loc)
                         distraction_dist = np.linalg.norm(loc - obj_loc)
                         if distraction_dist < self._distraction_penalty_distance_thresh:
@@ -319,6 +323,20 @@ class GoalTask(Task):
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def _move_goal(self, goal, agent_loc):
+        """
+        Move goal as well as a distraction object to the right location.
+        """
+        self._move_goal_impl(goal, agent_loc)
+        distractions = OrderedDict()
+        for item in self._distraction_list:
+            if item is not self._goal_name:
+                distractions[item] = 1
+        if len(distractions):
+            rand_id = random.randrange(len(distractions))
+            distraction = self._world.get_agent(list(distractions.keys())[rand_id])
+            self._move_goal_impl(distraction, agent_loc)
+
+    def _move_goal_impl(self, goal, agent_loc):
         if (self.should_use_curriculum_training()
                 and self._percent_full_range_in_curriculum > 0
                 and random.random() < self._percent_full_range_in_curriculum):
