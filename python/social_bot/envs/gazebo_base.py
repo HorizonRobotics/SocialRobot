@@ -133,7 +133,7 @@ class GazeboEnvBase(gym.Env):
     def close(self):
         super().close()
         gazebo.close_without_model_base_fini()
-    
+
     def insert_model(self, model, name=None, pose="0 0 0 0 0 0"):
         """
         Insert a model with into a specific position of the world
@@ -226,6 +226,10 @@ class GazeboEnvBase(gym.Env):
             ob_space_dict['sentence'] = sentence_space
         ob_space = gym.spaces.Dict(ob_space_dict)
         return ob_space
+
+    def seed(self, seed=None):
+        """Gym interface for setting random seed."""
+        random.seed(seed)
 
     def __del__(self):
         if self._rendering_process is not None:
