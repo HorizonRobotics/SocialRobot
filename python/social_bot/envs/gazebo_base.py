@@ -54,6 +54,7 @@ class GazeboEnvBase(gym.Env):
              port (int): Gazebo port
              quiet (bool) Set quiet output
         """
+        os.environ["GAZEBO_MODEL_DATABASE_URI"] = ""
         if port is None:
             port = 0
         self._port = port
