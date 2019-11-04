@@ -2,74 +2,55 @@
 # python -m alf.bin.train --root_dir=~/tmp/simple_navigation --gin_file=simple_navigation_ac.gin --alsologtostderr
 # python -m alf.bin.play --root_dir=~/tmp/simple_navigation --gin_file=simple_navigation_ac.gin --num_episodes=20 --record_file=simple_navigation.mp4
 
+import alf.algorithms.actor_critic_algorithm
 import alf.trainers.on_policy_trainer
 import alf.environments.suite_socialbot
 
 # environment config
 import alf.environments.wrappers
-# CHANNEL_ORDER should be set to channels_first if you are using GPU
-CHANNEL_ORDER='channels_last'
-FrameStack.channel_order=%CHANNEL_ORDER
 create_environment.env_name='SocialBot-SimpleNavigationDiscreteAction-v0'
 create_environment.env_load_fn=@suite_socialbot.load
 suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
-create_environment.num_parallel_environments=30
+create_environment.num_parallel_environments=3
 SimpleNavigation.resized_image_size=(84, 84)
 
 # algorithm config
-observation_spec=@get_observation_spec()
-action_spec=@get_action_spec()
-
-CONV_LAYER_PARAMS=((16, 3, 2), (32, 3, 2))
-
-actor/ActorDistributionNetwork.input_tensor_spec=%observation_spec
-actor/ActorDistributionNetwork.output_tensor_spec=%action_spec
-actor/ActorDistributionNetwork.conv_layer_params=%CONV_LAYER_PARAMS
-actor/ActorDistributionNetwork.fc_layer_params=(256,)
-actor/ActorDistributionNetwork.activation_fn=@tf.nn.elu
-actor/ActorDistributionNetwork.discrete_projection_net=@CategoricalProjectionNetwork
-CategoricalProjectionNetwork.logits_init_output_factor=1e-10
-
-
-value/ValueNetwork.input_tensor_spec=%observation_spec
-value/ValueNetwork.conv_layer_params=%CONV_LAYER_PARAMS
-value/ValueNetwork.fc_layer_params=(256,)
-value/ValueNetwork.activation_fn=@tf.nn.elu
-
-ac/Adam.learning_rate=1e-4
-
-ActorCriticAlgorithm.action_spec=%action_spec
-ActorCriticAlgorithm.actor_network=@actor/ActorDistributionNetwork()
-ActorCriticAlgorithm.value_network=@value/ValueNetwork()
-ActorCriticAlgorithm.optimizer=@ac/Adam()
-ActorCriticAlgorithm.gradient_clipping=None
-
 ActorCriticLoss.entropy_regularization=0.002
 ActorCriticLoss.use_gae=True
 ActorCriticLoss.use_td_lambda_return=True
 
+observation_spec=@get_observation_spec()
+action_spec=@get_action_spec()
 
-# tf has a bug which can be triggered by the default data_format 'channels_last'
-# It has something to do with AddLayoutTransposeToOutputs() in
-# tensorflow/core/grappler/optimizers/layout_optimizer.cc and
-# DeadnessAnalysisImpl::GetInputPreds() in tensorflow/compiler/jit/deadness_analysis.cc
-# The error is like the following:
-#   tensorflow.python.framework.errors_impl.InternalError: Could not find input
-#   [id=3806 driver_loop/body/_1/iter_loop_grad/next_iteration/_1116-0-1-TransposeNCHWToNHWC-LayoutOptimizer:0 -> driver_loop/body/_1/iter_loop_grad/merge/_957:1]
-#   to driver_loop/body/_1/iter_loop_grad/merge/_957
-#   when visiting the graph in post-order.  Most likely indicates a bug in deadness analysis. [Op:__inference_run_16937]
-SimpleNavigation.data_format=%CHANNEL_ORDER
-tf.keras.layers.Conv2D.data_format=%CHANNEL_ORDER
+actor/ActorDistributionNetwork.input_tensor_spec=%observation_spec
+actor/ActorDistributionNetwork.output_tensor_spec=%action_spec
+actor/ActorDistributionNetwork.fc_layer_params=(256,)
+actor/ActorDistributionNetwork.activation_fn=@tf.nn.elu
+actor/ActorDistributionNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
+CategoricalProjectionNetwork.logits_init_output_factor=1e-10
+actor/ActorDistributionNetwork.discrete_projection_net=@CategoricalProjectionNetwork
+
+value/ValueNetwork.input_tensor_spec=%observation_spec
+value/ValueNetwork.fc_layer_params=(256,)
+value/ValueNetwork.activation_fn=@tf.nn.elu
+value/ValueNetwork.conv_layer_params=((16, 3, 2), (32, 3, 2))
+
+ac/Adam.learning_rate=1e-4
+
+Agent.action_spec=%action_spec
+ActorCriticAlgorithm.actor_network=@actor/ActorDistributionNetwork()
+ActorCriticAlgorithm.value_network=@value/ValueNetwork()
+Agent.optimizer=@ac/Adam()
+Agent.gradient_clipping=None
 
 # training config
 TrainerConfig.trainer=@on_policy_trainer
-TrainerConfig.algorithm_ctor=@ActorCriticAlgorithm
-TrainerConfig.num_iterations=1000000
-TrainerConfig.summarize_grads_and_vars=1
-TrainerConfig.summary_interval=1
 TrainerConfig.unroll_length=100
+TrainerConfig.algorithm_ctor=@Agent
+TrainerConfig.num_iterations=1000000
 TrainerConfig.use_tf_functions=1
 TrainerConfig.debug_summaries=True
+TrainerConfig.summarize_grads_and_vars=1
+TrainerConfig.summary_interval=1
 
-PolicyDriver.observation_transformer=@image_scale_transformer
-
+Agent.observation_transformer=@image_scale_transformer
