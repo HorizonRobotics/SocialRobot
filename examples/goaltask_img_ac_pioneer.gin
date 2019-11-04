@@ -2,27 +2,17 @@
 # python -m alf.bin.train --root_dir=~/tmp/img_ac --gin_file=goaltask_img_ac_pioneer.gin --alsologtostderr
 # python -m alf.bin.play --root_dir=~/tmp/img_ac --gin_file=goaltask_img_ac_pioneer.gin
 
-import alf.trainers.on_policy_trainer
-import alf.algorithms.actor_critic_algorithm
-import alf.algorithms.actor_critic_loss
+include 'simple_navigation_ac.gin'
 
 # environment config
 import alf.environments.wrappers
 create_environment.env_name='SocialBot-PlayGround-v0'
 PlayGround.use_image_observation=True
-create_environment.env_load_fn=@suite_socialbot.load
-suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
 create_environment.num_parallel_environments=12
 PlayGround.resized_image_size=(64, 64)
 
 # algorithm config
-observation_spec=@get_observation_spec()
-action_spec=@get_action_spec()
-
 CONV_LAYER_PARAMS=((16, 3, 2), (32, 3, 2))
-
-actor/ActorDistributionNetwork.input_tensor_spec=%observation_spec
-actor/ActorDistributionNetwork.output_tensor_spec=%action_spec
 actor/ActorDistributionNetwork.fc_layer_params=(256,)
 actor/ActorDistributionNetwork.activation_fn=@tf.nn.elu
 actor/ActorDistributionNetwork.conv_layer_params=%CONV_LAYER_PARAMS
@@ -30,32 +20,10 @@ actor/ActorDistributionNetwork.continuous_projection_net=@NormalProjectionNetwor
 NormalProjectionNetwork.init_means_output_factor=1e-10
 NormalProjectionNetwork.std_bias_initializer_value=0.0
 
-value/ValueNetwork.input_tensor_spec=%observation_spec
 value/ValueNetwork.fc_layer_params=(256,)
 value/ValueNetwork.activation_fn=@tf.nn.elu
 value/ValueNetwork.conv_layer_params=%CONV_LAYER_PARAMS
-
 ac/Adam.learning_rate=2e-4
+Agent.gradient_clipping=0.5
 
-ActorCriticAlgorithm.action_spec=%action_spec
-ActorCriticAlgorithm.actor_network=@actor/ActorDistributionNetwork()
-ActorCriticAlgorithm.value_network=@value/ValueNetwork()
-ActorCriticAlgorithm.optimizer=@ac/Adam()
-ActorCriticAlgorithm.gradient_clipping=0.5
-
-ActorCriticLoss.entropy_regularization=0.002
-ActorCriticLoss.use_gae=True
-ActorCriticLoss.use_td_lambda_return=True
-
-# training config
-TrainerConfig.trainer=@on_policy_trainer
-TrainerConfig.algorithm_ctor=@ActorCriticAlgorithm
-TrainerConfig.num_iterations=1000000
-TrainerConfig.summarize_grads_and_vars=1
-TrainerConfig.summary_interval=1
-TrainerConfig.unroll_length=100
-TrainerConfig.use_tf_functions=1
-TrainerConfig.debug_summaries=True
-
-PolicyDriver.observation_transformer=@image_scale_transformer
 

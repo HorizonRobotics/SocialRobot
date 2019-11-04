@@ -3,6 +3,7 @@
 import alf.trainers.off_policy_trainer
 import alf.algorithms.sac_algorithm
 import alf.utils.common
+import alf.environments.suite_socialbot
 
 # algorithm config
 observation_spec=@get_observation_spec()

@@ -1,0 +1,54 @@
+# Common configuration for ALF PPO algorithm
+
+import alf.trainers.off_policy_trainer
+import alf.algorithms.ppo_algorithm
+import alf.algorithms.ppo_loss
+import alf.environments.suite_socialbot
+import social_bot
+
+# environment config
+create_environment.env_load_fn=@suite_socialbot.load
+
+# algorithm config
+observation_spec=@get_observation_spec()
+action_spec=@get_action_spec()
+
+actor/ActorDistributionNetwork.input_tensor_spec=%observation_spec
+actor/ActorDistributionNetwork.output_tensor_spec=%action_spec
+
+value/ValueNetwork.input_tensor_spec=%observation_spec
+ac/Adam.learning_rate=2e-4
+
+Agent.rl_algorithm_cls=@PPOAlgorithm
+Agent.action_spec=%action_spec
+Agent.optimizer=@ac/Adam()
+Agent.gradient_clipping=0.5
+Agent.clip_by_global_norm=True
+Agent.enforce_entropy_target=False
+ActorCriticAlgorithm.actor_network=@actor/ActorDistributionNetwork()
+ActorCriticAlgorithm.value_network=@value/ValueNetwork()
+ActorCriticAlgorithm.loss_class=@PPOLoss
+
+PPOLoss.entropy_regularization=None
+PPOLoss.gamma=0.99
+PPOLoss.normalize_advantages=True
+PPOLoss.td_lambda=0.95
+PPOLoss.td_error_loss_fn=@element_wise_squared_loss
+
+# training config
+TrainerConfig.algorithm_ctor=@Agent
+TrainerConfig.trainer=@sync_off_policy_trainer
+TrainerConfig.mini_batch_length=1
+TrainerConfig.unroll_length=1024
+TrainerConfig.mini_batch_size=4096
+TrainerConfig.num_iterations=1000000
+TrainerConfig.num_updates_per_train_step=20
+TrainerConfig.evaluate=True
+TrainerConfig.eval_interval=100
+TrainerConfig.debug_summaries=True
+TrainerConfig.summarize_grads_and_vars=True
+TrainerConfig.summary_interval=10
+TrainerConfig.checkpoint_interval=10
+TrainerConfig.use_tf_functions=True
+
+TFUniformReplayBuffer.max_length=1024
