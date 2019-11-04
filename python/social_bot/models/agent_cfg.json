@@ -103,7 +103,7 @@
             "iCub::r_shoulder_roll",
             "iCub::r_shoulder_yaw",
             "iCub::r_elbow"],
-        "camera_sensor": "",
+        "camera_sensor": "default::iCub::left_eye_link::left_camera",
         "use_pid": true,
         "pid_control_limit": 10,
         "max_sim_step_time": 0.001

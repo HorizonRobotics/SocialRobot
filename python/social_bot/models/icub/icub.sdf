@@ -769,6 +769,23 @@
    <!-- <cylinder><radius>0.01</radius><length>0.05</length></cylinder> -->
         </geometry>
       </visual>
+      <sensor name="left_camera" type="camera">
+        <pose>0 0 0 0 -3.14159 0</pose>
+        <camera>
+          <horizontal_fov>2.0944</horizontal_fov>
+          <image>
+            <width>128</width>
+            <height>128</height>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>100</far>
+          </clip>
+        </camera>
+        <always_on>1</always_on>
+        <update_rate>20</update_rate>
+        <visualize>true</visualize>
+      </sensor>
     </link>
 
     <link name='right_eye_link'>
