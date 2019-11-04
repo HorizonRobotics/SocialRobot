@@ -3,6 +3,7 @@
 # python -m alf.bin.play --root_dir=~/tmp/simple_navigation --gin_file=simple_navigation_ac.gin --num_episodes=20 --record_file=simple_navigation.mp4
 
 import alf.trainers.on_policy_trainer
+import alf.environments.suite_socialbot
 
 # environment config
 import alf.environments.wrappers
