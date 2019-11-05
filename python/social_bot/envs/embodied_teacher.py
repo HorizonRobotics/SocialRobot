@@ -70,7 +70,6 @@ class EmbodiedTeacher(PlayGround):
 
     def __init__(self,
                  agent_type='youbot_noplugin',
-                 world_name="play_ground.world",
                  tasks=[GoalTask],
                  with_language=False,
                  use_image_observation=False,
@@ -115,9 +114,11 @@ class EmbodiedTeacher(PlayGround):
                 to (width, height)
             vocab_sequence_length (int): the length of encoded sequence
         """
+        self._is_training_for_teacher_policy = _is_training_for_teacher_policy
+        self._demo_by_human = demo_by_human
         super().__init__(
                 agent_type=agent_type,
-                world_name=world_name,
+                world_name="play_ground.world",
                 tasks=tasks,
                 with_language=with_language,
                 use_image_observation=use_image_observation,
@@ -128,8 +129,6 @@ class EmbodiedTeacher(PlayGround):
                 action_cost=action_cost,
                 resized_image_size=resized_image_size,
                 vocab_sequence_length=vocab_sequence_length)
-        self._is_training_for_teacher_policy = _is_training_for_teacher_policy
-        self._demo_by_human = demo_by_human
         if not self._is_training_for_teacher_policy:
             # insert teacher model
             self.insert_model(model=agent_type, name="teacher", pose="0 -2 0 0 0 0")
@@ -139,63 +138,28 @@ class EmbodiedTeacher(PlayGround):
                 self._teacher_joints.append("teacher::" + joint)
             self._teacher_embodied = self._world.get_agent('teacher')
             if self._demo_by_human:
-                self.step = self.step_with_keybo
+                self.step = self._step_with_human_demo
+                # run  gz physics -u 200 # str(int(round(1.0 / world_time_precision)))
             else:
-                self.step = self.step_with_teacher_action
+                self.step = self._step_with_teacher_policy  
 
     def reset(self):
-        """
-        Args:
-            None
-        Returns:
-            Observaion of the first step
-        """
-        self._collision_cnt = 0
-        self._cum_reward = 0.0
-        self._steps_in_this_episode = 0
-        self._world.reset()
-        self._teacher.reset(self._agent, self._world)
-        # The first call of "teach() after "done" will reset the task
-        teacher_action = self._teacher.teach("")
-        # Give an intilal random pose offset by take random action
-        actions = self._control_space.sample()
-        controls = dict(
-            zip(self._agent_joints, self._agent_control_range * actions))
-        self._agent.take_action(controls)
-        self._world.step(self._sub_steps)
-        obs = self._get_observation_with_sentence(teacher_action.sentence)
-        return obs
+        obs = super().reset()
+        if self._demo_by_human:
+            return obs
+        else:
+            return obs, obs
 
-    def _take_action(self, agent, joints, action):
-        controls = np.clip(action, -1.0, 1.0) * self._agent_control_range
-        controls_dict = dict(zip(joints, controls))
-        agent.take_action(controls_dict)
+    def _step_with_teacher_policy(self, teacher_action, agent_action):
+        obs, reward, done, _ = self._step_with_teacher_action(teacher_action, agent_action)
+        teacher_obs = self._get_teacher_obs()
+        return teacher_obs, obs, reward, done, {}
 
-    def _get_teacher_obs(self):
-        agent = self._agent
-        self._agent = self._teacher_embodied
-        # also need to set _agent for every tasks
-
-        teacher_obs = self._get_low_dim_full_states()
-        self._agent = agent
-        return teacher_obs
-
-    def step_with_keybo(self, agent_action):
+    def _step_with_human_demo(self, agent_action):
         teacher_action = self.get_action_from_keybo(self._agent_type)
-        self.step_with_teacher_action(teacher_action, agent_action)
+        return self._step_with_teacher_action(teacher_action, agent_action)
 
-    def step_with_teacher_action(self, teacher_action, agent_action):
-        """
-        Args:
-            action (dict|int): If with_language, action is a dictionary
-                    with key "control" and "sentence".
-                    action['control'] is a vector whose dimention is
-                    len(_joint_names). action['sentence'] is a sentence sequence.
-                    If not with_language, it is an int for the action id.
-        Returns:
-            If with_language, it is a dictionary with key 'data' and 'sentence'
-            If not with_language, it is a numpy.array or image for observation
-        """
+    def _step_with_teacher_action(self, teacher_action, agent_action):
         if self._with_language:
             sentence = agent_action.get('sentence', None)
             if type(sentence) != str:
@@ -209,7 +173,6 @@ class EmbodiedTeacher(PlayGround):
         self._world.step(self._sub_steps)
         teacher_action = self._teacher.teach(sentence)
         obs = self._get_observation_with_sentence(teacher_action.sentence)
-        teacher_obs = self._get_teacher_obs
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(controls)) / controls.shape[0]
         reward = teacher_action.reward - self._action_cost * ctrl_cost
@@ -217,7 +180,25 @@ class EmbodiedTeacher(PlayGround):
         if teacher_action.done:
             logging.debug("episode ends at cum reward:" +
                           str(self._cum_reward))
-        return teacher_obs, obs, reward, teacher_action.done, {}
+        return obs, reward, teacher_action.done, {}
+
+    def _take_action(self, agent, joints, action):
+        controls = np.clip(action, -1.0, 1.0) * self._agent_control_range
+        controls_dict = dict(zip(joints, controls))
+        agent.take_action(controls_dict)
+
+    def _get_teacher_obs(self):
+        agent = self._agent
+        self._agent = self._teacher_embodied
+        for group in self._teacher._task_groups:
+            for task in group._tasks:
+                task._agent = self._teacher_embodied
+        teacher_obs = self._get_low_dim_full_states()
+        self._agent = agent
+        for group in self._teacher._task_groups:
+            for task in group._tasks:
+                task._agent = agent
+        return teacher_obs
 
 
 def main():
@@ -230,11 +211,13 @@ def main():
     use_image_obs = False
     image_with_internal_states = True
     fig = None
+    demo_by_human = True
     env = EmbodiedTeacher(
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        tasks=[GoalTask])
+        tasks=[GoalTask],
+        demo_by_human=demo_by_human)
     env.render()
     step_cnt = 0
     last_done_time = time.time()
@@ -244,7 +227,10 @@ def main():
         if with_language:
             actions = dict(control=actions, sentence="hello")
             teacher_actions =  dict(control=teacher_actions, sentence="hello")
-        teacher_obs, obs, _, done, _ = env.step(teacher_actions, actions)
+        if demo_by_human:
+            obs, _, done, _ = env.step(actions)
+        else:
+            teacher_obs, obs, _, done, _ = env.step(teacher_actions, actions)
         step_cnt += 1
         if with_language and (env._steps_in_this_episode == 1 or done):
             seq = obs["sentence"]
