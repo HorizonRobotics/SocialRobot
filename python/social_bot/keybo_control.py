@@ -15,12 +15,13 @@
 import sys, tty, termios
 import select
 import numpy as np
+from absl import logging
 
 
 # Get command from keyboard
 class KeyboardControl:
     def __init__(self):
-        self._decay = 0.95
+        self._decay = 0.9
         self._gripper_movements = [0, 0, 0]
         self._gripper_open = True
         self._speed = 0
@@ -125,3 +126,60 @@ class KeyboardControl:
             wheel_joint_bl, wheel_joint_bl, wheel_joint_br, wheel_joint_br
         ]
         return actions
+
+
+def main():
+    """
+    Simple testing of this environment.
+    """
+    import matplotlib.pyplot as plt
+    import time
+    import social_bot
+    from social_bot.envs.play_ground import PlayGround
+    from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask
+    with_language = False
+    use_image_obs = False
+    fig = None
+    agent_type='youbot_noplugin' # support pioneer2dx_noplugin or youbot_noplugin
+    env = PlayGround(
+        with_language=with_language,
+        use_image_observation=use_image_obs,
+        image_with_internal_states=False,
+        agent_type=agent_type,
+        real_time_update_rate = 500,
+        tasks=[GoalTask])
+    env.render()
+    keybo = KeyboardControl()
+    step_cnt = 0
+    last_done_time = time.time()
+    while True:
+        actions = np.array(keybo.get_control(agent_type, env._agent))
+        if with_language:
+            actions = dict(control=actions, sentence="hello")
+        obs, _, done, _ = env.step(actions)
+        step_cnt += 1
+        if with_language and (env._steps_in_this_episode == 1 or done):
+            seq = obs["sentence"]
+            logging.info("sentence_seq: " + str(seq))
+            logging.info("sentence_raw: " +
+                         env._teacher.sequence_to_sentence(seq))
+        if use_image_obs:
+            if with_language:
+                obs = obs['image']
+            if fig is None:
+                fig = plt.imshow(obs)
+            else:
+                fig.set_data(obs)
+            plt.pause(0.00001)
+        if step_cnt > 300:
+            env.reset()
+            keybo.reset()
+            step_per_sec = step_cnt / (time.time() - last_done_time)
+            logging.info("step per second: " + str(step_per_sec))
+            step_cnt = 0
+            last_done_time = time.time()
+
+
+if __name__ == "__main__":
+    logging.set_verbosity(logging.INFO)
+    main()
