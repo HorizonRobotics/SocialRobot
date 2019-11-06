@@ -537,7 +537,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="gripper_finger_link_l">
-      <pose>0.213260 -0.001105 0.408579 0.085052 -0.365926 2.733150</pose>
+      <pose>0.218260 0.0099 0.408579 0.085052 -0.365926 2.733150</pose>
       <inertial>
         <pose>0 -0.001000 0 0 0 0</pose>
         <inertia>
@@ -555,6 +555,7 @@
         <geometry>
           <mesh>
             <uri>model://youbot/meshes/gripper/finger_convex.stl</uri>
+            <scale>2.0 1.0 2.0</scale>
           </mesh>
         </geometry>
         <surface>
@@ -579,6 +580,7 @@
         <geometry>
           <mesh>
             <uri>model://youbot/meshes/gripper/finger.stl</uri>
+            <scale>2.0 1.0 2.0</scale>
           </mesh>
         </geometry>
       </visual>
@@ -587,7 +589,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="gripper_finger_link_r">
-      <pose>0.207375 -0.015929 0.409848 -0.085052 0.365926 -0.408445</pose>
+      <pose>0.202375 -0.025929 0.409848 -0.085052 0.365926 -0.408445</pose>
       <inertial>
         <pose>0 -0.001000 0 0 0 0</pose>
         <inertia>
@@ -605,6 +607,7 @@
         <geometry>
           <mesh>
             <uri>model://youbot/meshes/gripper/finger_convex.stl</uri>
+            <scale>2.0 1.0 2.0</scale>
           </mesh>
         </geometry>
         <surface>
@@ -629,6 +632,7 @@
         <geometry>
           <mesh>
             <uri>model://youbot/meshes/gripper/finger.stl</uri>
+            <scale>2.0 1.0 2.0</scale>
           </mesh>
         </geometry>
       </visual>
@@ -1147,8 +1151,8 @@
           <friction>0</friction>
         </dynamics>
         <limit>
-          <lower>0</lower>
-          <upper>0.011500</upper>
+          <lower>-0.01</lower>
+          <upper>0.02</upper>
           <effort>1.0</effort>
           <velocity>-1</velocity>
         </limit>
@@ -1166,8 +1170,8 @@
           <friction>0</friction>
         </dynamics>
         <limit>
-          <lower>0</lower>
-          <upper>0.011500</upper>
+          <lower>-0.01</lower>
+          <upper>0.02</upper>
           <effort>1.0</effort>
           <velocity>-1</velocity>
         </limit>

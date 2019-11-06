@@ -76,16 +76,17 @@ class EmbodiedTeacher(PlayGround):
                  image_with_internal_states=False,
                  world_time_precision=None,
                  step_time=0.1,
+                 real_time_update_rate=0,
                  port=None,
                  action_cost=0.0,
                  resized_image_size=(64, 64),
                  vocab_sequence_length=20,
-                 _is_training_for_teacher_policy=False,
+                 is_training_for_teacher_policy=False,
                  demo_by_human=False):
         """
         Args:
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
-                pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
+                pioneer2dx_noplugin, turtlebot, youbot_noplugin for now
                 note that 'agent_type' should be the same str as the model's name
             world_name (string): Select the world file, e.g., empty.world, play_ground.world, 
                 grocery_ground.world
@@ -114,8 +115,15 @@ class EmbodiedTeacher(PlayGround):
                 to (width, height)
             vocab_sequence_length (int): the length of encoded sequence
         """
-        self._is_training_for_teacher_policy = _is_training_for_teacher_policy
-        self._demo_by_human = demo_by_human
+        self._is_training_for_teacher_policy = is_training_for_teacher_policy
+        self._demo_by_human = demo_by_human and (not is_training_for_teacher_policy)
+        if self._demo_by_human:
+            from social_bot.keybo_control import KeyboardControl
+            self.step = self._step_with_human_demo
+            self._keybo = KeyboardControl()
+            real_time_update_rate = 500 # run "gz physics -u" to override
+        else:
+            self.step = self._step_with_teacher_policy  
         super().__init__(
                 agent_type=agent_type,
                 world_name="play_ground.world",
@@ -125,6 +133,7 @@ class EmbodiedTeacher(PlayGround):
                 image_with_internal_states=image_with_internal_states,
                 world_time_precision=world_time_precision,
                 step_time=step_time,
+                real_time_update_rate=real_time_update_rate,
                 port=port,
                 action_cost=action_cost,
                 resized_image_size=resized_image_size,
@@ -137,13 +146,10 @@ class EmbodiedTeacher(PlayGround):
             for joint in self._agent_joints:
                 self._teacher_joints.append("teacher::" + joint)
             self._teacher_embodied = self._world.get_agent('teacher')
-            if self._demo_by_human:
-                self.step = self._step_with_human_demo
-                # run  gz physics -u 200 # str(int(round(1.0 / world_time_precision)))
-            else:
-                self.step = self._step_with_teacher_policy  
 
     def reset(self):
+        if self._demo_by_human:
+            self._keybo.reset()
         obs = super().reset()
         if self._demo_by_human:
             return obs
@@ -156,7 +162,7 @@ class EmbodiedTeacher(PlayGround):
         return teacher_obs, obs, reward, done, {}
 
     def _step_with_human_demo(self, agent_action):
-        teacher_action = self.get_action_from_keybo(self._agent_type)
+        teacher_action = self._keybo.get_control(self._agent_type, self._agent)
         return self._step_with_teacher_action(teacher_action, agent_action)
 
     def _step_with_teacher_action(self, teacher_action, agent_action):

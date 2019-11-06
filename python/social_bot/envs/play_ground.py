@@ -76,6 +76,7 @@ class PlayGround(GazeboEnvBase):
                  image_with_internal_states=False,
                  world_time_precision=None,
                  step_time=0.1,
+                 real_time_update_rate=0,
                  port=None,
                  action_cost=0.0,
                  resized_image_size=(64, 64),
@@ -104,6 +105,9 @@ class PlayGround(GazeboEnvBase):
                 environment step. for the tasks need higher control frequency (such as the 
                 tasks need walking by 2 legs), using a smaller step_time like 0.05 is better.
                 experiments show that iCub can not learn how to walk in a 0.1 step_time
+            real_time_update_rate (int): max update_rate per seconds. there is no limit if
+                this is set to 0. if 1:1 real time is prefered(like playing or recording video),
+                this should be set to 1.0/world_time_precision.
             port: Gazebo port, need to specify when run multiple environment in parallel
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
@@ -135,7 +139,8 @@ class PlayGround(GazeboEnvBase):
         self._sub_steps = int(round(step_time / world_time_precision))
         self._step_time = world_time_precision * self._sub_steps
         sim_time_cfg = [
-            "//physics//max_step_size=" + str(world_time_precision)
+            "//physics//max_step_size=" + str(world_time_precision),
+            "//physics//real_time_update_rate=" + str(real_time_update_rate)
         ]
         super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)

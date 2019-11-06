@@ -207,6 +207,24 @@ class Agent : public Model {
         std::make_tuple(euler.X(), euler.Y(), euler.Z()));
   }
 
+  void SetLinkPose(const std::string& link_name, const Pose& pose) const {
+    auto loc = std::get<0>(pose);
+    auto rot = std::get<1>(pose);
+    auto link = model_->GetLink(link_name);
+
+    if (!link) {
+      std::cerr << "unable to find link: " << link_name << std::endl;
+    }
+
+    ignition::math::Pose3d pose3d(std::get<0>(loc),
+                                  std::get<1>(loc),
+                                  std::get<2>(loc),
+                                  std::get<0>(rot),
+                                  std::get<1>(rot),
+                                  std::get<2>(rot));
+    link->SetWorldPose(pose3d);
+  }
+
   void SetJointState(const std::string& joint_name,
                      const JointState& joint_state) {
     auto joint = model_->GetJoint(joint_name);
@@ -691,6 +709,10 @@ PYBIND11_MODULE(pygazebo, m) {
            py::arg("sensor_scope_name"))
       .def("get_joint_state", &Agent::GetJointState, py::arg("joint_name"))
       .def("get_link_pose", &Agent::GetLinkPose, py::arg("link_name"))
+      .def("set_link_pose",
+           &Agent::SetLinkPose,
+           py::arg("link_name"),
+           py::arg("link_pose"))
       .def("get_collisions",
            &Agent::GetCollisions,
            "return a set of tuples of collided links detected by the contact "
