@@ -74,6 +74,7 @@ class PlayGround(GazeboEnvBase):
                  with_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
+                 max_steps=200,
                  world_time_precision=None,
                  step_time=0.1,
                  real_time_update_rate=0,
@@ -92,6 +93,7 @@ class PlayGround(GazeboEnvBase):
             with_language (bool): The observation will be a dict with an extra sentence
             use_image_observation (bool): Use image, or use low-dimentional states as
                 observation. Poses in the states observation are in world coordinate
+            max_steps (int): episode will end in so many steps, will be passed to the tasks
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
@@ -151,7 +153,7 @@ class PlayGround(GazeboEnvBase):
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         for task in tasks:
             task_group = TaskGroup()
-            task_group.add_task(task(env=self))
+            task_group.add_task(task(env=self, max_steps=max_steps))
             self._teacher.add_task_group(task_group)
         self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
@@ -168,10 +170,12 @@ class PlayGround(GazeboEnvBase):
         if agent_cfg['use_pid']:
             for joint_index in range(len(self._agent_joints)):
                 self._agent.set_pid_controller(
-                    self._agent_joints[joint_index],
-                    'velocity',
-                    p=0.02,
-                    d=0.00001,
+                    joint_name=self._agent_joints[joint_index],
+                    pid_control_type=agent_cfg['pid_type'][joint_index]
+                    if 'pid_type' in agent_cfg else 'velocity',
+                    p=agent_cfg['pid'][0],
+                    i=agent_cfg['pid'][1],
+                    d=agent_cfg['pid'][2],
                     max_force=self._joints_limits[joint_index])
             self._agent_control_range = agent_cfg['pid_control_limit']
         else:

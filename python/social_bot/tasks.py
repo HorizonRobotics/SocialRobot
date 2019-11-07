@@ -40,7 +40,7 @@ class Task(object):
     A Task is for teaching a single task.
     """
 
-    def __init__(self, env, reward_weight=1.0):
+    def __init__(self, env, max_steps=200, reward_weight=1.0):
         """
         Setting things up during the initialization
 
@@ -54,6 +54,7 @@ class Task(object):
         self._world = env._world
         self._agent = env._agent
         self._agent_type = env._agent_type
+        self._max_steps = max_steps
         self.reward_weight = reward_weight
         self.task_vocab = ['hello', 'well', 'done', 'failed', 'to']
 
@@ -104,11 +105,11 @@ class GoalTask(Task):
 
     def __init__(self,
                  env,
-                 max_steps=200,
+                 max_steps,
                  goal_name="ball",
                  distraction_list=['coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'],
                  success_distance_thresh=0.5,
-                 fail_distance_thresh=0.5,
+                 fail_distance_thresh=2.0,
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
                  sparse_reward=True,
@@ -149,13 +150,12 @@ class GoalTask(Task):
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
         """
-        super().__init__(env=env, reward_weight=reward_weight)
+        super().__init__(env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._distraction_penalty_distance_thresh = distraction_penalty_distance_thresh
         self._distraction_penalty = distraction_penalty
-        self._max_steps = max_steps
         self._sparse_reward = sparse_reward
         self._use_curriculum_training = use_curriculum_training
         self._start_range = start_range
@@ -236,8 +236,8 @@ class GoalTask(Task):
             dot = sum(dir * goal_dir)
 
             distraction_penalty = 0
-            if self._distraction_penalty_distance_thresh > 0 and distractions:
-                for obj_name in distractions:
+            if self._distraction_penalty_distance_thresh > 0 and self._distraction_list:
+                for obj_name in self._distraction_list:
                     obj = self._world.get_agent(obj_name)
                     if obj:
                         obj_loc, obj_dir = obj.get_pose()
@@ -346,6 +346,7 @@ class ICubAuxiliaryTask(Task):
 
     def __init__(self,
                  env,
+                 max_steps,
                  target=None,
                  agent_init_pos=(0, 0),
                  agent_pos_random_range=0,
@@ -353,6 +354,7 @@ class ICubAuxiliaryTask(Task):
         """
         Args:
             env (gym.Env): an instance of Environment
+            max_steps (int): episode will end in so many steps
             reward_weight (float): the weight of the reward, should be tuned
                 accroding to reward range of other tasks 
             target (string): this is the target icub should face towards, since
@@ -360,7 +362,7 @@ class ICubAuxiliaryTask(Task):
             agent_init_pos (tuple): the expected initial position of the agent
             pos_random_range (float): random range of the initial position
         """
-        super().__init__(env=env, reward_weight=reward_weight)
+        super().__init__(env=env, max_steps=max_steps, reward_weight=reward_weight)
         self.task_vocab = ['icub']
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
@@ -527,7 +529,7 @@ class KickingBallTask(Task):
 
     def __init__(self,
                  env,
-                 max_steps=500,
+                 max_steps,
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  random_range=4.0,
@@ -544,8 +546,7 @@ class KickingBallTask(Task):
                 higher reward when its speed is higher than target_speed.
             reward_weight (float): the weight of the reward
         """
-        super().__init__(env=env, reward_weight=reward_weight)
-        self._max_steps=max_steps
+        super().__init__(env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name=goal_name
         self._random_range=random_range
         self._success_distance_thresh=success_distance_thresh

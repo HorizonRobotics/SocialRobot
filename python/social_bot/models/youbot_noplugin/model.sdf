@@ -640,24 +640,6 @@
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
     </link>
-    <link name="caster_link_bl">
-      <pose>-0.228000 0.158000 -0.034000 0 0 0</pose>
-      <inertial>
-        <pose>0 0 0 0 0 0</pose>
-        <inertia>
-          <ixx>0.012412</ixx>
-          <ixy>-0.000712</ixy>
-          <ixz>0.000503</ixz>
-          <iyy>0.015218</iyy>
-          <iyz>-0.000004</iyz>
-          <izz>0.011764</izz>
-        </inertia>
-        <mass>0.100000</mass>
-      </inertial>
-      <gravity>1</gravity>
-      <self_collide>0</self_collide>
-      <kinematic>0</kinematic>
-    </link>
     <link name="wheel_link_bl">
       <pose>-0.228000 0.158000 -0.034000 0 0 0</pose>
       <inertial>
@@ -695,6 +677,12 @@
               <min_depth>0</min_depth>
             </ode>
           </contact>
+          <friction>
+            <ode>
+              <mu>0.1</mu>
+              <mu2>0.1</mu2>
+            </ode>
+          </friction>
         </surface>
       </collision>
       <visual name="wheel_link_bl_geom_visual">
@@ -711,24 +699,6 @@
           </script>
         </material>
       </visual>
-      <gravity>1</gravity>
-      <self_collide>0</self_collide>
-      <kinematic>0</kinematic>
-    </link>
-    <link name="caster_link_br">
-      <pose>-0.228000 -0.158000 -0.034000 0 0 0</pose>
-      <inertial>
-        <pose>0 0 0 0 0 0</pose>
-        <inertia>
-          <ixx>0.012412</ixx>
-          <ixy>-0.000712</ixy>
-          <ixz>0.000503</ixz>
-          <iyy>0.015218</iyy>
-          <iyz>-0.000004</iyz>
-          <izz>0.011764</izz>
-        </inertia>
-        <mass>0.100000</mass>
-      </inertial>
       <gravity>1</gravity>
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
@@ -770,6 +740,12 @@
               <min_depth>0</min_depth>
             </ode>
           </contact>
+          <friction>
+            <ode>
+              <mu>0.1</mu>
+              <mu2>0.1</mu2>
+            </ode>
+          </friction>
         </surface>
       </collision>
       <visual name="wheel_link_br_geom_visual">
@@ -786,24 +762,6 @@
           </script>
         </material>
       </visual>
-      <gravity>1</gravity>
-      <self_collide>0</self_collide>
-      <kinematic>0</kinematic>
-    </link>
-    <link name="caster_link_fl">
-      <pose>0.228000 0.158000 -0.034000 0 0 0</pose>
-      <inertial>
-        <pose>0 0 0 0 0 0</pose>
-        <inertia>
-          <ixx>0.012412</ixx>
-          <ixy>-0.000712</ixy>
-          <ixz>0.000503</ixz>
-          <iyy>0.015218</iyy>
-          <iyz>-0.000004</iyz>
-          <izz>0.011764</izz>
-        </inertia>
-        <mass>0.100000</mass>
-      </inertial>
       <gravity>1</gravity>
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
@@ -845,6 +803,12 @@
               <min_depth>0</min_depth>
             </ode>
           </contact>
+          <friction>
+            <ode>
+              <mu>0.9</mu>
+              <mu2>0.9</mu2>
+            </ode>
+          </friction>
         </surface>
       </collision>
       <visual name="wheel_link_fl_geom_visual">
@@ -861,24 +825,6 @@
           </script>
         </material>
       </visual>
-      <gravity>1</gravity>
-      <self_collide>0</self_collide>
-      <kinematic>0</kinematic>
-    </link>
-    <link name="caster_link_fr">
-      <pose>0.228000 -0.158000 -0.034000 0 0 0</pose>
-      <inertial>
-        <pose>0 0 0 0 0 0</pose>
-        <inertia>
-          <ixx>0.012412</ixx>
-          <ixy>-0.000712</ixy>
-          <ixz>0.000503</ixz>
-          <iyy>0.015218</iyy>
-          <iyz>-0.000004</iyz>
-          <izz>0.011764</izz>
-        </inertia>
-        <mass>0.100000</mass>
-      </inertial>
       <gravity>1</gravity>
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
@@ -920,6 +866,12 @@
               <min_depth>0</min_depth>
             </ode>
           </contact>
+          <friction>
+            <ode>
+              <mu>0.9</mu>
+              <mu2>0.9</mu2>
+            </ode>
+          </friction>
         </surface>
       </collision>
       <visual name="wheel_link_fr_geom_visual">
@@ -1179,25 +1131,9 @@
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
     </joint>
-    <joint name="caster_joint_bl" type="revolute">
-      <pose>0 0 0 0 0 0</pose>
-      <parent>base_link</parent>
-      <child>caster_link_bl</child>
-      <axis>
-        <dynamics>
-          <damping>1</damping>
-          <friction>0</friction>
-        </dynamics>
-        <limit>
-          <effort>1.0</effort>
-        </limit>
-        <xyz>0 0 1</xyz>
-        <use_parent_model_frame>true</use_parent_model_frame>
-      </axis>
-    </joint>
     <joint name="wheel_joint_bl" type="revolute">
       <pose>0 0 0 0 0 0</pose>
-      <parent>caster_link_bl</parent>
+      <parent>base_link</parent>
       <child>wheel_link_bl</child>
       <axis>
         <dynamics>
@@ -1211,25 +1147,9 @@
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
     </joint>
-    <joint name="caster_joint_br" type="revolute">
-      <pose>0 0 0 0 0 0</pose>
-      <parent>base_link</parent>
-      <child>caster_link_br</child>
-      <axis>
-        <dynamics>
-          <damping>1</damping>
-          <friction>0</friction>
-        </dynamics>
-        <limit>
-          <effort>1.0</effort>
-        </limit>
-        <xyz>0 0 1</xyz>
-        <use_parent_model_frame>true</use_parent_model_frame>
-      </axis>
-    </joint>
     <joint name="wheel_joint_br" type="revolute">
       <pose>0 0 0 0 0 0</pose>
-      <parent>caster_link_br</parent>
+      <parent>base_link</parent>
       <child>wheel_link_br</child>
       <axis>
         <dynamics>
@@ -1243,25 +1163,9 @@
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
     </joint>
-    <joint name="caster_joint_fl" type="revolute">
-      <pose>0 0 0 0 0 0</pose>
-      <parent>base_link</parent>
-      <child>caster_link_fl</child>
-      <axis>
-        <dynamics>
-          <damping>1</damping>
-          <friction>0</friction>
-        </dynamics>
-        <limit>
-          <effort>1.0</effort>
-        </limit>
-        <xyz>0 0 1</xyz>
-        <use_parent_model_frame>true</use_parent_model_frame>
-      </axis>
-    </joint>
     <joint name="wheel_joint_fl" type="revolute">
       <pose>0 0 0 0 0 0</pose>
-      <parent>caster_link_fl</parent>
+      <parent>base_link</parent>
       <child>wheel_link_fl</child>
       <axis>
         <dynamics>
@@ -1275,25 +1179,9 @@
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
     </joint>
-    <joint name="caster_joint_fr" type="revolute">
-      <pose>0 0 0 0 0 0</pose>
-      <parent>base_link</parent>
-      <child>caster_link_fr</child>
-      <axis>
-        <dynamics>
-          <damping>1</damping>
-          <friction>0</friction>
-        </dynamics>
-        <limit>
-          <effort>1.0</effort>
-        </limit>
-        <xyz>0 0 1</xyz>
-        <use_parent_model_frame>true</use_parent_model_frame>
-      </axis>
-    </joint>
     <joint name="wheel_joint_fr" type="revolute">
       <pose>0 0 0 0 0 0</pose>
-      <parent>caster_link_fr</parent>
+      <parent>base_link</parent>
       <child>wheel_link_fr</child>
       <axis>
         <dynamics>

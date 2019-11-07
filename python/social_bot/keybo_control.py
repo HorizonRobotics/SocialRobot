@@ -21,14 +21,17 @@ from absl import logging
 # Get command from keyboard
 class KeyboardControl:
     def __init__(self):
-        self._decay = 0.9
-        self._gripper_movements = [0, 0, 0]
-        self._gripper_open = True
         self._speed = 0
         self._turning = 0
+        self._gripper_pos = [0, 0, 0]
+        self._gripper_open = True
+        self._wheel_step = 0.5
+        self._gripper_step = 0.02
+        self._speed_decay = 0.9
+        self._turning_decay = 0.5
 
     def reset(self):
-        self._gripper_movements = [0, 0, 0]
+        self._gripper_pos = [0, 0, 0]
         self._gripper_open = True
         self._speed = 0
         self._turning = 0
@@ -48,32 +51,29 @@ class KeyboardControl:
 
     def get_control(self, agent_type, agent):
         ch = self._getch()
-        self._speed *= self._decay
-        self._turning *= self._decay
-        self._gripper_movements = [0, 0, 0]
+        self._speed *= self._speed_decay
+        self._turning *= self._turning_decay
         # movemnts
         if ch == "w":
-            self._speed = self._speed + 0.1
+            self._speed = self._speed + self._wheel_step
         elif ch == "s":
-            self._speed = self._speed - 0.1
+            self._speed = self._speed - self._wheel_step
         elif ch == "a":
-            self._turning = self._turning - 0.1
+            self._turning = self._turning - self._wheel_step
         elif ch == "d":
-            self._turning = self._turning + 0.1
+            self._turning = self._turning + self._wheel_step
         # gripper pose
-        elif ch == "j":
-            self._gripper_movements[0] = 0.01
-        elif ch == "l":
-            self._gripper_movements[1] = 0.01
-        elif ch == "k":
-            self._gripper_movements[0] = 0.01
         elif ch == "i":
-            self._gripper_movements[1] = 0.01
+            self._gripper_pos[0] -= self._gripper_step
+        elif ch == "k":
+            self._gripper_pos[0] += self._gripper_step
+        elif ch == "j":
+            self._gripper_pos[1] -= self._gripper_step
+        elif ch == "l":
+            self._gripper_pos[1] += self._gripper_step
         # gripper finger
         elif ch == "e":
-            self._gripper_open = True
-        elif ch == "r":
-            self._gripper_open = False
+            self._gripper_open = not self._gripper_open
 
         return self.convert_to_action(agent_type, agent)
 
@@ -82,10 +82,6 @@ class KeyboardControl:
             actions = self.gen_pioneer2dx_action()
         elif agent_type == 'youbot_noplugin':
             actions = self.gen_youbot_action()
-            pose = agent.get_link_pose('gripper_palm_link')
-            pos = np.array(pose[0]) + np.array(self._gripper_movements)
-            rot = np.array(pose[1])
-            agent.set_link_pose('gripper_palm_link', (pos, rot))
         elif agent_type == 'pr2_noplugin':
             actions = self.gen_pr2_action()
         else:
@@ -110,9 +106,22 @@ class KeyboardControl:
         else:
             gripper_joint = -0.5
         actions = [
-            0, 0, 0, 0, 0, 0,  # arm_joints
-            0, gripper_joint, gripper_joint,  # palm joint and gripper joints
-            wheel_joint_bl, wheel_joint_br, wheel_joint_fl, wheel_joint_fr
+            # arm joints
+            0,
+            0.5 + self._gripper_pos[1],
+            0.3,
+            self._gripper_pos[0] - 0.1,
+            0.2,
+            0,
+            # palm joint and gripper joints
+            0,
+            gripper_joint,
+            gripper_joint,
+            # wheel joints
+            wheel_joint_bl,
+            wheel_joint_br,
+            wheel_joint_fl,
+            wheel_joint_fr
         ]
         return actions
 
@@ -140,13 +149,14 @@ def main():
     with_language = False
     use_image_obs = False
     fig = None
-    agent_type='youbot_noplugin' # support pioneer2dx_noplugin or youbot_noplugin
+    agent_type = 'youbot_noplugin'  # support pioneer2dx_noplugin or youbot_noplugin
     env = PlayGround(
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=False,
         agent_type=agent_type,
-        real_time_update_rate = 500,
+        max_steps=100000,
+        real_time_update_rate=500,
         tasks=[GoalTask])
     env.render()
     keybo = KeyboardControl()
@@ -171,7 +181,7 @@ def main():
             else:
                 fig.set_data(obs)
             plt.pause(0.00001)
-        if step_cnt > 300:
+        if done:
             env.reset()
             keybo.reset()
             step_per_sec = step_cnt / (time.time() - last_done_time)
