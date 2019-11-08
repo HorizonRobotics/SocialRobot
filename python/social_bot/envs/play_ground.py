@@ -215,7 +215,13 @@ class PlayGround(GazeboEnvBase):
             controls = action['control']
         else:
             sentence = ''
-            controls = action
+            action_ctrl = action
+        task = (self._teacher._current_task_group
+            ).get_current_task_non_generator()
+        if isinstance(task, GoalTask) and task._also_curriculum_control:
+            action_ctrl *= task._control_range
+        controls = np.clip(action_ctrl, -1.0, 1.0) * self._agent_control_range
+        controls = dict(zip(self._agent_joints, controls))
         self._agent.take_action(controls)
         self._world.step(self._sub_steps)
         teacher_action = self._teacher.teach(sentence)

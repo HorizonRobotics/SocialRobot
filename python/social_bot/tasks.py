@@ -145,6 +145,9 @@ class GoalTask(Task):
                  random_range=5.0,
                  random_goal=False,
                  use_curriculum_training=False,
+                 also_curriculum_distractions=True,
+                 also_curriculum_target_angle=False,
+                 also_curriculum_control=False,
                  start_range=0,
                  increase_range_by_percent=50.,
                  reward_thresh_to_increase_range=0.4,
@@ -172,6 +175,10 @@ class GoalTask(Task):
             random_range (float): the goal's random position range
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
+            also_curriculum_distractions (bool): move distractions according to curriculum as well
+            also_curriculum_target_angle (bool): enlarge angle to target when initializing target according
+                to curriculum.  Only when all angles are satisfied does curriculum try to increase distance.
+                Uses range of 0-180 degrees, starting from 60 with increments of 15.
             start_range (float): for curriculum learning, the starting random_range to set the goal
             increase_range_by_percent (float): for curriculum learning, how much to increase random range
                 every time agent reached the specified amount of reward.
@@ -196,6 +203,12 @@ class GoalTask(Task):
         self._distraction_penalty = distraction_penalty
         self._sparse_reward = sparse_reward
         self._use_curriculum_training = use_curriculum_training
+        self._also_curriculum_distractions = also_curriculum_distractions
+        self._also_curriculum_target_angle = also_curriculum_target_angle
+        self._also_curriculum_control = also_curriculum_control
+        if also_curriculum_target_angle:
+            self._random_angle = 60
+        self._control_range = 0.1
         self._start_range = start_range
         self._is_full_range_in_curriculum = False
         self._random_goal = random_goal
@@ -219,8 +232,14 @@ class GoalTask(Task):
             self._reward_thresh_to_increase_range = reward_thresh_to_increase_range
             self._increase_range_by_percent = increase_range_by_percent
             self._percent_full_range_in_curriculum = percent_full_range_in_curriculum
-            logging.info("start_range %f, reward_thresh_to_increase_range %f",
-                         self._start_range,
+            angle_str = ""
+            if also_curriculum_target_angle:
+                angle_str = ", start_angle {}".format(self._random_angle)
+            ctrl_str = ""
+            if also_curriculum_control:
+                ctrl_str = ", control_range {}".format(self._control_range)
+            logging.info("start_range %f%s%s, reward_thresh_to_increase_range %f",
+                         self._start_range, angle_str, ctrl_str,
                          self._reward_thresh_to_increase_range)
         else:
             self._random_range = random_range
@@ -239,10 +258,26 @@ class GoalTask(Task):
         if (value > 0 and len(self._q) == self._max_reward_q_length
                 and sum(self._q) >= self._max_reward_q_length *
                 self._reward_thresh_to_increase_range):
-            self._random_range *= 1. + self._increase_range_by_percent
-            if self._random_range > self._orig_random_range:
-                self._random_range = self._orig_random_range
-            logging.info("Raising random_range to %f", self._random_range)
+            if self._also_curriculum_target_angle:
+                self._random_angle += 20
+                logging.info("Raising random_angle to %d", self._random_angle)
+            if (not self._also_curriculum_target_angle or
+                self._random_angle > 360):
+                self._random_angle = 60
+                new_range = min(
+                    (1. + self._increase_range_by_percent
+                        ) * self._random_range,
+                    self._orig_random_range)
+                new_control_range = min(1.0,
+                    (1. + self._increase_range_by_percent) *
+                    self._control_range)
+                ctrl_range = ""
+                if self._also_curriculum_control and self._control_range < 1:
+                    ctrl_range = ", control_range to {}".format(new_control_range)
+                if self._random_range < self._orig_random_range:
+                    logging.info("Raising random_range to %f%s", new_range, ctrl_range)
+                self._random_range = new_range
+                self._control_range = new_control_range
             self._q.clear()
 
     def get_random_range(self):
@@ -254,20 +289,20 @@ class GoalTask(Task):
         """
         agent_sentence = yield
         self._agent.reset()
-        loc, dir = self._agent.get_pose()
+        loc, agent_dir = self._agent.get_pose()
         loc = np.array(loc)
         self._random_move_objects()
         if self._random_goal:
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
-        goal = self._world.get_model(self._goal_name)
-        self._move_goal(goal, loc)
+        goal = self._world.get_agent(self._goal_name)
+        self._move_goal(goal, loc, agent_dir)
         steps_since_last_reward = 0
         prev_min_dist_to_distraction = 100
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
-            loc, dir = self._agent.get_pose()
-            if self._agent.type.find('icub') != -1:
+            loc, agent_dir = self._agent.get_pose()
+            if self._agent_type.find('icub') != -1:
                 # For agent icub, we need to use the average pos here
                 loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
             goal_loc, _ = goal.get_pose()
@@ -275,7 +310,7 @@ class GoalTask(Task):
             goal_loc = np.array(goal_loc)
             dist = np.linalg.norm(loc - goal_loc)
             # dir from get_pose is (roll, pitch, roll)
-            dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
+            dir = np.array([math.cos(agent_dir[2]), math.sin(agent_dir[2])])
             goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
             dot = sum(dir * goal_dir)
 
@@ -292,7 +327,7 @@ class GoalTask(Task):
                     reward=reward, sentence="well done", done=False)
                 steps_since_last_reward = 0
                 if self._move_goal_during_episode:
-                    self._move_goal(goal, loc)
+                    self._move_goal(goal, loc, agent_dir)
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
@@ -347,21 +382,21 @@ class GoalTask(Task):
             prev_min_dist_to_distraction = curr_min_dist
         return distraction_penalty, prev_min_dist_to_distraction
 
-    def _move_goal(self, goal, agent_loc):
+    def _move_goal(self, goal, agent_loc, agent_dir):
         """
         Move goal as well as a distraction object to the right location.
         """
-        self._move_goal_impl(goal, agent_loc)
+        self._move_goal_impl(goal, agent_loc, agent_dir)
         distractions = OrderedDict()
         for item in self._distraction_list:
             if item is not self._goal_name:
                 distractions[item] = 1
-        if len(distractions):
+        if len(distractions) and self._also_curriculum_distractions:
             rand_id = random.randrange(len(distractions))
             distraction = self._world.get_agent(list(distractions.keys())[rand_id])
-            self._move_goal_impl(distraction, agent_loc)
+            self._move_goal_impl(distraction, agent_loc, agent_dir)
 
-    def _move_goal_impl(self, goal, agent_loc):
+    def _move_goal_impl(self, goal, agent_loc, agent_dir):
         if (self.should_use_curriculum_training()
                 and self._percent_full_range_in_curriculum > 0
                 and random.random() < self._percent_full_range_in_curriculum):
@@ -373,6 +408,12 @@ class GoalTask(Task):
         while True:
             loc = (random.random() * range - range / 2,
                    random.random() * range - range / 2, 0)
+            if self._also_curriculum_target_angle and not self._is_full_range_in_curriculum:
+                dist = random.random() * range
+                angle = math.radians(
+                    math.degrees(agent_dir[2]) +
+                    random.random() * self._random_angle - self._random_angle / 2)
+                loc = (dist * math.cos(angle), dist * math.sin(angle), 0) + agent_loc
             self._initial_dist = np.linalg.norm(loc - agent_loc)
             if self._initial_dist > self._success_distance_thresh:
                 break
