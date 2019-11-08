@@ -172,7 +172,10 @@ class GazeboEnvBase(gym.Env):
         obj_num = len(model_list)
         for obj_id in range(obj_num):
             model_name = model_list[obj_id]
-            if self._world.model_list_info().find(model_name) == -1:
+            # the way to construct the key needs to be in sync with pygazebo.cc
+            # ModelListInfo()
+            key = '"{}"'.format(model_name)
+            if self._world.model_list_info().find(key) == -1:
                 self._world.insertModelFile('model://' + model_name)
                 logging.debug('model ' + model_name + ' inserted')
                 time.sleep(0.2)
