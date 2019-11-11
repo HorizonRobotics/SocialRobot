@@ -49,7 +49,7 @@ class EmbodiedTeacher(PlayGround):
 
     Existing teacher policy can be obtained by training on the same environment
     by enabling the flag "is_training_for_teacher_policy".
-    
+
     Demonstrations from human is through keyboard. Note that you should keep the
     terminal window on the forefront to capture the key being pressed.
     Some tricks are used to make the keyboard controlling a little bit more
@@ -111,13 +111,16 @@ class EmbodiedTeacher(PlayGround):
         self._is_training_for_teacher_policy = is_training_for_teacher_policy
         self._demo_by_human = demo_by_human and (
             not is_training_for_teacher_policy)
-        if self._demo_by_human:
+        if self._is_training_for_teacher_policy:
+            self.step = self.step
+        elif self._demo_by_human:
             from social_bot.keybo_control import KeyboardControl
             self.step = self._step_with_human_demo
             self._keybo = KeyboardControl()
             real_time_update_rate = 500  # run "gz physics -u" to override
-        else:
+        else:  # demo by teacher policy
             self.step = self._step_with_teacher_policy
+
         super().__init__(
             agent_type=agent_type,
             world_name="play_ground.world",
@@ -132,6 +135,7 @@ class EmbodiedTeacher(PlayGround):
             action_cost=action_cost,
             resized_image_size=resized_image_size,
             vocab_sequence_length=vocab_sequence_length)
+            
         if not self._is_training_for_teacher_policy:
             # insert teacher model
             self.insert_model(
@@ -146,7 +150,7 @@ class EmbodiedTeacher(PlayGround):
         if self._demo_by_human:
             self._keybo.reset()
         obs = super().reset()
-        if self._demo_by_human:
+        if self._demo_by_human or self._is_training_for_teacher_policy:
             return obs
         else:
             return obs, obs
