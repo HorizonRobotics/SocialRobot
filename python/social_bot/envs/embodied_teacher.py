@@ -49,11 +49,12 @@ class EmbodiedTeacher(PlayGround):
 
     Existing teacher policy can be obtained by training on the same environment
     by enabling the flag "is_training_for_teacher_policy".
-    Demonstrations from human is through keyboard.
+    
+    Demonstrations from human is through keyboard. Note that you should keep the
+    terminal window on the forefront to capture the key being pressed.
     Some tricks are used to make the keyboard controlling a little bit more
-    friendly. Move the agent around by key "WASD" and 
-    open or close gripper by key "R" or "E".
-    The keyboard controlling support pioneer2dx_noplugin and kuka youbot for now. 
+    friendly. Move the agent around by key "WASD" and open or close gripper by
+    key "E", and control the robot arm(if there is) by "IJKL".
     """
 
     def __init__(self,
@@ -157,7 +158,7 @@ class EmbodiedTeacher(PlayGround):
         return teacher_obs, obs, reward, done, {}
 
     def _step_with_human_demo(self, agent_action):
-        teacher_action = self._keybo.get_control(self._agent_type, self._agent)
+        teacher_action = self._keybo.get_agent_actions(self._agent_type)
         return self._step_with_teacher_action(teacher_action, agent_action)
 
     def _step_with_teacher_action(self, teacher_action, agent_action):
