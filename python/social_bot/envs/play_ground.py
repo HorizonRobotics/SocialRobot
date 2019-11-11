@@ -171,11 +171,10 @@ class PlayGround(GazeboEnvBase):
             for joint_index in range(len(self._agent_joints)):
                 self._agent.set_pid_controller(
                     joint_name=self._agent_joints[joint_index],
-                    pid_control_type=agent_cfg['pid_type'][joint_index]
-                    if 'pid_type' in agent_cfg else 'velocity',
-                    p=agent_cfg['pid'][0],
-                    i=agent_cfg['pid'][1],
-                    d=agent_cfg['pid'][2],
+                    pid_control_type=agent_cfg['pid_type'][joint_index],
+                    p=agent_cfg['pid'][joint_index][0],
+                    i=agent_cfg['pid'][joint_index][1],
+                    d=agent_cfg['pid'][joint_index][2],
                     max_force=self._joints_limits[joint_index])
             self._agent_control_range = agent_cfg['pid_control_limit']
         else:

@@ -69,13 +69,13 @@ class KeyboardControl:
         self._turning *= self._turning_decay
         # movemnts
         if key == "w":
-            self._speed = self._speed + self._wheel_step
+            self._speed = 0 if self._speed < -0.01 else self._speed + self._wheel_step
         elif key == "s":
-            self._speed = self._speed - self._wheel_step
+            self._speed = 0 if self._speed > 0.01 else self._speed - self._wheel_step
         elif key == "a":
-            self._turning = self._turning - self._wheel_step
+            self._turning = 0 if self._turning > 0.01 else self._turning - self._wheel_step
         elif key == "d":
-            self._turning = self._turning + self._wheel_step
+            self._turning = 0 if self._turning < -0.01 else self._turning + self._wheel_step
         # gripper pose
         elif key == "i":
             self._gripper_pos[0] -= self._gripper_step
