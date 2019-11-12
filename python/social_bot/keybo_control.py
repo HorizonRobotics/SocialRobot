@@ -28,6 +28,7 @@ class KeyboardControl:
     friendly. Move the agent around by key "WASD" and open or close gripper by
     key "E", and control the robot arm(if there is) by "IJKL".
     """
+
     def __init__(self):
         self._speed = 0
         self._turning = 0

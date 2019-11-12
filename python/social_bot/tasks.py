@@ -82,10 +82,10 @@ class Task(object):
         """
         pass
 
-    def task_specific_observation(self):
+    def task_specific_observation(self, agent):
         """
         Args:
-            None
+            agent (Agent): the agent
         Returns:
             np.array, the extra observations should be added into the observation
             besides original observation from the environment. This can be overide
@@ -325,10 +325,10 @@ class GoalTask(Task):
         logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
 
-    def task_specific_observation(self):
+    def task_specific_observation(self, agent):
         """
         Args:
-            None
+            agent (Agent): the agent
         Returns:
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
@@ -460,17 +460,18 @@ class ICubAuxiliaryTask(Task):
                               r_foot_pose, foot_contacts))
         return obs
 
-    def _get_angle_to_target(self, agent_pos, link_name, offset=0):
+    def _get_angle_to_target(self, aegnt, agent_pos, link_name, offset=0):
         """
         Get angle from a icub link, relative to target.
         Args:
+            agent (Agent): the agent
             agent_pos (numpay array): the pos of agent
             link_name (string): link name of the agent
             offset (float): the yaw offset of link, for some links have initial internal rotation
         Returns:
             float, angle to target
         """
-        yaw = self._agent.get_link_pose(link_name)[1][2]
+        yaw = aegnt.get_link_pose(link_name)[1][2]
         yaw = (yaw + offset) % (
             2 * np.pi
         ) - np.pi  # model icub has a globle built-in 180 degree rotation
@@ -482,22 +483,22 @@ class ICubAuxiliaryTask(Task):
         angle_to_target = (angle_to_target + np.pi) % (2 * np.pi) - np.pi
         return angle_to_target
 
-    def task_specific_observation(self):
+    def task_specific_observation(self, agent):
         """
         Args:
-            None
+            agent (Agent): the agent
         Returns:
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
         """
-        icub_extra_obs = self.get_icub_extra_obs(self._agent)
+        icub_extra_obs = self.get_icub_extra_obs(agent)
         if self._target_name:
             agent_pos = icub_extra_obs[:3]
             agent_speed = (
                 agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos
-            yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
-            angle_to_target = self._get_angle_to_target(
+            yaw = agent.get_link_pose('iCub::root_link')[1][2]
+            angle_to_target = self._get_angle_to_target(agent,
                 agent_pos, 'iCub::root_link')
             rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
                                       [np.sin(-yaw),
@@ -612,7 +613,13 @@ class KickingBallTask(Task):
                         reward=self._target_speed + 3 - dist / init_goal_dist)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
-    def task_specific_observation(self):
+    def task_specific_observation(self, agent):
+        """
+        Args:
+            agent (Agent): the agent
+        Returns:
+            np.array, the extra observations should be added into the observation
+        """
         model_list = [
             'ball',
             'goal',

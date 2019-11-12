@@ -172,16 +172,7 @@ class EmbodiedTeacher(PlayGround):
         agent.take_action(controls_dict)
 
     def _get_teacher_obs(self):
-        agent = self._agent
-        self._agent = self._teacher_embodied
-        for group in self._teacher._task_groups:
-            for task in group._tasks:
-                task._agent = self._teacher_embodied
-        teacher_obs = self._get_low_dim_full_states()
-        self._agent = agent
-        for group in self._teacher._task_groups:
-            for task in group._tasks:
-                task._agent = agent
+        teacher_obs = self._get_low_dim_full_states(self._teacher_embodied)
         return teacher_obs
 
 

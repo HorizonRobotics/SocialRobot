@@ -293,11 +293,11 @@ class PlayGround(GazeboEnvBase):
             image = np.array(image, copy=False)
         return image
 
-    def _get_low_dim_full_states(self):
-        task_specific_ob = self._teacher.get_task_pecific_observation()
-        agent_pose = np.array(self._agent.get_pose()).flatten()
-        agent_vel = np.array(self._agent.get_velocities()).flatten()
-        internal_states = self._get_internal_states(self._agent,
+    def _get_low_dim_full_states(self, agent):
+        task_specific_ob = self._teacher.get_task_pecific_observation(agent)
+        agent_pose = np.array(agent.get_pose()).flatten()
+        agent_vel = np.array(agent.get_velocities()).flatten()
+        internal_states = self._get_internal_states(agent,
                                                     self._agent_joints)
         obs = np.concatenate(
             (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
@@ -311,7 +311,7 @@ class PlayGround(GazeboEnvBase):
                 obs['states'] = self._get_internal_states(
                     self._agent, self._agent_joints)
         else:
-            obs['states'] = self._get_low_dim_full_states()
+            obs['states'] = self._get_low_dim_full_states(self._agent)
         if self._with_language:
             obs['sentence'] = self._teacher.sentence_to_sequence(
                 sentence_raw, self._seq_length)
@@ -324,7 +324,7 @@ class PlayGround(GazeboEnvBase):
         elif self._use_image_obs:  # observation is pure image
             obs = self._get_camera_observation()
         else:  # observation is pure low-dimentional states
-            obs = self._get_low_dim_full_states()
+            obs = self._get_low_dim_full_states(self._agent)
         return obs
 
 

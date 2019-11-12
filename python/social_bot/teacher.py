@@ -209,7 +209,7 @@ class Teacher(object):
         """
         return self._task_groups
 
-    def get_task_pecific_observation(self):
+    def get_task_pecific_observation(self, agent):
         """Get the task specific observation of all the tasks added to the teacher
 
         Args:
@@ -221,7 +221,7 @@ class Teacher(object):
         for task_group in self.get_task_groups():
             for task in task_group.get_tasks():
                 task_specific_ob = np.append(task_specific_ob,
-                                             task.task_specific_observation())
+                    task.task_specific_observation(agent))
         return task_specific_ob
 
     def _build_vocab_from_tasks(self):
