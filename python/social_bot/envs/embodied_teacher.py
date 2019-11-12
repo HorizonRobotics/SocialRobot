@@ -17,6 +17,8 @@ A simple enviroment for an agent play on the ground
 import numpy as np
 import gin
 from absl import logging
+from collections import OrderedDict
+import gym
 
 from social_bot import teacher
 from social_bot import tasks
@@ -33,7 +35,7 @@ class EmbodiedTeacher(PlayGround):
     interface for human.
 
     Existing teacher policy can be obtained by training on the same task
-    using PlayGround.
+    using PlayGround without language.
 
     Demonstrations from human is through keyboard. Note that you should keep the
     terminal window on the forefront to capture the key being pressed.
@@ -55,6 +57,7 @@ class EmbodiedTeacher(PlayGround):
                  action_cost=0.0,
                  resized_image_size=(64, 64),
                  vocab_sequence_length=20,
+                 initial_teacher_pose="0 -2 0 0 0 0",
                  demo_by_human=False):
         """
         Args:
@@ -89,17 +92,16 @@ class EmbodiedTeacher(PlayGround):
                 from the camera. Otherwise, the original image will be resized
                 to (width, height)
             vocab_sequence_length (int): the length of encoded sequence
+            initial_teacher_pose (string): initial teacher pose in the world, the format
+                is "x y z roll pitch yaw"
             demo_by_human (bool): demo by human or by existing teacher policy
         """
         self._demo_by_human = demo_by_human
         if self._demo_by_human:
             from social_bot.keybo_control import KeyboardControl
-            self.step = self._step_with_human_demo
             self._keybo = KeyboardControl()
             real_time_update_rate = 500  # run "gz physics -u" to override
-        else:  # demo by teacher policy
-            self.step = self._step_with_teacher_policy
-
+        
         super().__init__(
             agent_type=agent_type,
             world_name="play_ground.world",
@@ -117,31 +119,60 @@ class EmbodiedTeacher(PlayGround):
 
         # insert teacher model
         self.insert_model(
-            model=agent_type, name="teacher", pose="0 -2 0 0 0 0")
+            model=agent_type, name="teacher", pose=initial_teacher_pose)
         # set up teacher joints
         self._teacher_joints = []
         for joint in self._agent_joints:
             self._teacher_joints.append("teacher::" + joint)
         self._teacher_embodied = self._world.get_agent('teacher')
+        
+        # setup action and observation space
+        if not self._demo_by_human:
+            self.action_space = gym.spaces.Dict(
+                learner=self.action_space,
+                teacher=self.action_space)
+            self.observation_space = gym.spaces.Dict(
+                learner=self.observation_space,
+                teacher=self.observation_space)
 
     def reset(self):
+        """
+        Args:
+            None
+        Returns:
+            Observaion of the first step
+        """
+        obs = super().reset()
         if self._demo_by_human:
             self._keybo.reset()
-        obs = super().reset()
-        if self._demo_by_human or self._is_training_for_teacher_policy:
             return obs
         else:
-            return obs, obs
+            return OrderedDict(learner=obs, teacher=obs)
 
-    def _step_with_teacher_policy(self, teacher_action, agent_action):
-        obs, reward, done, _ = self._step_with_teacher_action(
-            teacher_action, agent_action)
-        teacher_obs = self._get_teacher_obs()
-        return teacher_obs, obs, reward, done, {}
-
-    def _step_with_human_demo(self, agent_action):
-        teacher_action = self._keybo.get_agent_actions(self._agent_type)
-        return self._step_with_teacher_action(teacher_action, agent_action)
+    def step(self, action):
+        """
+        Args:
+            action (dict|int|float): If demo_by_human is False, action is a 
+                dictionary with key "learner" and "teacher". action[key] 
+                depends on the configurations, similar to the Playground.
+                If demo_by_human is True, it is the same as Playground.
+        Returns:
+            If demo_by_human is False, it returns a dictionary with key 'learner'
+                and 'teacher', contains the observation for agent and teacher.
+            If demo_by_human is True, it returns the same as Playground.
+        """
+        if self._demo_by_human:
+            teacher_action = self._keybo.get_agent_actions(self._agent_type)
+            return self._step_with_teacher_action(teacher_action, action)
+        else:  # demo by teacher policy
+            teacher_action = action['teacher']
+            agent_action = action['learner']
+            agent_obs, reward, done, _ = self._step_with_teacher_action(
+                teacher_action, agent_action)
+            combined_obs = OrderedDict(
+                learner=agent_obs,
+                teacher=self._get_teacher_obs())
+            return combined_obs, reward, done, {}
 
     def _step_with_teacher_action(self, teacher_action, agent_action):
         if self._with_language:
@@ -156,16 +187,16 @@ class EmbodiedTeacher(PlayGround):
         self._take_action(self._teacher_embodied, self._teacher_joints,
                           teacher_action)
         self._world.step(self._sub_steps)
-        teacher_action = self._teacher.teach(sentence)
-        obs = self._get_observation_with_sentence(teacher_action.sentence)
+        teacher_feedback = self._teacher.teach(sentence)
+        obs = self._get_observation_with_sentence(teacher_feedback.sentence)
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(controls)) / controls.shape[0]
-        reward = teacher_action.reward - self._action_cost * ctrl_cost
+        reward = teacher_feedback.reward - self._action_cost * ctrl_cost
         self._cum_reward += reward
-        if teacher_action.done:
+        if teacher_feedback.done:
             logging.debug("episode ends at cum reward:" +
                           str(self._cum_reward))
-        return obs, reward, teacher_action.done, {}
+        return obs, reward, teacher_feedback.done, {}
 
     def _take_action(self, agent, joints, action):
         controls = np.clip(action, -1.0, 1.0) * self._agent_control_range
@@ -183,7 +214,7 @@ def main():
     """
     import matplotlib.pyplot as plt
     import time
-    with_language = False
+    with_language = True
     use_image_obs = False
     image_with_internal_states = True
     fig = None
@@ -202,11 +233,14 @@ def main():
         teacher_actions = env._control_space.sample()
         if with_language:
             actions = dict(control=actions, sentence="hello")
-            teacher_actions = dict(control=teacher_actions, sentence="hello")
         if demo_by_human:
             obs, _, done, _ = env.step(actions)
         else:
-            teacher_obs, obs, _, done, _ = env.step(teacher_actions, actions)
+            combined_actions = OrderedDict(
+                learner=actions,
+                teacher=teacher_actions)
+            obs, _, done, _ = env.step(combined_actions)
+            obs = obs['learner']
         step_cnt += 1
         if with_language and (env._steps_in_this_episode == 1 or done):
             seq = obs["sentence"]
