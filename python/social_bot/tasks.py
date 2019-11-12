@@ -108,7 +108,7 @@ class GoalTask(Task):
                  goal_name="ball",
                  distraction_list=['coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'],
                  success_distance_thresh=0.5,
-                 fail_distance_thresh=0.5,
+                 fail_distance_thresh=2.5,
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
                  sparse_reward=True,
