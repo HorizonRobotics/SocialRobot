@@ -494,6 +494,7 @@ class ICubAuxiliaryTask(Task):
         icub_extra_obs = self.get_icub_extra_obs(agent)
         if self._target_name:
             agent_pos = icub_extra_obs[:3]
+            # TODO: be compatible for calling multiple times in one env step
             agent_speed = (
                 agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos

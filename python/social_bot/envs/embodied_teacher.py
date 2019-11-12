@@ -60,6 +60,7 @@ class EmbodiedTeacher(PlayGround):
         Args:
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, youbot_noplugin for now
+                iCub and ICubAuxiliaryTask is not supported
                 note that 'agent_type' should be the same str as the model's name
             tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
             with_language (bool): The observation will be a dict with an extra sentence
