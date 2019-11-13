@@ -107,9 +107,9 @@ class PlayGround(GazeboEnvBase):
                 environment step. for the tasks need higher control frequency (such as the 
                 tasks need walking by 2 legs), using a smaller step_time like 0.05 is better.
                 experiments show that iCub can not learn how to walk in a 0.1 step_time
-            real_time_update_rate (int): max update_rate per seconds. there is no limit if
-                this is set to 0. if 1:1 real time is prefered(like playing or recording video),
-                this should be set to 1.0/world_time_precision.
+            real_time_update_rate (int): max update rate per second. There is no limit if
+                this is set to 0 as default in the world file. If 1:1 real time is prefered
+                (like playing or recording video), it should be set to 1.0/world_time_precision.
             port: Gazebo port, need to specify when run multiple environment in parallel
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
