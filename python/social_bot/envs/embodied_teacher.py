@@ -120,11 +120,17 @@ class EmbodiedTeacher(PlayGround):
         # insert teacher model
         self.insert_model(
             model=agent_type, name="teacher", pose=initial_teacher_pose)
+
         # set up teacher joints
+        self._teacher_cfg = self._agent_cfg
         self._teacher_joints = []
-        for joint in self._agent_joints:
+        print(self._agent_joints)
+        for joint in self._teacher_cfg['control_joints']:
             self._teacher_joints.append("teacher::" + joint)
         self._teacher_embodied = self._world.get_agent('teacher')
+        # TODO: this report error "unable to find joint"
+        self._teacher_control_range = self._set_joints(
+            self._teacher_embodied, self._teacher_joints, self._teacher_cfg)
 
         # setup action and observation space
         if not self._demo_by_human:
@@ -180,9 +186,10 @@ class EmbodiedTeacher(PlayGround):
         else:
             sentence = ''
             controls = agent_action
-        self._take_action(self._agent, self._agent_joints, controls)
+        self._take_action(self._agent, self._agent_joints, controls,
+                          self._agent_control_range)
         self._take_action(self._teacher_embodied, self._teacher_joints,
-                          teacher_action)
+                          teacher_action, self._teacher_control_range)
         self._world.step(self._sub_steps)
         teacher_feedback = self._teacher.teach(sentence)
         obs = self._get_observation_with_sentence(teacher_feedback.sentence)
@@ -195,8 +202,8 @@ class EmbodiedTeacher(PlayGround):
                           str(self._cum_reward))
         return obs, reward, teacher_feedback.done, {}
 
-    def _take_action(self, agent, joints, action):
-        controls = np.clip(action, -1.0, 1.0) * self._agent_control_range
+    def _take_action(self, agent, joints, action, action_range):
+        controls = np.clip(action, -1.0, 1.0) * action_range
         controls_dict = dict(zip(joints, controls))
         agent.take_action(controls_dict)
 
@@ -227,12 +234,12 @@ def main():
     last_done_time = time.time()
     while True:
         actions = env._control_space.sample()
-        teacher_actions = env._control_space.sample()
         if with_language:
             actions = dict(control=actions, sentence="hello")
         if demo_by_human:
             obs, _, done, _ = env.step(actions)
         else:
+            teacher_actions = env._control_space.sample()
             combined_actions = OrderedDict(
                 learner=actions, teacher=teacher_actions)
             obs, _, done, _ = env.step(combined_actions)

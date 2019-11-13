@@ -131,13 +131,13 @@ class PlayGround(GazeboEnvBase):
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
-        agent_cfg = agent_cfgs[agent_type]
+        self._agent_cfg = agent_cfgs[agent_type]
         wd_path = os.path.join(social_bot.get_world_dir(), world_name)
         with open(wd_path, 'r+') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
         if world_time_precision is None:
-            world_time_precision = agent_cfg['max_sim_step_time']
+            world_time_precision = self._agent_cfg['max_sim_step_time']
         self._sub_steps = int(round(step_time / world_time_precision))
         self._step_time = world_time_precision * self._sub_steps
         sim_time_cfg = [
@@ -162,24 +162,11 @@ class PlayGround(GazeboEnvBase):
                 [self._teacher.vocab_size] * self._seq_length)
 
         # Setup action space
-        self._agent_joints = agent_cfg['control_joints']
-        joint_states = list(
-            map(lambda s: self._agent.get_joint_state(s), self._agent_joints))
-        self._joints_limits = list(
-            map(lambda s: s.get_effort_limits()[0], joint_states))
-        if agent_cfg['use_pid']:
-            for joint_index in range(len(self._agent_joints)):
-                self._agent.set_pid_controller(
-                    joint_name=self._agent_joints[joint_index],
-                    pid_control_type=agent_cfg['pid_type'][joint_index],
-                    p=agent_cfg['pid'][joint_index][0],
-                    i=agent_cfg['pid'][joint_index][1],
-                    d=agent_cfg['pid'][joint_index][2],
-                    max_force=self._joints_limits[joint_index])
-            self._agent_control_range = agent_cfg['pid_control_limit']
-        else:
-            self._agent_control_range = np.array(self._joints_limits)
+        self._agent_joints = self._agent_cfg['control_joints']
+        self._agent_control_range = self._set_joints(
+            self._agent, self._agent_joints, self._agent_cfg)
         logging.debug("joints to control: %s" % self._agent_joints)
+
         self._control_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
@@ -192,7 +179,7 @@ class PlayGround(GazeboEnvBase):
             self.action_space = self._control_space
 
         # Setup observation space
-        self._agent_camera = agent_cfg['camera_sensor']
+        self._agent_camera = self._agent_cfg['camera_sensor']
         self.reset()
         obs_sample = self._get_observation_with_sentence("hello")
         if self._with_language or self._image_with_internal_states:
@@ -325,6 +312,25 @@ class PlayGround(GazeboEnvBase):
         else:  # observation is pure low-dimentional states
             obs = self._get_low_dim_full_states(self._agent)
         return obs
+
+    def _set_joints(self, agent, joints, agent_cfg):
+        joint_states = list(
+            map(lambda s: self._agent.get_joint_state(s), joints))
+        joints_limits = list(
+            map(lambda s: s.get_effort_limits()[0], joint_states))
+        if agent_cfg['use_pid']:
+            for joint_index in range(len(joints)):
+                agent.set_pid_controller(
+                    joint_name=joints[joint_index],
+                    pid_control_type=agent_cfg['pid_type'][joint_index],
+                    p=agent_cfg['pid'][joint_index][0],
+                    i=agent_cfg['pid'][joint_index][1],
+                    d=agent_cfg['pid'][joint_index][2],
+                    max_force=joints_limits[joint_index])
+            control_range = agent_cfg['pid_control_limit']
+        else:
+            control_range = np.array(joints_limits)
+        return control_range
 
 
 def main():
