@@ -148,6 +148,7 @@ class GoalTask(Task):
                  also_curriculum_distractions=True,
                  also_curriculum_target_angle=False,
                  also_curriculum_control=False,
+                 switch_goal_within_episode=False,
                  start_range=0,
                  increase_range_by_percent=50.,
                  reward_thresh_to_increase_range=0.4,
@@ -179,6 +180,8 @@ class GoalTask(Task):
             also_curriculum_target_angle (bool): enlarge angle to target when initializing target according
                 to curriculum.  Only when all angles are satisfied does curriculum try to increase distance.
                 Uses range of 0-180 degrees, starting from 60 with increments of 15.
+            switch_goal_within_episode (bool): if random_goal and this are both true, goal will be re-picked
+                within episode every time target is reached, besides picking after whole episode ends.
             start_range (float): for curriculum learning, the starting random_range to set the goal
             increase_range_by_percent (float): for curriculum learning, how much to increase random range
                 every time agent reached the specified amount of reward.
@@ -206,6 +209,7 @@ class GoalTask(Task):
         self._also_curriculum_distractions = also_curriculum_distractions
         self._also_curriculum_target_angle = also_curriculum_target_angle
         self._also_curriculum_control = also_curriculum_control
+        self._switch_goal_within_episode = switch_goal_within_episode
         if also_curriculum_target_angle:
             self._random_angle = 60
         self._control_range = 0.1
@@ -283,6 +287,11 @@ class GoalTask(Task):
     def get_random_range(self):
         return self._random_range
 
+    def pick_goal(self):
+        if self._random_goal:
+            random_id = random.randrange(len(self._goals))
+            self.set_goal_name(self._goals[random_id])
+
     def run(self):
         """
         Start a teaching episode for this task.
@@ -292,9 +301,7 @@ class GoalTask(Task):
         loc, agent_dir = self._agent.get_pose()
         loc = np.array(loc)
         self._random_move_objects()
-        if self._random_goal:
-            random_id = random.randrange(len(self._goals))
-            self.set_goal_name(self._goals[random_id])
+        self.pick_goal()
         goal = self._world.get_agent(self._goal_name)
         self._move_goal(goal, loc, agent_dir)
         steps_since_last_reward = 0
@@ -326,8 +333,10 @@ class GoalTask(Task):
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done", done=False)
                 steps_since_last_reward = 0
-                if self._move_goal_during_episode:
-                    self._move_goal(goal, loc, agent_dir)
+                if self._switch_goal_within_episode:
+                    self.pick_goal()
+                    goal = self._world.get_agent(self._goal_name)
+                self._move_goal(goal, loc, agent_dir)
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
