@@ -220,8 +220,8 @@ class Teacher(object):
         task_specific_ob = np.array([])
         for task_group in self.get_task_groups():
             for task in task_group.get_tasks():
-                task_specific_ob = np.append(task_specific_ob,
-                    task.task_specific_observation(agent))
+                task_specific_ob = np.append(
+                    task_specific_ob, task.task_specific_observation(agent))
         return task_specific_ob
 
     def _build_vocab_from_tasks(self):

@@ -297,8 +297,7 @@ class PlayGround(GazeboEnvBase):
         task_specific_ob = self._teacher.get_task_pecific_observation(agent)
         agent_pose = np.array(agent.get_pose()).flatten()
         agent_vel = np.array(agent.get_velocities()).flatten()
-        internal_states = self._get_internal_states(agent,
-                                                    self._agent_joints)
+        internal_states = self._get_internal_states(agent, self._agent_joints)
         obs = np.concatenate(
             (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
         return obs

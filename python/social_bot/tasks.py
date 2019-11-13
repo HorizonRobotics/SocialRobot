@@ -107,7 +107,9 @@ class GoalTask(Task):
                  env,
                  max_steps,
                  goal_name="ball",
-                 distraction_list=['coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'],
+                 distraction_list=[
+                     'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
+                 ],
                  success_distance_thresh=0.5,
                  fail_distance_thresh=2.0,
                  distraction_penalty_distance_thresh=0,
@@ -150,7 +152,8 @@ class GoalTask(Task):
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
         """
-        super().__init__(env=env, max_steps=max_steps, reward_weight=reward_weight)
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
@@ -362,7 +365,8 @@ class ICubAuxiliaryTask(Task):
             agent_init_pos (tuple): the expected initial position of the agent
             pos_random_range (float): random range of the initial position
         """
-        super().__init__(env=env, max_steps=max_steps, reward_weight=reward_weight)
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
         self.task_vocab = ['icub']
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
@@ -394,7 +398,8 @@ class ICubAuxiliaryTask(Task):
         self._agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
         while not done:
             # reward for not falling (alive reward)
-            agent_height = np.array(self._agent.get_link_pose('iCub::head'))[0][2]
+            agent_height = np.array(
+                self._agent.get_link_pose('iCub::head'))[0][2]
             done = agent_height < 0.7  # fall down
             standing_reward = agent_height
             # movement cost, to avoid uncessary movements
@@ -499,8 +504,8 @@ class ICubAuxiliaryTask(Task):
                 agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos
             yaw = agent.get_link_pose('iCub::root_link')[1][2]
-            angle_to_target = self._get_angle_to_target(agent,
-                agent_pos, 'iCub::root_link')
+            angle_to_target = self._get_angle_to_target(
+                agent, agent_pos, 'iCub::root_link')
             rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
                                       [np.sin(-yaw),
                                        np.cos(-yaw), 0], [0, 0, 1]])
@@ -548,16 +553,17 @@ class KickingBallTask(Task):
                 higher reward when its speed is higher than target_speed.
             reward_weight (float): the weight of the reward
         """
-        super().__init__(env=env, max_steps=max_steps, reward_weight=reward_weight)
-        self._goal_name=goal_name
-        self._random_range=random_range
-        self._success_distance_thresh=success_distance_thresh
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
+        self._goal_name = goal_name
+        self._random_range = random_range
+        self._success_distance_thresh = success_distance_thresh
         self._target_speed = target_speed
-        self._env.insert_model(model="robocup_3Dsim_goal",
-                               name="goal",
-                               pose="-5.0 0 0 0 -0 3.14159265")
-        self._env.insert_model(model="ball",
-                               pose="1.50 1.5 0.2 0 -0 0")
+        self._env.insert_model(
+            model="robocup_3Dsim_goal",
+            name="goal",
+            pose="-5.0 0 0 0 -0 3.14159265")
+        self._env.insert_model(model="ball", pose="1.50 1.5 0.2 0 -0 0")
 
     def run(self):
         """
@@ -634,7 +640,7 @@ class KickingBallTask(Task):
         model_poss = np.array(model_poss).flatten()
         model_vels = np.array(model_vels).flatten()
         return np.concatenate((model_poss, model_vels), axis=0)
-    
+
     def _move_ball(self, ball, goal_loc):
         range = self._random_range
         while True:

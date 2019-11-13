@@ -101,7 +101,7 @@ class EmbodiedTeacher(PlayGround):
             from social_bot.keybo_control import KeyboardControl
             self._keybo = KeyboardControl()
             real_time_update_rate = 500  # run "gz physics -u" to override
-        
+
         super().__init__(
             agent_type=agent_type,
             world_name="play_ground.world",
@@ -125,15 +125,13 @@ class EmbodiedTeacher(PlayGround):
         for joint in self._agent_joints:
             self._teacher_joints.append("teacher::" + joint)
         self._teacher_embodied = self._world.get_agent('teacher')
-        
+
         # setup action and observation space
         if not self._demo_by_human:
             self.action_space = gym.spaces.Dict(
-                learner=self.action_space,
-                teacher=self.action_space)
+                learner=self.action_space, teacher=self.action_space)
             self.observation_space = gym.spaces.Dict(
-                learner=self.observation_space,
-                teacher=self.observation_space)
+                learner=self.observation_space, teacher=self.observation_space)
 
     def reset(self):
         """
@@ -170,8 +168,7 @@ class EmbodiedTeacher(PlayGround):
             agent_obs, reward, done, _ = self._step_with_teacher_action(
                 teacher_action, agent_action)
             combined_obs = OrderedDict(
-                learner=agent_obs,
-                teacher=self._get_teacher_obs())
+                learner=agent_obs, teacher=self._get_teacher_obs())
             return combined_obs, reward, done, {}
 
     def _step_with_teacher_action(self, teacher_action, agent_action):
@@ -237,8 +234,7 @@ def main():
             obs, _, done, _ = env.step(actions)
         else:
             combined_actions = OrderedDict(
-                learner=actions,
-                teacher=teacher_actions)
+                learner=actions, teacher=teacher_actions)
             obs, _, done, _ = env.step(combined_actions)
             obs = obs['learner']
         step_cnt += 1
