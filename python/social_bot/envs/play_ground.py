@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A simple enviroment for an agent play on the ground
+A simple enviroment for an agent playing on the ground
 """
 import os
 import time
