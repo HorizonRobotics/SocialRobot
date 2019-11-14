@@ -86,7 +86,8 @@ class PlayGround(GazeboEnvBase):
         Args:
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
-                note that 'agent_type' should be the same str as the model's name
+                note that 'agent_type' should be exactly the same string as the model's
+                name at the beginning of model's sdf file
             world_name (string): Select the world file, e.g., empty.world, play_ground.world, 
                 grocery_ground.world
             tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
@@ -146,7 +147,7 @@ class PlayGround(GazeboEnvBase):
         ]
         super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)
-        self._agent = self._world.get_agent()
+        self._agent = self._world.get_agent(agent_type)
         logging.debug(self._world.info())
 
         # Setup teacher and tasks
@@ -314,8 +315,7 @@ class PlayGround(GazeboEnvBase):
         return obs
 
     def _set_joints(self, agent, joints, agent_cfg):
-        joint_states = list(
-            map(lambda s: self._agent.get_joint_state(s), joints))
+        joint_states = list(map(lambda s: agent.get_joint_state(s), joints))
         joints_limits = list(
             map(lambda s: s.get_effort_limits()[0], joint_states))
         if agent_cfg['use_pid']:

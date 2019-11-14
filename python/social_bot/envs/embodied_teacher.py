@@ -64,7 +64,8 @@ class EmbodiedTeacher(PlayGround):
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, youbot_noplugin for now
                 iCub and ICubAuxiliaryTask is not supported
-                note that 'agent_type' should be the same str as the model's name
+                note that 'agent_type' should be exactly the same string as the
+                model's name in sdf file
             tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
             with_language (bool): The observation will be a dict with an extra sentence
             use_image_observation (bool): Use image, or use low-dimentional states as
@@ -124,11 +125,9 @@ class EmbodiedTeacher(PlayGround):
         # set up teacher joints
         self._teacher_cfg = self._agent_cfg
         self._teacher_joints = []
-        print(self._agent_joints)
         for joint in self._teacher_cfg['control_joints']:
             self._teacher_joints.append("teacher::" + joint)
         self._teacher_embodied = self._world.get_agent('teacher')
-        # TODO: this report error "unable to find joint"
         self._teacher_control_range = self._set_joints(
             self._teacher_embodied, self._teacher_joints, self._teacher_cfg)
 
