@@ -26,13 +26,23 @@ jobs:
         make -j
         cd ..
         pip3 install -e .
-    - name: Lint with flake8
+    - name: Static python syntax checking
       run: |
         pip install flake8
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 ./python --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        # static python syntax checking
+        flake8 ./python --count --select=E9,F63,F7,F82 --show-source --statistics
+        # report warning if there is unused import, exit-zero treats all errors as warnings
+        flake8 ./python --count --exit-zero --statistics
+    - name: Check code style
+      run: |
+        pip3 install pre-commit
+        pre-commit install
+        clang-format --version
+        if ! pre-commit run -a ; then
+          git diff
+          exit 1
+        fi
     - name: Test with pytest
       run: |
-        GAZEBO_MODEL_PATH=./python/social_bot/models xvfb-run python -m unittest discover -p "*_test.py" -v
+        cd ./python/social_bot/envs
+        GAZEBO_MODEL_PATH=../models xvfb-run python3 -m unittest discover -p "*_test.py" -v
