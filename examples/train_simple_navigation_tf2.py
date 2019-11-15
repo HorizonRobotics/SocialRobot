@@ -22,6 +22,7 @@ import tensorflow.keras as keras
 import tensorflow.keras.layers as layers
 import tensorflow.keras.models as models
 
+
 class Options(object):
     """
     The class for all the settings
@@ -147,7 +148,8 @@ def main(options):
             obs = env.reset()
             agent.start_new_episode()
 
-        if total_steps % options.log_freq == 0 and len(steps) > 0 and len(episode_rewards) > 0:
+        if total_steps % options.log_freq == 0 and len(steps) > 0 and len(
+                episode_rewards) > 0:
             logging.info(
                 " episodes=%s" % episodes + " total_steps=%s" % total_steps +
                 " fps=%.2f" % (options.log_freq / (time.time() - t0)) +
@@ -179,8 +181,10 @@ def select(mat, indices):
     sel = tf.concat([
         tf.reshape(tf.range(mat.shape[0], dtype=tf.int64), (-1, 1)),
         tf.reshape(tf.cast(indices, dtype=tf.int64), (-1, 1))
-    ], axis=1)
+    ],
+                    axis=1)
     return tf.gather_nd(mat, sel)
+
 
 class QAgent(object):
     """
@@ -299,17 +303,17 @@ class QAgent(object):
             i -= 1
         self._replay_buffer.update_priority(indices, priorities)
 
-
     @tf.function
-    def _tf_learn(self, inputs, actions, rewards, next_inputs, dones, is_weights, ema_reward):
+    def _tf_learn(self, inputs, actions, rewards, next_inputs, dones,
+                  is_weights, ema_reward):
         # Double Q Learning: https://arxiv.org/pdf/1509.06461.pdf
         qs_next = self._acting_net.calc_q_values(next_inputs)
         qs_target = self._target_net.calc_q_values(next_inputs)
         a = tf.argmax(qs_next, axis=1)
         q_target = select(qs_target, a)
         q_target = tf.reshape(q_target, (-1, 1)) + ema_reward
-        q_target = rewards + (self._options.discount_factor**
-                              self._options.nstep_reward) * q_target * (1 - dones)
+        q_target = rewards + (self._options.discount_factor**self._options.
+                              nstep_reward) * q_target * (1 - dones)
 
         with tf.GradientTape() as tape:
             qs = self._acting_net.calc_q_values(inputs)
@@ -322,7 +326,6 @@ class QAgent(object):
             zip(grads, self._acting_net.trainable_variables))
 
         return td_error, q, q_target, loss
-
 
     def learn(self, obs, action, reward, done):
         """
@@ -347,10 +350,11 @@ class QAgent(object):
         if self._total_steps % options.learn_freq != 0:
             return
 
-        data =  self._get_samples(options.batch_size)
+        data = self._get_samples(options.batch_size)
 
         with tf.device('/device:GPU:0'):
-            inputs, actions, rewards, next_inputs, dones, reward_dist, is_weights  = map(tf.convert_to_tensor, data[:-1])
+            inputs, actions, rewards, next_inputs, dones, reward_dist, is_weights = map(
+                tf.convert_to_tensor, data[:-1])
         indices = data[-1]
 
         ema_reward = 0.0
@@ -358,15 +362,17 @@ class QAgent(object):
             ema_reward = self.calc_ema_reward()
         ema_reward = tf.constant(ema_reward)
 
-        is_weights = is_weights ** self._get_prioritized_replay_beta()
+        is_weights = is_weights**self._get_prioritized_replay_beta()
         batch_size = options.batch_size
 
-        td_error, q, q_target, loss = self._tf_learn(
-            inputs, actions, rewards, next_inputs, dones, is_weights, ema_reward)
+        td_error, q, q_target, loss = self._tf_learn(inputs, actions, rewards,
+                                                     next_inputs, dones,
+                                                     is_weights, ema_reward)
 
         # minimize the loss
         priorities = abs(td_error.numpy()).reshape(-1)
-        priorities = (priorities + options.prioritized_replay_eps)**options.prioritized_replay_alpha
+        priorities = (priorities + options.prioritized_replay_eps
+                      )**options.prioritized_replay_alpha
         gamma = self._get_prioritized_replay_gamma()
         reward_dist = np.reshape(reward_dist, -1)
         priorities = priorities * (1 + reward_dist)**(-gamma)
@@ -473,7 +479,6 @@ class QAgent(object):
         return features + [is_weights, indices]
 
 
-
 class Network(tf.keras.Model):
     """
     The neural network module for calculating the Q values.
@@ -495,7 +500,8 @@ class Network(tf.keras.Model):
                 data_format='channels_last',
             ),
             tf.keras.layers.LeakyReLU(alpha=0.01),
-            tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), data_format='channels_last'),
+            tf.keras.layers.MaxPooling2D(
+                pool_size=(2, 2), strides=(2, 2), data_format='channels_last'),
             tf.keras.layers.Conv2D(
                 num_filters[1],
                 kernel_size=(3, 3),
@@ -503,30 +509,35 @@ class Network(tf.keras.Model):
                 strides=1,
                 data_format='channels_last'),
             tf.keras.layers.LeakyReLU(alpha=0.01),
-            tf.keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2), data_format='channels_last'),
+            tf.keras.layers.MaxPooling2D(
+                pool_size=(2, 2), strides=(2, 2), data_format='channels_last'),
             tf.keras.layers.Flatten(data_format='channels_last')
-            ], name = name + "/latent_nn")
+        ],
+                                             name=name + "/latent_nn")
 
         self.latent_nn.summary()
 
         self.q_nn = tf.keras.Sequential([
-            tf.keras.layers.Dense(fc_size[0], input_shape=self.latent_nn.output_shape[1:]),
+            tf.keras.layers.Dense(
+                fc_size[0], input_shape=self.latent_nn.output_shape[1:]),
             tf.keras.layers.LeakyReLU(alpha=0.01),
             tf.keras.layers.Dense(fc_size[1]),
             tf.keras.layers.LeakyReLU(alpha=0.01),
             tf.keras.layers.Dense(num_actions)
-            ], name = name + "/q_nn")
+        ],
+                                        name=name + "/q_nn")
         self.q_nn.summary()
 
         self.v_nn = tf.keras.Sequential([
-            tf.keras.layers.Dense(fc_size[0], input_shape=self.latent_nn.output_shape[1:]),
+            tf.keras.layers.Dense(
+                fc_size[0], input_shape=self.latent_nn.output_shape[1:]),
             tf.keras.layers.LeakyReLU(alpha=0.01),
             tf.keras.layers.Dense(fc_size[1]),
             tf.keras.layers.LeakyReLU(alpha=0.01),
             tf.keras.layers.Dense(1)
-            ], name = name + "/v_nn")
+        ],
+                                        name=name + "/v_nn")
         self.v_nn.summary()
-
 
     def calc_q_values(self, state):
         latent = self.latent_nn(state)
@@ -544,6 +555,7 @@ class Network(tf.keras.Model):
 
     def show_parameter_stats(self):
         pass
+
 
 if __name__ == "__main__":
     options = Options()

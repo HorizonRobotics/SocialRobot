@@ -40,7 +40,7 @@ class Task(object):
     A Task is for teaching a single task.
     """
 
-    def __init__(self, env, reward_weight=1.0):
+    def __init__(self, env, max_steps=200, reward_weight=1.0):
         """
         Setting things up during the initialization
 
@@ -54,6 +54,7 @@ class Task(object):
         self._world = env._world
         self._agent = env._agent
         self._agent_type = env._agent_type
+        self._max_steps = max_steps
         self.reward_weight = reward_weight
         self.task_vocab = ['hello', 'well', 'done', 'failed', 'to']
 
@@ -81,10 +82,10 @@ class Task(object):
         """
         pass
 
-    def task_specific_observation(self):
+    def task_specific_observation(self, agent):
         """
         Args:
-            None
+            agent (Agent): the agent
         Returns:
             np.array, the extra observations should be added into the observation
             besides original observation from the environment. This can be overide
@@ -104,11 +105,13 @@ class GoalTask(Task):
 
     def __init__(self,
                  env,
-                 max_steps=200,
+                 max_steps,
                  goal_name="ball",
-                 distraction_list=['coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'],
+                 distraction_list=[
+                     'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
+                 ],
                  success_distance_thresh=0.5,
-                 fail_distance_thresh=0.5,
+                 fail_distance_thresh=2.0,
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
                  sparse_reward=True,
@@ -149,13 +152,13 @@ class GoalTask(Task):
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
         """
-        super().__init__(env=env, reward_weight=reward_weight)
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._distraction_penalty_distance_thresh = distraction_penalty_distance_thresh
         self._distraction_penalty = distraction_penalty
-        self._max_steps = max_steps
         self._sparse_reward = sparse_reward
         self._use_curriculum_training = use_curriculum_training
         self._start_range = start_range
@@ -225,7 +228,8 @@ class GoalTask(Task):
             loc, dir = self._agent.get_pose()
             if self._agent_type.find('icub') != -1:
                 # For agent icub, we need to use the average pos here
-                loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
+                loc = ICubAuxiliaryTask.get_icub_extra_obs(
+                    self._agent_type, self._agent)[:3]
             goal_loc, _ = goal.get_pose()
             loc = np.array(loc)
             goal_loc = np.array(goal_loc)
@@ -236,8 +240,8 @@ class GoalTask(Task):
             dot = sum(dir * goal_dir)
 
             distraction_penalty = 0
-            if self._distraction_penalty_distance_thresh > 0 and distractions:
-                for obj_name in distractions:
+            if self._distraction_penalty_distance_thresh > 0 and self._distraction_list:
+                for obj_name in self._distraction_list:
                     obj = self._world.get_agent(obj_name)
                     if obj:
                         obj_loc, obj_dir = obj.get_pose()
@@ -325,10 +329,10 @@ class GoalTask(Task):
         logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
 
-    def task_specific_observation(self):
+    def task_specific_observation(self, agent):
         """
         Args:
-            None
+            agent (Agent): the agent
         Returns:
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
@@ -346,6 +350,7 @@ class ICubAuxiliaryTask(Task):
 
     def __init__(self,
                  env,
+                 max_steps,
                  target=None,
                  agent_init_pos=(0, 0),
                  agent_pos_random_range=0,
@@ -353,6 +358,7 @@ class ICubAuxiliaryTask(Task):
         """
         Args:
             env (gym.Env): an instance of Environment
+            max_steps (int): episode will end in so many steps
             reward_weight (float): the weight of the reward, should be tuned
                 accroding to reward range of other tasks 
             target (string): this is the target icub should face towards, since
@@ -360,7 +366,8 @@ class ICubAuxiliaryTask(Task):
             agent_init_pos (tuple): the expected initial position of the agent
             pos_random_range (float): random range of the initial position
         """
-        super().__init__(env=env, reward_weight=reward_weight)
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
         self.task_vocab = ['icub']
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
@@ -378,7 +385,8 @@ class ICubAuxiliaryTask(Task):
         """
         Start a teaching episode for this task.
         """
-        self._pre_agent_pos = self.get_icub_extra_obs(self._agent)[:3]
+        self._pre_agent_pos = self.get_icub_extra_obs(self._agent_type,
+                                                      self._agent)[:3]
         agent_sentence = yield
         done = False
         # set icub random initial pose
@@ -388,11 +396,13 @@ class ICubAuxiliaryTask(Task):
         if self._target_name and random.randint(0, 1) == 0:
             # a trick from roboschool humanoid flag run, important to learn to steer
             pos = np.array([x, y, 0.6])
-            orient = self._get_angle_to_target(pos, 'iCub::root_link', np.pi)
+            orient = self._get_angle_to_target(
+                pos, self._agent_type + '::root_link', np.pi)
         self._agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
         while not done:
             # reward for not falling (alive reward)
-            agent_height = np.array(self._agent.get_link_pose('iCub::head'))[0][2]
+            agent_height = np.array(
+                self._agent.get_link_pose(self._agent_type + '::head'))[0][2]
             done = agent_height < 0.7  # fall down
             standing_reward = agent_height
             # movement cost, to avoid uncessary movements
@@ -404,14 +414,16 @@ class ICubAuxiliaryTask(Task):
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
             # orientation cost, the agent should face towards the target
             if self._target_name:
-                agent_pos = self.get_icub_extra_obs(self._agent)[:3]
-                head_angle = self._get_angle_to_target(agent_pos, 'iCub::head')
-                root_angle = self._get_angle_to_target(agent_pos,
-                                                       'iCub::root_link')
+                agent_pos = self.get_icub_extra_obs(self._agent_type,
+                                                    self._agent)[:3]
+                head_angle = self._get_angle_to_target(
+                    agent_pos, self._agent_type + '::head')
+                root_angle = self._get_angle_to_target(
+                    agent_pos, self._agent_type + '::root_link')
                 l_foot_angle = self._get_angle_to_target(
-                    agent_pos, 'iCub::l_leg::l_foot', np.pi)
+                    agent_pos, self._agent_type + '::l_leg::l_foot', np.pi)
                 r_foot_angle = self._get_angle_to_target(
-                    agent_pos, 'iCub::r_leg::r_foot', np.pi)
+                    agent_pos, self._agent_type + '::r_leg::r_foot', np.pi)
                 orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
                                np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
             else:
@@ -421,7 +433,7 @@ class ICubAuxiliaryTask(Task):
             agent_sentence = yield TeacherAction(reward=reward, done=done)
 
     @staticmethod
-    def get_icub_extra_obs(icub_agent):
+    def get_icub_extra_obs(agent_name, icub_agent):
         """
         Get contacts_to_ground, pose of key ponit of icub and center of them.
         A static method, other task can use this to get additional icub info.
@@ -439,13 +451,15 @@ class ICubAuxiliaryTask(Task):
             return False
 
         root_pose = np.array(
-            icub_agent.get_link_pose('iCub::root_link')).flatten()
+            icub_agent.get_link_pose(agent_name + '::root_link')).flatten()
         chest_pose = np.array(
-            icub_agent.get_link_pose('iCub::chest')).flatten()
+            icub_agent.get_link_pose(agent_name + '::chest')).flatten()
         l_foot_pose = np.array(
-            icub_agent.get_link_pose('iCub::l_leg::l_foot')).flatten()
+            icub_agent.get_link_pose(agent_name +
+                                     '::l_leg::l_foot')).flatten()
         r_foot_pose = np.array(
-            icub_agent.get_link_pose('iCub::r_leg::r_foot')).flatten()
+            icub_agent.get_link_pose(agent_name +
+                                     '::r_leg::r_foot')).flatten()
         foot_contacts = np.array([
             _get_contacts_to_ground(icub_agent, "l_foot_contact_sensor"),
             _get_contacts_to_ground(icub_agent, "r_foot_contact_sensor")
@@ -458,17 +472,18 @@ class ICubAuxiliaryTask(Task):
                               r_foot_pose, foot_contacts))
         return obs
 
-    def _get_angle_to_target(self, agent_pos, link_name, offset=0):
+    def _get_angle_to_target(self, aegnt, agent_pos, link_name, offset=0):
         """
         Get angle from a icub link, relative to target.
         Args:
+            agent (Agent): the agent
             agent_pos (numpay array): the pos of agent
             link_name (string): link name of the agent
             offset (float): the yaw offset of link, for some links have initial internal rotation
         Returns:
             float, angle to target
         """
-        yaw = self._agent.get_link_pose(link_name)[1][2]
+        yaw = aegnt.get_link_pose(link_name)[1][2]
         yaw = (yaw + offset) % (
             2 * np.pi
         ) - np.pi  # model icub has a globle built-in 180 degree rotation
@@ -480,23 +495,24 @@ class ICubAuxiliaryTask(Task):
         angle_to_target = (angle_to_target + np.pi) % (2 * np.pi) - np.pi
         return angle_to_target
 
-    def task_specific_observation(self):
+    def task_specific_observation(self, agent):
         """
         Args:
-            None
+            agent (Agent): the agent
         Returns:
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
         """
-        icub_extra_obs = self.get_icub_extra_obs(self._agent)
+        icub_extra_obs = self.get_icub_extra_obs(self._agent_type, agent)
         if self._target_name:
             agent_pos = icub_extra_obs[:3]
+            # TODO: be compatible for calling multiple times in one env step
             agent_speed = (
                 agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos
-            yaw = self._agent.get_link_pose('iCub::root_link')[1][2]
+            yaw = agent.get_link_pose(self._agent_type + '::root_link')[1][2]
             angle_to_target = self._get_angle_to_target(
-                agent_pos, 'iCub::root_link')
+                agent, agent_pos, self._agent_type + '::root_link')
             rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
                                       [np.sin(-yaw),
                                        np.cos(-yaw), 0], [0, 0, 1]])
@@ -527,7 +543,7 @@ class KickingBallTask(Task):
 
     def __init__(self,
                  env,
-                 max_steps=500,
+                 max_steps,
                  goal_name="goal",
                  success_distance_thresh=0.5,
                  random_range=4.0,
@@ -544,17 +560,17 @@ class KickingBallTask(Task):
                 higher reward when its speed is higher than target_speed.
             reward_weight (float): the weight of the reward
         """
-        super().__init__(env=env, reward_weight=reward_weight)
-        self._max_steps=max_steps
-        self._goal_name=goal_name
-        self._random_range=random_range
-        self._success_distance_thresh=success_distance_thresh
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
+        self._goal_name = goal_name
+        self._random_range = random_range
+        self._success_distance_thresh = success_distance_thresh
         self._target_speed = target_speed
-        self._env.insert_model(model="robocup_3Dsim_goal",
-                               name="goal",
-                               pose="-5.0 0 0 0 -0 3.14159265")
-        self._env.insert_model(model="ball",
-                               pose="1.50 1.5 0.2 0 -0 0")
+        self._env.insert_model(
+            model="robocup_3Dsim_goal",
+            name="goal",
+            pose="-5.0 0 0 0 -0 3.14159265")
+        self._env.insert_model(model="ball", pose="1.50 1.5 0.2 0 -0 0")
 
     def run(self):
         """
@@ -580,7 +596,7 @@ class KickingBallTask(Task):
                 if self._agent_type.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
                     agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(
-                        self._agent)[:3]
+                        self._agent_type, self._agent)[:3]
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
@@ -611,7 +627,13 @@ class KickingBallTask(Task):
                         reward=self._target_speed + 3 - dist / init_goal_dist)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
-    def task_specific_observation(self):
+    def task_specific_observation(self, agent):
+        """
+        Args:
+            agent (Agent): the agent
+        Returns:
+            np.array, the extra observations should be added into the observation
+        """
         model_list = [
             'ball',
             'goal',
@@ -625,7 +647,7 @@ class KickingBallTask(Task):
         model_poss = np.array(model_poss).flatten()
         model_vels = np.array(model_vels).flatten()
         return np.concatenate((model_poss, model_vels), axis=0)
-    
+
     def _move_ball(self, ball, goal_loc):
         range = self._random_range
         while True:

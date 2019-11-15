@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
-  <model name="pr2">
+  <model name="pr2_noplugin">
     <static>0</static>
     <link name="base_footprint">
       <self_collide>0</self_collide>

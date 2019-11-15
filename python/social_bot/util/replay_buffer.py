@@ -4,8 +4,9 @@ import numpy as np
 import random
 from collections import deque
 from .segment_tree import SumSegmentTree, MinSegmentTree
-
 """ Circular array based implementatioon of queue."""
+
+
 class CircularBuffer(object):
     def __init__(self, maxlen, default_value):
         self._buffer = [default_value] * maxlen
@@ -70,7 +71,6 @@ class ReplayBuffer(CircularBuffer):
     @property
     def initial_priority(self):
         return 1.0
-
 
     def add_experience(self, experience):
         """
@@ -140,9 +140,8 @@ class ReplayBuffer(CircularBuffer):
         batch_features = []
         for idx in indices:
             exps = [
-                self[i]
-                for i in range(idx - self._history_length, idx +
-                               self._future_length + 1)
+                self[i] for i in range(idx - self._history_length, idx +
+                                       self._future_length + 1)
             ]
             features = f_make_sample(*exps)
             if not batch_features:
@@ -198,7 +197,6 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             self._sum_tree[idx] = priority
             self._min_tree[idx] = priority
             self._max_priority = max(self._max_priority, priority)
-
 
     def get_sample_indices(self, num):
         indices = []
