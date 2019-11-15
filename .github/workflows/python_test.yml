@@ -36,10 +36,11 @@ jobs:
     - name: Check code style
       run: |
         pip3 install pre-commit
+        sudo apt install clang-format
         pre-commit install
         if ! pre-commit run -a ; then
           git diff
-          # exit 0
+          exit 0
         fi
     - name: Test with pytest
       run: |

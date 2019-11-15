@@ -27,7 +27,7 @@ class SimpleNaviEnv(Process):
         self.env_id = env_id
 
     def run(self):
-        port = os.environ.get('PYGAZEBO_PORT', 11346)
+        port = os.environ.get('PYGAZEBO_PORT', 11345)
         env = SimpleNavigationLanguage(port=port + self.env_id + 1)
         env.reset()
         for _ in range(20):
@@ -44,8 +44,6 @@ class SimpleNaviEnv(Process):
 
 class TestMultiProcess(unittest.TestCase):
     def test_multiprocessing(self):
-        env_with_language = SimpleNavigationLanguage()
-        env_with_language.reset()
         envs = [SimpleNaviEnv(i) for i in range(2)]
         for env in envs:
             env.start()
