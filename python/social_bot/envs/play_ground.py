@@ -30,6 +30,7 @@ from collections import OrderedDict
 
 import social_bot
 import social_bot.pygazebo as gazebo
+from social_bot.gazebo_agent import GazeboAgent
 from social_bot import teacher
 from social_bot import tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
@@ -120,7 +121,6 @@ class PlayGround(GazeboEnvBase):
             vocab_sequence_length (int): the length of encoded sequence
         """
 
-        self._agent_type = agent_type
         self._action_cost = action_cost
         self._with_language = with_language
         self._use_image_obs = use_image_observation
@@ -132,13 +132,13 @@ class PlayGround(GazeboEnvBase):
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
-        self._agent_cfg = agent_cfgs[agent_type]
+        agent_cfg = agent_cfgs[agent_type]
         wd_path = os.path.join(social_bot.get_world_dir(), world_name)
         with open(wd_path, 'r+') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
         if world_time_precision is None:
-            world_time_precision = self._agent_cfg['max_sim_step_time']
+            world_time_precision = agent_cfg['max_sim_step_time']
         self._sub_steps = int(round(step_time / world_time_precision))
         self._step_time = world_time_precision * self._sub_steps
         sim_time_cfg = [
@@ -147,7 +147,11 @@ class PlayGround(GazeboEnvBase):
         ]
         super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)
-        self._agent = self._world.get_agent(agent_type)
+        self._agent = GazeboAgent(
+            world=self._world,
+            agent_type=agent_type,
+            config=agent_cfg,
+            with_language=with_language)
         logging.debug(self._world.info())
 
         # Setup teacher and tasks
@@ -163,9 +167,9 @@ class PlayGround(GazeboEnvBase):
                 [self._teacher.vocab_size] * self._seq_length)
 
         # Setup action space
-        self._agent_joints = self._agent_cfg['control_joints']
+        self._agent_joints = agent_cfg['control_joints']
         self._agent_control_range = self._set_joints(
-            self._agent, self._agent_joints, self._agent_cfg)
+            self._agent, self._agent_joints, agent_cfg)
         logging.debug("joints to control: %s" % self._agent_joints)
 
         self._control_space = gym.spaces.Box(
@@ -180,7 +184,7 @@ class PlayGround(GazeboEnvBase):
             self.action_space = self._control_space
 
         # Setup observation space
-        self._agent_camera = self._agent_cfg['camera_sensor']
+        self._agent_camera = agent_cfg['camera_sensor']
         self.reset()
         obs_sample = self._get_observation_with_sentence("hello")
         if self._with_language or self._image_with_internal_states:

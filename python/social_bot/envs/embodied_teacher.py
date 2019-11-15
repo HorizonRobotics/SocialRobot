@@ -123,7 +123,7 @@ class EmbodiedTeacher(PlayGround):
             model=agent_type, name="teacher", pose=initial_teacher_pose)
 
         # set up teacher joints
-        self._teacher_cfg = self._agent_cfg
+        self._teacher_cfg = self._agent.config
         self._teacher_joints = []
         for joint in self._teacher_cfg['control_joints']:
             self._teacher_joints.append("teacher::" + joint)
@@ -165,7 +165,7 @@ class EmbodiedTeacher(PlayGround):
             If demo_by_human is True, it returns the same as Playground.
         """
         if self._demo_by_human:
-            teacher_action = self._keybo.get_agent_actions(self._agent_type)
+            teacher_action = self._keybo.get_agent_actions(self._agent.type)
             return self._step_with_teacher_action(teacher_action, action)
         else:  # demo by teacher policy
             teacher_action = action['teacher']
