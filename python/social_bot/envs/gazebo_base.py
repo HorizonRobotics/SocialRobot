@@ -137,10 +137,11 @@ class GazeboEnvBase(gym.Env):
 
     def insert_model(self, model, name=None, pose="0 0 0 0 0 0"):
         """
-        Insert a model with into a specific position of the world
+        Insert a model with a name into a specific position of the world
         Args:
             model (string): the name of the model in the model database
-            name (string): the name of the model in the world
+            name (string): the name of the model in the world.
+                If not provided, it's the same as the model name.
             pose (string): the pose of the model, format is "x y z roll pitch yaw"
         """
         if name == None:

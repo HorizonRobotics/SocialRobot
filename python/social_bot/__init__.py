@@ -51,6 +51,7 @@ register(
     max_episode_steps=200,
 )
 
+
 def get_world_dir():
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), 'worlds')
 

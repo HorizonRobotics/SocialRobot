@@ -93,6 +93,7 @@ class SimpleNavigation(GazeboEnvBase):
             env=self,
             max_steps=120,
             goal_name="goal",
+            fail_distance_thresh=0.5,
             distraction_list=[],
             random_range=2.0)
         task_group.add_task(task)

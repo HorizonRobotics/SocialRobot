@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-A simple enviroment for an agent play on the ground
+A simple enviroment for an agent playing on the ground
 """
 import os
 import time
@@ -74,8 +74,10 @@ class PlayGround(GazeboEnvBase):
                  with_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
+                 max_steps=200,
                  world_time_precision=None,
                  step_time=0.1,
+                 real_time_update_rate=0,
                  port=None,
                  action_cost=0.0,
                  resized_image_size=(64, 64),
@@ -84,13 +86,15 @@ class PlayGround(GazeboEnvBase):
         Args:
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
                 pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
-                note that 'agent_type' should be the same str as the model's name
+                note that 'agent_type' should be exactly the same string as the model's
+                name at the beginning of model's sdf file
             world_name (string): Select the world file, e.g., empty.world, play_ground.world, 
                 grocery_ground.world
             tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
             with_language (bool): The observation will be a dict with an extra sentence
             use_image_observation (bool): Use image, or use low-dimentional states as
                 observation. Poses in the states observation are in world coordinate
+            max_steps (int): episode will end in so many steps, will be passed to the tasks
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
@@ -104,6 +108,9 @@ class PlayGround(GazeboEnvBase):
                 environment step. for the tasks need higher control frequency (such as the 
                 tasks need walking by 2 legs), using a smaller step_time like 0.05 is better.
                 experiments show that iCub can not learn how to walk in a 0.1 step_time
+            real_time_update_rate (int): max update rate per second. There is no limit if
+                this is set to 0 as default in the world file. If 1:1 real time is prefered
+                (like playing or recording video), it should be set to 1.0/world_time_precision.
             port: Gazebo port, need to specify when run multiple environment in parallel
             action_cost (float): Add an extra action cost to reward, which helps to train
                 an energy/forces efficency policy or reduce unnecessary movements
@@ -125,28 +132,29 @@ class PlayGround(GazeboEnvBase):
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
-        agent_cfg = agent_cfgs[agent_type]
+        self._agent_cfg = agent_cfgs[agent_type]
         wd_path = os.path.join(social_bot.get_world_dir(), world_name)
         with open(wd_path, 'r+') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
         if world_time_precision is None:
-            world_time_precision = agent_cfg['max_sim_step_time']
+            world_time_precision = self._agent_cfg['max_sim_step_time']
         self._sub_steps = int(round(step_time / world_time_precision))
         self._step_time = world_time_precision * self._sub_steps
         sim_time_cfg = [
-            "//physics//max_step_size=" + str(world_time_precision)
+            "//physics//max_step_size=" + str(world_time_precision),
+            "//physics//real_time_update_rate=" + str(real_time_update_rate)
         ]
         super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)
-        self._agent = self._world.get_agent()
+        self._agent = self._world.get_agent(agent_type)
         logging.debug(self._world.info())
 
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         for task in tasks:
             task_group = TaskGroup()
-            task_group.add_task(task(env=self))
+            task_group.add_task(task(env=self, max_steps=max_steps))
             self._teacher.add_task_group(task_group)
         self._teacher._build_vocab_from_tasks()
         self._seq_length = vocab_sequence_length
@@ -155,23 +163,11 @@ class PlayGround(GazeboEnvBase):
                 [self._teacher.vocab_size] * self._seq_length)
 
         # Setup action space
-        self._agent_joints = agent_cfg['control_joints']
-        joint_states = list(
-            map(lambda s: self._agent.get_joint_state(s), self._agent_joints))
-        self._joints_limits = list(
-            map(lambda s: s.get_effort_limits()[0], joint_states))
-        if agent_cfg['use_pid']:
-            for joint_index in range(len(self._agent_joints)):
-                self._agent.set_pid_controller(
-                    self._agent_joints[joint_index],
-                    'velocity',
-                    p=0.02,
-                    d=0.00001,
-                    max_force=self._joints_limits[joint_index])
-            self._agent_control_range = agent_cfg['pid_control_limit']
-        else:
-            self._agent_control_range = np.array(self._joints_limits)
+        self._agent_joints = self._agent_cfg['control_joints']
+        self._agent_control_range = self._set_joints(
+            self._agent, self._agent_joints, self._agent_cfg)
         logging.debug("joints to control: %s" % self._agent_joints)
+
         self._control_space = gym.spaces.Box(
             low=-1.0,
             high=1.0,
@@ -184,7 +180,7 @@ class PlayGround(GazeboEnvBase):
             self.action_space = self._control_space
 
         # Setup observation space
-        self._agent_camera = agent_cfg['camera_sensor']
+        self._agent_camera = self._agent_cfg['camera_sensor']
         self.reset()
         obs_sample = self._get_observation_with_sentence("hello")
         if self._with_language or self._image_with_internal_states:
@@ -285,12 +281,11 @@ class PlayGround(GazeboEnvBase):
             image = np.array(image, copy=False)
         return image
 
-    def _get_low_dim_full_states(self):
-        task_specific_ob = self._teacher.get_task_pecific_observation()
-        agent_pose = np.array(self._agent.get_pose()).flatten()
-        agent_vel = np.array(self._agent.get_velocities()).flatten()
-        internal_states = self._get_internal_states(self._agent,
-                                                    self._agent_joints)
+    def _get_low_dim_full_states(self, agent):
+        task_specific_ob = self._teacher.get_task_pecific_observation(agent)
+        agent_pose = np.array(agent.get_pose()).flatten()
+        agent_vel = np.array(agent.get_velocities()).flatten()
+        internal_states = self._get_internal_states(agent, self._agent_joints)
         obs = np.concatenate(
             (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
         return obs
@@ -303,7 +298,7 @@ class PlayGround(GazeboEnvBase):
                 obs['states'] = self._get_internal_states(
                     self._agent, self._agent_joints)
         else:
-            obs['states'] = self._get_low_dim_full_states()
+            obs['states'] = self._get_low_dim_full_states(self._agent)
         if self._with_language:
             obs['sentence'] = self._teacher.sentence_to_sequence(
                 sentence_raw, self._seq_length)
@@ -316,8 +311,26 @@ class PlayGround(GazeboEnvBase):
         elif self._use_image_obs:  # observation is pure image
             obs = self._get_camera_observation()
         else:  # observation is pure low-dimentional states
-            obs = self._get_low_dim_full_states()
+            obs = self._get_low_dim_full_states(self._agent)
         return obs
+
+    def _set_joints(self, agent, joints, agent_cfg):
+        joint_states = list(map(lambda s: agent.get_joint_state(s), joints))
+        joints_limits = list(
+            map(lambda s: s.get_effort_limits()[0], joint_states))
+        if agent_cfg['use_pid']:
+            for joint_index in range(len(joints)):
+                agent.set_pid_controller(
+                    joint_name=joints[joint_index],
+                    pid_control_type=agent_cfg['pid_type'][joint_index],
+                    p=agent_cfg['pid'][joint_index][0],
+                    i=agent_cfg['pid'][joint_index][1],
+                    d=agent_cfg['pid'][joint_index][2],
+                    max_force=joints_limits[joint_index])
+            control_range = agent_cfg['pid_control_limit']
+        else:
+            control_range = np.array(joints_limits)
+        return control_range
 
 
 def main():
