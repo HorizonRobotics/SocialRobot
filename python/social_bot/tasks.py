@@ -166,7 +166,7 @@ class GoalTask(Task):
         self._random_goal = random_goal
         self._distraction_list = distraction_list
         self._object_list = distraction_list
-        if not goal_name in distraction_list:
+        if goal_name not in distraction_list:
             self._object_list.append(goal_name)
         self._goals = self._object_list
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
