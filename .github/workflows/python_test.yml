@@ -17,7 +17,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip3 install -e .
-        pip3 install absl-py pytest Pillow
         sudo curl -sSL http://get.gazebosim.org | sh
         sudo apt install python3-tk xvfb
         git submodule update --init --recursive
@@ -29,8 +28,9 @@ jobs:
         pip3 install -e .
     - name: Lint with flake8
       run: |
-        pip install flake8
-        # distable static check for now
+        pip install flake8\
+        # disable static check for now
+
         # stop the build if there are Python syntax errors or undefined names
         # flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
