@@ -30,7 +30,7 @@ class SimpleNaviEnv(Process):
         port = os.environ.get('PYGAZEBO_PORT', 11345)
         env = SimpleNavigationLanguage(port=port + self.env_id + 1)
         env.reset()
-        for _ in range(20):
+        for _ in range(500):
             control = [
                 random.random() * 0.2 - 0.1,
                 random.random() * 0.2 - 0.1
