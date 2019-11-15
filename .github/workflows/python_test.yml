@@ -35,4 +35,4 @@ jobs:
         flake8 ./python --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        GAZEBO_MODEL_PATH=./python/social_bot/models xvfb-run python python/social_bot/envs/play_ground_test.py
+        GAZEBO_MODEL_PATH=./python/social_bot/models xvfb-run python -m unittest discover -p "*_test.py" -v
