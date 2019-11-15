@@ -29,12 +29,10 @@ jobs:
     - name: Lint with flake8
       run: |
         pip install flake8
-        # disable static check for now
-
         # stop the build if there are Python syntax errors or undefined names
-        # flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        # flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        flake8 ./python --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
         GAZEBO_MODEL_PATH=./python/social_bot/models xvfb-run python python/social_bot/envs/play_ground_test.py
