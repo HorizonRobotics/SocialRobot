@@ -35,10 +35,9 @@ class GazeboAgent():
                  agent_type,
                  name=None,
                  config=None,
-                 use_image_as_obs=True,
+                 use_image_observation=True,
                  image_with_internal_states=False,
-                 with_language=False,
-                 sentence_space=None):
+                 with_language=False):
         """
         Args:
              world_file (str|None): world file path
@@ -60,7 +59,7 @@ class GazeboAgent():
             config = agent_cfgs[agent_type]
         self.name = name
         self.config = config
-        self._use_image_as_obs = use_image_as_obs
+        self._use_image_observation = use_image_observation
         self._image_with_internal_states = image_with_internal_states
         self._with_language = with_language
         self._sentence_space = None
@@ -139,7 +138,7 @@ class GazeboAgent():
         """
         if self._with_language or self._image_with_internal_states:
             observation_space = self._construct_dict_space(obs_sample)
-        elif self._use_image_as_obs:
+        elif self._use_image_observation:
             observation_space = gym.spaces.Box(
                 low=0, high=255, shape=obs_sample.shape, dtype=np.uint8)
         else:

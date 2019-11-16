@@ -154,7 +154,9 @@ class PlayGround(GazeboEnvBase):
             world=self._world,
             agent_type=agent_type,
             config=agent_cfg,
-            with_language=with_language)
+            with_language=with_language,
+            use_image_observation=use_image_observation,
+            image_with_internal_states=image_with_internal_states)
 
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)

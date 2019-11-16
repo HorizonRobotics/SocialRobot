@@ -178,6 +178,14 @@ class GazeboEnvBase(gym.Env):
                 time.sleep(0.2)
                 self._world.step(20)
 
+    def set_rendering_cam_pose(self, camera_pose):
+        """
+        Set the camera pose for rendering using rgb_array mode
+        Args:
+            camera_pose (string) : the camera pose, "x y z roll pitch yaw"
+        """
+        self._rendering_cam_pose = camera_pose
+
     def seed(self, seed=None):
         """Gym interface for setting random seed."""
         random.seed(seed)

@@ -28,6 +28,7 @@ import PIL.Image
 import social_bot
 from social_bot import teacher
 from social_bot.envs.gazebo_base import GazeboEnvBase
+from social_bot.gazebo_agent import GazeboAgent
 from social_bot.teacher import TeacherAction
 from social_bot.teacher import DiscreteSequence
 from social_bot.tasks import GoalTask
@@ -58,8 +59,7 @@ class SimpleNavigation(GazeboEnvBase):
                  with_language=False,
                  image_with_internal_states=False,
                  port=None,
-                 resized_image_size=None,
-                 data_format='channels_last'):
+                 resized_image_size=None):
         """Create SimpleNavigation environment.
 
         Args:
@@ -71,22 +71,24 @@ class SimpleNavigation(GazeboEnvBase):
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
                 to (width, height)
-            data_format (str):  one of `channels_last` or `channels_first`.
-                The ordering of the dimensions in the images.
-                `channels_last` corresponds to images with shape
-                `(height, width, channels)` while `channels_first` corresponds
-                to images with shape `(channels, height, width)`.
         """
         super(SimpleNavigation, self).__init__(
             world_file='pioneer2dx_camera.world', port=port)
-        self._agent = self._world.get_agent()
-        self._agent.type = 'pioneer2dx_noplugin'
-        self._rendering_cam_pose = "4 -4 3 0 0.4 2.3"
-        assert self._agent is not None
-        logging.debug("joint names: %s" % self._agent.get_joint_names())
-        self._all_joints = self._agent.get_joint_names()
-        self._joint_names = list(
-            filter(lambda s: s.find('wheel') != -1, self._all_joints))
+
+        self._with_language = with_language
+        self._image_with_internal_states = image_with_internal_states
+        self._resized_image_size = resized_image_size
+        self.set_rendering_cam_pose('4 -4 3 0 0.4 2.3')
+
+        # Setup agent
+        self._agent = GazeboAgent(
+            world=self._world,
+            agent_type='pioneer2dx_noplugin',
+            with_language=with_language,
+            use_image_observation=True,
+            image_with_internal_states=image_with_internal_states)
+        
+        # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()
         task = GoalTask(
@@ -102,34 +104,13 @@ class SimpleNavigation(GazeboEnvBase):
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
 
-        self._with_language = with_language
-        self._image_with_internal_states = image_with_internal_states
-        self._resized_image_size = resized_image_size
-        assert data_format in ('channels_first', 'channels_last')
-        self._data_format = data_format
-
-        time.sleep(0.1)  # Allow Gazebo threads to be fully ready
+        # Setup action space and observation space
         self.reset()
-
-        # Get observation dimension
+        self._agent.set_sentence_space(self._sentence_space)
+        self._control_space = self._agent.get_control_space()
+        self._action_space = self._agent.get_action_space()
         obs_sample = self._get_observation('hello')
-        if self._with_language or self._image_with_internal_states:
-            self._observation_space = self._construct_dict_space(
-                obs_sample, self._teacher.vocab_size)
-        else:
-            self._observation_space = gym.spaces.Box(
-                low=0, high=255, shape=obs_sample.shape, dtype=np.uint8)
-
-        control_space = gym.spaces.Box(
-            low=-0.2,
-            high=0.2,
-            shape=[len(self._joint_names)],
-            dtype=np.float32)
-        if with_language:
-            self._action_space = gym.spaces.Dict(
-                control=control_space, sentence=self._sentence_space)
-        else:
-            self._action_space = control_space
+        self._observation_space = self._agent.get_observation_space(obs_sample)
 
     @property
     def observation_space(self):
@@ -148,7 +129,7 @@ class SimpleNavigation(GazeboEnvBase):
         Args:
             action (dict|int): If with_language, action is a dictionary with key "control" and "sentence".
                     action['control'] is a vector whose dimension is
-                    len(_joint_names). action['sentence'] is a sentence sequence.
+                    len(joints). action['sentence'] is a sentence sequence.
                     If not with_language, it is an int for the action id.
         Returns:
             If with_language, it is a dictionary with key 'obs' and 'sentence'
@@ -162,7 +143,6 @@ class SimpleNavigation(GazeboEnvBase):
         else:
             sentence = ''
             controls = action
-        controls = dict(zip(self._joint_names, controls))
         self._agent.take_action(controls)
         self._world.step(self.NUM_SIMULATION_STEPS)
         teacher_action = self._teacher.teach(sentence)
@@ -177,15 +157,11 @@ class SimpleNavigation(GazeboEnvBase):
         return obs
 
     def _get_camera_observation(self):
-        image = self._agent.get_camera_observation(
-            "default::pioneer2dx::pioneer2dx_noplugin::camera_link::camera")
-        image = np.array(image, copy=False)
+        image = self._agent.get_camera_observation()
         if self._resized_image_size:
             image = PIL.Image.fromarray(image).resize(self._resized_image_size,
                                                       PIL.Image.ANTIALIAS)
             image = np.array(image, copy=False)
-        if self._data_format == "channels_first":
-            image = np.transpose(image, [2, 0, 1])
         return image
 
     def _get_observation(self, sentence_raw):
@@ -195,8 +171,7 @@ class SimpleNavigation(GazeboEnvBase):
             obs = OrderedDict()
             obs['image'] = img
             if self._image_with_internal_states:
-                obs['states'] = self._get_internal_states(
-                    self._agent, self._joint_names)
+                obs['states'] = self._agent.get_internal_states()
             if self._with_language:
                 obs['sentence'] = self._teacher.sentence_to_sequence(
                     sentence_raw, self._seq_length)
