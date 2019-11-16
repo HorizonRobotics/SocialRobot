@@ -178,57 +178,6 @@ class GazeboEnvBase(gym.Env):
                 time.sleep(0.2)
                 self._world.step(20)
 
-    def _get_internal_states(self, agent, agent_joints):
-        joint_pos = []
-        joint_vel = []
-        for joint_id in range(len(agent_joints)):
-            joint_name = agent_joints[joint_id]
-            joint_state = agent.get_joint_state(joint_name)
-            joint_pos.append(joint_state.get_positions())
-            joint_vel.append(joint_state.get_velocities())
-        joint_pos = np.array(joint_pos).flatten()
-        joint_vel = np.array(joint_vel).flatten()
-        # pos of continous joint could be huge, wrap the range to [-pi, pi)
-        joint_pos = (joint_pos + np.pi) % (2 * np.pi) - np.pi
-        internal_states = np.concatenate((joint_pos, joint_vel), axis=0)
-        return internal_states
-
-    def _construct_dict_space(self, obs_sample, vocab_size):
-        """
-        A helper function when gym.spaces.Dict is used as observation
-        Args:
-            obs_sample (dict) : a sample observation
-            vocab_size (int): the vocab size for the sentence sequence
-        Returns:
-            Return a gym.spaces.Dict with keys 'image', 'states', 'sentence'
-            Possible situation:
-                image with internal states
-                image with language sentence
-                image with both internal states and language sentence
-                pure low-dimensional states with language sentence
-        """
-        ob_space_dict = dict()
-        if 'image' in obs_sample.keys():
-            ob_space_dict['image'] = gym.spaces.Box(
-                low=0,
-                high=255,
-                shape=obs_sample['image'].shape,
-                dtype=np.uint8)
-        if 'states' in obs_sample.keys():
-            ob_space_dict['states'] = gym.spaces.Box(
-                low=-np.inf,
-                high=np.inf,
-                shape=obs_sample['states'].shape,
-                dtype=np.float32)
-        if 'sentence' in obs_sample.keys():
-            # using MultiDiscrete instead of DiscreteSequence so gym
-            # _spec_from_gym_space won't complain.
-            sentence_space = gym.spaces.MultiDiscrete(
-                [vocab_size] * len(obs_sample['sentence']))
-            ob_space_dict['sentence'] = sentence_space
-        ob_space = gym.spaces.Dict(ob_space_dict)
-        return ob_space
-
     def seed(self, seed=None):
         """Gym interface for setting random seed."""
         random.seed(seed)

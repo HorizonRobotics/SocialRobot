@@ -201,11 +201,6 @@ class EmbodiedTeacher(PlayGround):
                           str(self._cum_reward))
         return obs, reward, teacher_feedback.done, {}
 
-    def _take_action(self, agent, joints, action, action_range):
-        controls = np.clip(action, -1.0, 1.0) * action_range
-        controls_dict = dict(zip(joints, controls))
-        agent.take_action(controls_dict)
-
     def _get_teacher_obs(self):
         teacher_obs = self._get_low_dim_full_states(self._teacher_embodied)
         return teacher_obs
