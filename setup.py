@@ -13,7 +13,7 @@ setup(
     version='0.0.1',
     install_requires=[
         'gin-config == 0.1.3', 'gym == 0.10.11', 'numpy >= 1.13.3',
-        'matplotlib', 'psutil', 'lxml >= 3.5.0', 'Pillow', 'absl-py'
+        'matplotlib', 'psutil', 'lxml >= 3.5.0', 'Pillow', 'absl-py', 'pytest'
     ],
     package_dir={'': 'python'},
     packages=find_packages('python'),
