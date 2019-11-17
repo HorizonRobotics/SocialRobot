@@ -19,6 +19,7 @@ import json
 import gin
 import numpy as np
 import PIL.Image
+from collections import OrderedDict
 import gym
 from absl import logging
 import social_bot
@@ -39,7 +40,8 @@ class GazeboAgent():
                  use_image_observation=True,
                  resized_image_size=None,
                  image_with_internal_states=False,
-                 with_language=False):
+                 with_language=False,
+                 vocab_sequence_length=20):
         """
         Args:
             world (pygazebo.World): the world
@@ -59,6 +61,7 @@ class GazeboAgent():
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
             with_language (bool): The observation will be a dict with an extra sentence
+            vocab_sequence_length (int): the length of encoded sequence if with_language
         """
         self._world = world
         self.type = agent_type
@@ -66,6 +69,7 @@ class GazeboAgent():
         self._resized_image_size = resized_image_size
         self._image_with_internal_states = image_with_internal_states
         self._with_language = with_language
+        self._vocab_sequence_length = vocab_sequence_length
         self._sentence_space = None
 
         if config == None:
@@ -121,13 +125,47 @@ class GazeboAgent():
         controls_dict = dict(zip(self.joints, controls))
         self._agent.take_action(controls_dict)
 
+    def get_low_dim_full_states(self, teacher):
+        task_specific_ob = teacher.get_task_specific_observation(self)
+        agent_pose = np.array(self.get_pose()).flatten()
+        agent_vel = np.array(self.get_velocities()).flatten()
+        internal_states = self.get_internal_states()
+        obs = np.concatenate(
+            (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
+        return obs
+
+    def _create_observation_dict(self, teacher, sentence_raw):
+        obs = OrderedDict()
+        if self._use_image_observation:
+            obs['image'] = self.get_camera_observation()
+            if self._image_with_internal_states:
+                obs['states'] = self.get_internal_states()
+        else:
+            obs['states'] = self.get_low_dim_full_states(teacher)
+        if self._with_language:
+            obs['sentence'] = teacher.sentence_to_sequence(
+                sentence_raw, self._vocab_sequence_length)
+        return obs
+
+    def get_dicted_observation(self, teacher,
+                                           sentence_raw="hello"):
+        if self._image_with_internal_states or self._with_language:
+            # observation is an OrderedDict
+            obs = self._create_observation_dict(teacher, sentence_raw)
+        elif self._use_image_observation:  # observation is pure image
+            obs = self.get_camera_observation()
+        else:  # observation is pure low-dimentional states
+            obs = self.get_low_dim_full_states(teacher)
+        return obs
+
     def get_camera_observation(self):
         """
         Get the camera image
         Returns:
             a numpy.array of the image
         """
-        image = np.array(self._agent.get_camera_observation(self._camera), copy=False)
+        image = np.array(
+            self._agent.get_camera_observation(self._camera), copy=False)
         if self._resized_image_size:
             image = PIL.Image.fromarray(image).resize(self._resized_image_size,
                                                       PIL.Image.ANTIALIAS)

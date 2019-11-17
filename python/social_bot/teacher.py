@@ -209,7 +209,7 @@ class Teacher(object):
         """
         return self._task_groups
 
-    def get_task_pecific_observation(self, agent):
+    def get_task_specific_observation(self, agent):
         """Get the task specific observation of all the tasks added to the teacher
 
         Args:

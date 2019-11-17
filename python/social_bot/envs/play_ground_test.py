@@ -43,9 +43,9 @@ class TestPlayGround(unittest.TestCase):
                     test_tasks.append(ICubAuxiliaryTask)
                 if agent_cfg['camera_sensor'] == '' and use_image_obs:
                     continue
-                logging.info("Testing Case: Agent " + agent_type +
-                                ", Task " + str(test_tasks) + ", UseImage: " +
-                                str(use_image_obs))
+                logging.info("Testing Case: Agent " + agent_type + ", Task " +
+                             str(test_tasks) + ", UseImage: " +
+                             str(use_image_obs))
                 env = PlayGround(
                     with_language=with_language,
                     use_image_observation=use_image_obs,
@@ -54,8 +54,7 @@ class TestPlayGround(unittest.TestCase):
                     tasks=test_tasks)
                 step_cnt = 0
                 last_done_time = time.time()
-                while step_cnt < 500 and (
-                        time.time() - last_done_time) < 10:
+                while step_cnt < 500 and (time.time() - last_done_time) < 10:
                     actions = env._control_space.sample()
                     if with_language:
                         actions = dict(control=actions, sentence="hello")

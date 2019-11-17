@@ -86,7 +86,7 @@ class SimpleNavigation(GazeboEnvBase):
             use_image_observation=True,
             resized_image_size=resized_image_size,
             image_with_internal_states=image_with_internal_states)
-        
+
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         task_group = teacher.TaskGroup()

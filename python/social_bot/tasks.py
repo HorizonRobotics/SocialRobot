@@ -91,7 +91,7 @@ class Task(object):
             by the sub task
         """
         return np.array([])
-    
+
     def set_agent(self, agent):
         """
         The agent can be override by this function. 
@@ -121,7 +121,6 @@ class Task(object):
         model_poss = np.array(model_poss).flatten()
         model_vels = np.array(model_vels).flatten()
         return np.concatenate((model_poss, model_vels), axis=0)
-
 
 
 @gin.configurable
@@ -482,11 +481,9 @@ class ICubAuxiliaryTask(Task):
         chest_pose = np.array(
             agent.get_link_pose(agent.name + '::chest')).flatten()
         l_foot_pose = np.array(
-            agent.get_link_pose(agent.name +
-                                     '::l_leg::l_foot')).flatten()
+            agent.get_link_pose(agent.name + '::l_leg::l_foot')).flatten()
         r_foot_pose = np.array(
-            agent.get_link_pose(agent.name +
-                                     '::r_leg::r_foot')).flatten()
+            agent.get_link_pose(agent.name + '::r_leg::r_foot')).flatten()
         foot_contacts = np.array([
             _get_contacts_to_ground(agent, "l_foot_contact_sensor"),
             _get_contacts_to_ground(agent, "r_foot_contact_sensor")
@@ -622,7 +619,8 @@ class KickingBallTask(Task):
                 agent_loc, dir = self._agent.get_pose()
                 if self._agent.type.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
-                    agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
+                    agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(
+                        self._agent)[:3]
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(agent_loc)[:2])

@@ -26,7 +26,6 @@ import gym
 from gym import spaces
 from absl import logging
 from abc import abstractmethod
-from collections import OrderedDict
 
 import social_bot
 import social_bot.pygazebo as gazebo
@@ -123,6 +122,7 @@ class PlayGround(GazeboEnvBase):
 
         self._action_cost = action_cost
         self._with_language = with_language
+        self._seq_length = vocab_sequence_length
         self._use_image_obs = use_image_observation
         self._image_with_internal_states = self._use_image_obs and image_with_internal_states
 
@@ -154,6 +154,7 @@ class PlayGround(GazeboEnvBase):
             agent_type=agent_type,
             config=agent_cfg,
             with_language=with_language,
+            vocab_sequence_length=self._seq_length,
             use_image_observation=use_image_observation,
             resized_image_size=resized_image_size,
             image_with_internal_states=image_with_internal_states)
@@ -165,7 +166,6 @@ class PlayGround(GazeboEnvBase):
             task_group.add_task(task(env=self, max_steps=max_steps))
             self._teacher.add_task_group(task_group)
         self._teacher._build_vocab_from_tasks()
-        self._seq_length = vocab_sequence_length
 
         # Setup action space and observation space
         if self._teacher.vocab_size:
@@ -175,7 +175,9 @@ class PlayGround(GazeboEnvBase):
         self._control_space = self._agent.get_control_space()
         self.action_space = self._agent.get_action_space()
         self.reset()
-        obs_sample = self._get_observation_with_sentence("hello")
+        # TODO: obs_sample should not be the final dict sample but pure ob sample without language
+        obs_sample = self._agent.get_dicted_observation(
+            self._teacher)
         self.observation_space = self._agent.get_observation_space(obs_sample)
 
     def reset(self):
@@ -192,7 +194,8 @@ class PlayGround(GazeboEnvBase):
         self._teacher.reset(self._agent, self._world)
         # The first call of "teach() after "done" will reset the task
         teacher_action = self._teacher.teach("")
-        obs = self._get_observation_with_sentence(teacher_action.sentence)
+        obs = self._agent.get_dicted_observation(
+            self._teacher, teacher_action.sentence)
         return obs
 
     def step(self, action):
@@ -218,7 +221,8 @@ class PlayGround(GazeboEnvBase):
         self._agent.take_action(controls)
         self._world.step(self._sub_steps)
         teacher_action = self._teacher.teach(sentence)
-        obs = self._get_observation_with_sentence(teacher_action.sentence)
+        obs = self._agent.get_dicted_observation(
+            self._teacher, teacher_action.sentence)
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(controls)) / controls.shape[0]
         reward = teacher_action.reward - self._action_cost * ctrl_cost
@@ -245,38 +249,6 @@ class PlayGround(GazeboEnvBase):
         insert_str = "<include> <uri>model://" + model + "</uri> </include>\n"
         content.insert(insert_pos, insert_str)
         return "".join(content)
-
-    def _get_low_dim_full_states(self, agent):
-        task_specific_ob = self._teacher.get_task_pecific_observation(agent)
-        agent_pose = np.array(agent.get_pose()).flatten()
-        agent_vel = np.array(agent.get_velocities()).flatten()
-        internal_states = self._agent.get_internal_states()
-        obs = np.concatenate(
-            (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
-        return obs
-
-    def _create_observation_dict(self, sentence_raw):
-        obs = OrderedDict()
-        if self._use_image_obs:
-            obs['image'] = self._agent.get_camera_observation()
-            if self._image_with_internal_states:
-                obs['states'] = self._agent.get_internal_states()
-        else:
-            obs['states'] = self._get_low_dim_full_states(self._agent)
-        if self._with_language:
-            obs['sentence'] = self._teacher.sentence_to_sequence(
-                sentence_raw, self._seq_length)
-        return obs
-
-    def _get_observation_with_sentence(self, sentence_raw):
-        if self._image_with_internal_states or self._with_language:
-            # observation is an OrderedDict
-            obs = self._create_observation_dict(sentence_raw)
-        elif self._use_image_obs:  # observation is pure image
-            obs = self._agent.get_camera_observation()
-        else:  # observation is pure low-dimentional states
-            obs = self._get_low_dim_full_states(self._agent)
-        return obs
 
 
 def main():
