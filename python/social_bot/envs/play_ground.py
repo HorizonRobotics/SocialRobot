@@ -192,10 +192,6 @@ class PlayGround(GazeboEnvBase):
         self._teacher.reset(self._agent, self._world)
         # The first call of "teach() after "done" will reset the task
         teacher_action = self._teacher.teach("")
-        # Give an intilal random pose offset by take random action
-        actions = self._control_space.sample()
-        self._agent.take_action(actions)
-        self._world.step(self._sub_steps)
         obs = self._get_observation_with_sentence(teacher_action.sentence)
         return obs
 

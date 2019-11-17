@@ -118,7 +118,7 @@ class GazeboAgent():
         Returns:
             a numpy.array of the image
         """
-        image = self._agent.get_camera_observation(self._camera)
+        image = np.array(self._agent.get_camera_observation(self._camera), copy=False)
         if self._resized_image_size:
             image = PIL.Image.fromarray(image).resize(self._resized_image_size,
                                                       PIL.Image.ANTIALIAS)
