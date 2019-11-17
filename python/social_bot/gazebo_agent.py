@@ -18,6 +18,7 @@ import random
 import json
 import gin
 import numpy as np
+import PIL.Image
 import gym
 from absl import logging
 import social_bot
@@ -27,7 +28,7 @@ import social_bot.pygazebo as gazebo
 @gin.configurable
 class GazeboAgent():
     """
-    Class of agent for gazebo-based SocialRobot enviroments
+    Class for the agent of gazebo-based SocialRobot enviroments
     """
 
     def __init__(self,
@@ -36,15 +37,26 @@ class GazeboAgent():
                  name=None,
                  config=None,
                  use_image_observation=True,
+                 resized_image_size=None,
                  image_with_internal_states=False,
                  with_language=False):
         """
         Args:
-             world_file (str|None): world file path
-             world_string (str|None): world xml string content,
-             world_config (list[str]): list of str config `key=value`
-                see `_modify_world_xml` for details
-             sim_time_precision (float): the time precision 
+            world (pygazebo.World): the world
+            agent_type (str): the agent_type, supporting pr2_noplugin,
+                pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
+                note that 'agent_type' should be exactly the same string as the model's
+                name at the beginning of model's sdf file
+            config (dict): the configuarations for the agent
+                see `agent_cfg.jason` for details
+            use_image_observation (bool): Use image or not
+            resized_image_size (None|tuple): If None, use the original image size
+                from the camera. Otherwise, the original image will be resized
+                to (width, height)
+            image_with_internal_states (bool): If true, the agent's self internal states
+                i.e., joint position and velocities would be available together with image.
+                Only affect if use_image_observation is true
+            with_language (bool): The observation will be a dict with an extra sentence
         """
         self._world = world
         self.type = agent_type
@@ -60,6 +72,7 @@ class GazeboAgent():
         self.name = name
         self.config = config
         self._use_image_observation = use_image_observation
+        self._resized_image_size = resized_image_size
         self._image_with_internal_states = image_with_internal_states
         self._with_language = with_language
         self._sentence_space = None
@@ -83,14 +96,34 @@ class GazeboAgent():
         self.action_range = self.setup_joints(self._agent, self.joints, config)
         logging.debug("joints to control: %s" % self.joints)
 
+    def reset(self):
+        """
+        Reset the agent.
+        """
+        self._agent.reset()
+
+    def take_action(self, action):
+        """
+        Take actions.
+        Args:
+            the actions to be taken
+        """
+        controls = np.clip(action, -1.0, 1.0) * self.action_range
+        controls_dict = dict(zip(self.joints, controls))
+        self._agent.take_action(controls_dict)
+
     def get_camera_observation(self):
         """
         Get the camera image
         Returns:
             a numpy.array of the image
         """
-        return np.array(
-            self._agent.get_camera_observation(self._camera), copy=False)
+        image = self._agent.get_camera_observation(self._camera)
+        if self._resized_image_size:
+            image = PIL.Image.fromarray(image).resize(self._resized_image_size,
+                                                      PIL.Image.ANTIALIAS)
+            image = np.array(image, copy=False)
+        return image
 
     def get_internal_states(self):
         """
@@ -114,7 +147,7 @@ class GazeboAgent():
 
     def get_control_space(self):
         """
-        Get the get_control_space space.
+        Get the pure controlling space without language.
         """
         control_space = gym.spaces.Box(
             low=-1.0, high=1.0, shape=[len(self.joints)], dtype=np.float32)
@@ -152,6 +185,7 @@ class GazeboAgent():
     def set_sentence_space(self, sentence_space):
         """
         Set the sentence if with_languange is enabled
+        This function should be called if with_language is enabled
         Args:
             sentence_space (gym.spaces): the space for sentence sequence
         """
@@ -187,22 +221,6 @@ class GazeboAgent():
             ob_space_dict['sentence'] = self._sentence_space
         ob_space = gym.spaces.Dict(ob_space_dict)
         return ob_space
-
-    def reset(self):
-        """
-        Reset the agent.
-        """
-        self._agent.reset()
-
-    def take_action(self, action):
-        """
-        Take actions.
-        Args:
-            the actions to be taken
-        """
-        controls = np.clip(action, -1.0, 1.0) * self.action_range
-        controls_dict = dict(zip(self.joints, controls))
-        self._agent.take_action(controls_dict)
 
     def setup_joints(self, agent, joints, agent_cfg):
         """

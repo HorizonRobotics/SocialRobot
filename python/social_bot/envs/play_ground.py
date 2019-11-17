@@ -125,7 +125,6 @@ class PlayGround(GazeboEnvBase):
         self._with_language = with_language
         self._use_image_obs = use_image_observation
         self._image_with_internal_states = self._use_image_obs and image_with_internal_states
-        self._resized_image_size = resized_image_size
 
         # Load agent and world file
         with open(
@@ -156,6 +155,7 @@ class PlayGround(GazeboEnvBase):
             config=agent_cfg,
             with_language=with_language,
             use_image_observation=use_image_observation,
+            resized_image_size=resized_image_size,
             image_with_internal_states=image_with_internal_states)
 
         # Setup teacher and tasks
@@ -250,14 +250,6 @@ class PlayGround(GazeboEnvBase):
         content.insert(insert_pos, insert_str)
         return "".join(content)
 
-    def _get_camera_observation(self):
-        image = self._agent.get_camera_observation()
-        if self._resized_image_size:
-            image = PIL.Image.fromarray(image).resize(self._resized_image_size,
-                                                      PIL.Image.ANTIALIAS)
-            image = np.array(image, copy=False)
-        return image
-
     def _get_low_dim_full_states(self, agent):
         task_specific_ob = self._teacher.get_task_pecific_observation(agent)
         agent_pose = np.array(agent.get_pose()).flatten()
@@ -270,7 +262,7 @@ class PlayGround(GazeboEnvBase):
     def _create_observation_dict(self, sentence_raw):
         obs = OrderedDict()
         if self._use_image_obs:
-            obs['image'] = self._get_camera_observation()
+            obs['image'] = self._agent.get_camera_observation()
             if self._image_with_internal_states:
                 obs['states'] = self._agent.get_internal_states()
         else:
@@ -285,7 +277,7 @@ class PlayGround(GazeboEnvBase):
             # observation is an OrderedDict
             obs = self._create_observation_dict(sentence_raw)
         elif self._use_image_obs:  # observation is pure image
-            obs = self._get_camera_observation()
+            obs = self._agent.get_camera_observation()
         else:  # observation is pure low-dimentional states
             obs = self._get_low_dim_full_states(self._agent)
         return obs

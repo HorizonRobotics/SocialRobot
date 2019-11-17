@@ -23,7 +23,6 @@ from absl import logging
 import gym
 import gym.spaces
 import gin
-import PIL.Image
 
 import social_bot
 from social_bot import teacher
@@ -77,7 +76,6 @@ class SimpleNavigation(GazeboEnvBase):
 
         self._with_language = with_language
         self._image_with_internal_states = image_with_internal_states
-        self._resized_image_size = resized_image_size
         self.set_rendering_cam_pose('4 -4 3 0 0.4 2.3')
 
         # Setup agent
@@ -86,6 +84,7 @@ class SimpleNavigation(GazeboEnvBase):
             agent_type='pioneer2dx_noplugin',
             with_language=with_language,
             use_image_observation=True,
+            resized_image_size=resized_image_size,
             image_with_internal_states=image_with_internal_states)
         
         # Setup teacher and tasks
@@ -156,16 +155,8 @@ class SimpleNavigation(GazeboEnvBase):
         obs = self._get_observation(teacher_action.sentence)
         return obs
 
-    def _get_camera_observation(self):
-        image = self._agent.get_camera_observation()
-        if self._resized_image_size:
-            image = PIL.Image.fromarray(image).resize(self._resized_image_size,
-                                                      PIL.Image.ANTIALIAS)
-            image = np.array(image, copy=False)
-        return image
-
     def _get_observation(self, sentence_raw):
-        img = self._get_camera_observation()
+        img = self._agent.get_camera_observation()
         if self._image_with_internal_states or self._with_language:
             # observation is an OrderedDict
             obs = OrderedDict()
