@@ -22,6 +22,7 @@ import gym
 
 from social_bot import teacher
 from social_bot import tasks
+from social_bot.gazebo_agent import GazeboAgent
 from social_bot.tasks import GoalTask, ICubAuxiliaryTask, KickingBallTask
 from play_ground import PlayGround
 
@@ -50,6 +51,9 @@ class EmbodiedTeacher(PlayGround):
                  with_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
+                 teacher_use_image_observation=False,
+                 teacher_image_with_internal_states=False,
+                 teacher_config=None,
                  world_time_precision=None,
                  step_time=0.1,
                  real_time_update_rate=0,
@@ -73,6 +77,12 @@ class EmbodiedTeacher(PlayGround):
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
+            teacher_use_image_observation and teacher_image_with_internal_states (bool): The
+                same as above. the teacher policy can be trained with different observations
+                or action space configurations
+            teacher_config (dict|None): the agent configuaration for the teacher. Teacher can
+                have a different action sapce configurations. If None, this will be set the same
+                as agent. See `agent_cfg.jason` for details of the configuaration
             world_time_precision (float|None): this parameter depends on the agent. 
                 if not none, the default time precision of simulator, i.e., the max_step_size
                 defined in the agent cfg file, will be override. Note that pr2 and iCub
@@ -120,23 +130,30 @@ class EmbodiedTeacher(PlayGround):
 
         # insert teacher model
         self.insert_model(
-            model=agent_type, name="teacher", pose=initial_teacher_pose)
+            model=agent_type, name='teacher', pose=initial_teacher_pose)
 
-        # set up teacher joints
-        self._teacher_cfg = self._agent.config
-        self._teacher_joints = []
-        for joint in self._teacher_cfg['control_joints']:
-            self._teacher_joints.append("teacher::" + joint)
-        self._teacher_embodied = self._world.get_agent('teacher')
-        self._teacher_control_range = self._set_joints(
-            self._teacher_embodied, self._teacher_joints, self._teacher_cfg)
+        # set up teacher
+        if teacher_config == None:
+            teacher_config = self._agent.config
+        self._teacher_embodied = GazeboAgent(
+            world=self._world,
+            agent_type=agent_type,
+            name='teacher',
+            config=teacher_config,
+            with_language=False,
+            use_image_observation=teacher_use_image_observation,
+            resized_image_size=resized_image_size,
+            image_with_internal_states=teacher_image_with_internal_states)
 
         # setup action and observation space
         if not self._demo_by_human:
+            teacher_action_space = self._teacher_embodied.get_action_space()
+            obs_sample = self._get_teacher_obs()
+            teacher_observation_space = self._teacher_embodied.get_observation_space(obs_sample)
             self.action_space = gym.spaces.Dict(
-                learner=self.action_space, teacher=self.action_space)
+                learner=self.action_space, teacher=teacher_action_space)
             self.observation_space = gym.spaces.Dict(
-                learner=self.observation_space, teacher=self.observation_space)
+                learner=self.observation_space, teacher=teacher_observation_space)
 
     def reset(self):
         """
@@ -185,10 +202,8 @@ class EmbodiedTeacher(PlayGround):
         else:
             sentence = ''
             controls = agent_action
-        self._take_action(self._agent, self._agent_joints, controls,
-                          self._agent_control_range)
-        self._take_action(self._teacher_embodied, self._teacher_joints,
-                          teacher_action, self._teacher_control_range)
+        self._agent.take_action(controls)
+        self._teacher_embodied.take_action(teacher_action)
         self._world.step(self._sub_steps)
         teacher_feedback = self._teacher.teach(sentence)
         obs = self._get_observation_with_sentence(teacher_feedback.sentence)

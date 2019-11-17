@@ -53,7 +53,6 @@ class Task(object):
         self._env = env
         self._world = env._world
         self._agent = env._agent
-        self._agent.type = env._agent.type
         self._max_steps = max_steps
         self.reward_weight = reward_weight
         self.task_vocab = ['hello', 'well', 'done', 'failed', 'to']
@@ -92,6 +91,37 @@ class Task(object):
             by the sub task
         """
         return np.array([])
+    
+    def set_agent(self, agent):
+        """
+        The agent can be override by this function. 
+        This might be useful when multi agents share the same task or embodied teacher.
+        Args:
+            agent (Agent): the agent
+        """
+        self._agent = agent
+
+    def _get_states_of_model_list(self, model_list, including_rotation=False):
+        """
+        Get the poses and velocities for the models
+        Args:
+            model_list (list): a list of model names
+            including_rotation (bool): if Ture, the rotation of objects (in roll pitch yaw) will be included.
+        Returns:
+            np.array, the poses and velocities of the models
+        """
+        model_poss = []
+        model_vels = []
+        for model_id in range(len(model_list)):
+            model = self._world.get_model(model_list[model_id])
+            model_poss.append(model.get_pose()[0])
+            if including_rotation:
+                model_poss.append(model.get_pose()[1])
+            model_vels.append(model.get_velocities()[0])
+        model_poss = np.array(model_poss).flatten()
+        model_vels = np.array(model_vels).flatten()
+        return np.concatenate((model_poss, model_vels), axis=0)
+
 
 
 @gin.configurable
@@ -220,7 +250,7 @@ class GoalTask(Task):
         if self._random_goal:
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
-        goal = self._world.get_agent(self._goal_name)
+        goal = self._world.get_model(self._goal_name)
         self._move_goal(goal, loc)
         steps_since_last_reward = 0
         while steps_since_last_reward < self._max_steps:
@@ -228,8 +258,7 @@ class GoalTask(Task):
             loc, dir = self._agent.get_pose()
             if self._agent.type.find('icub') != -1:
                 # For agent icub, we need to use the average pos here
-                loc = ICubAuxiliaryTask.get_icub_extra_obs(
-                    self._agent.type, self._agent)[:3]
+                loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
             goal_loc, _ = goal.get_pose()
             loc = np.array(loc)
             goal_loc = np.array(goal_loc)
@@ -242,7 +271,7 @@ class GoalTask(Task):
             distraction_penalty = 0
             if self._distraction_penalty_distance_thresh > 0 and self._distraction_list:
                 for obj_name in self._distraction_list:
-                    obj = self._world.get_agent(obj_name)
+                    obj = self._world.get_model(obj_name)
                     if obj:
                         obj_loc, obj_dir = obj.get_pose()
                         obj_loc = np.array(obj_loc)
@@ -374,7 +403,7 @@ class ICubAuxiliaryTask(Task):
         self._agent_init_pos = agent_init_pos
         self._random_range = agent_pos_random_range
         if self._target_name:
-            self._target = self._world.get_agent(self._target_name)
+            self._target = self._world.get_model(self._target_name)
         with open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
@@ -385,8 +414,7 @@ class ICubAuxiliaryTask(Task):
         """
         Start a teaching episode for this task.
         """
-        self._pre_agent_pos = self.get_icub_extra_obs(self._agent.type,
-                                                      self._agent)[:3]
+        self._pre_agent_pos = self.get_icub_extra_obs(self._agent)[:3]
         agent_sentence = yield
         done = False
         # set icub random initial pose
@@ -414,8 +442,7 @@ class ICubAuxiliaryTask(Task):
             movement_cost = np.sum(np.abs(joint_pos)) / joint_pos.shape[0]
             # orientation cost, the agent should face towards the target
             if self._target_name:
-                agent_pos = self.get_icub_extra_obs(self._agent.type,
-                                                    self._agent)[:3]
+                agent_pos = self.get_icub_extra_obs(self._agent)[:3]
                 head_angle = self._get_angle_to_target(
                     agent_pos, self._agent.type + '::head')
                 root_angle = self._get_angle_to_target(
@@ -433,7 +460,7 @@ class ICubAuxiliaryTask(Task):
             agent_sentence = yield TeacherAction(reward=reward, done=done)
 
     @staticmethod
-    def get_icub_extra_obs(agent_name, icub_agent):
+    def get_icub_extra_obs(agent):
         """
         Get contacts_to_ground, pose of key ponit of icub and center of them.
         A static method, other task can use this to get additional icub info.
@@ -443,26 +470,26 @@ class ICubAuxiliaryTask(Task):
             np.array of the extra observations of icub, including average pos
         """
 
-        def _get_contacts_to_ground(icub_agent, contacts_sensor):
-            contacts = icub_agent.get_collisions(contacts_sensor)
+        def _get_contacts_to_ground(agent, contacts_sensor):
+            contacts = agent.get_collisions(contacts_sensor)
             for collision in contacts:
                 if collision[1] == 'ground_plane::link::collision':
                     return True
             return False
 
         root_pose = np.array(
-            icub_agent.get_link_pose(agent_name + '::root_link')).flatten()
+            agent.get_link_pose(agent.name + '::root_link')).flatten()
         chest_pose = np.array(
-            icub_agent.get_link_pose(agent_name + '::chest')).flatten()
+            agent.get_link_pose(agent.name + '::chest')).flatten()
         l_foot_pose = np.array(
-            icub_agent.get_link_pose(agent_name +
+            agent.get_link_pose(agent.name +
                                      '::l_leg::l_foot')).flatten()
         r_foot_pose = np.array(
-            icub_agent.get_link_pose(agent_name +
+            agent.get_link_pose(agent.name +
                                      '::r_leg::r_foot')).flatten()
         foot_contacts = np.array([
-            _get_contacts_to_ground(icub_agent, "l_foot_contact_sensor"),
-            _get_contacts_to_ground(icub_agent, "r_foot_contact_sensor")
+            _get_contacts_to_ground(agent, "l_foot_contact_sensor"),
+            _get_contacts_to_ground(agent, "r_foot_contact_sensor")
         ]).astype(np.float32)
         average_pos = np.sum([
             root_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
@@ -503,16 +530,16 @@ class ICubAuxiliaryTask(Task):
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
         """
-        icub_extra_obs = self.get_icub_extra_obs(self._agent.type, agent)
+        icub_extra_obs = self.get_icub_extra_obs(agent)
         if self._target_name:
             agent_pos = icub_extra_obs[:3]
             # TODO: be compatible for calling multiple times in one env step
             agent_speed = (
                 agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos
-            yaw = agent.get_link_pose(self._agent.type + '::root_link')[1][2]
+            yaw = agent.get_link_pose(agent.type + '::root_link')[1][2]
             angle_to_target = self._get_angle_to_target(
-                agent, agent_pos, self._agent.type + '::root_link')
+                agent, agent_pos, agent.type + '::root_link')
             rot_minus_yaw = np.array([[np.cos(-yaw), -np.sin(-yaw), 0],
                                       [np.sin(-yaw),
                                        np.cos(-yaw), 0], [0, 0, 1]])
@@ -577,8 +604,8 @@ class KickingBallTask(Task):
         Start a teaching episode for this task.
         """
         agent_sentence = yield
-        goal = self._world.get_agent(self._goal_name)
-        ball = self._world.get_agent('ball')
+        goal = self._world.get_model(self._goal_name)
+        ball = self._world.get_model('ball')
         goal_loc, dir = goal.get_pose()
         self._move_ball(ball, np.array(goal_loc))
         agent_loc, dir = self._agent.get_pose()
@@ -595,8 +622,7 @@ class KickingBallTask(Task):
                 agent_loc, dir = self._agent.get_pose()
                 if self._agent.type.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
-                    agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(
-                        self._agent.type, self._agent)[:3]
+                    agent_loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
@@ -634,19 +660,7 @@ class KickingBallTask(Task):
         Returns:
             np.array, the extra observations should be added into the observation
         """
-        model_list = [
-            'ball',
-            'goal',
-        ]
-        model_poss = []
-        model_vels = []
-        for model_id in range(len(model_list)):
-            model = self._world.get_model(model_list[model_id])
-            model_poss.append(model.get_pose()[0])
-            model_vels.append(model.get_velocities()[0])
-        model_poss = np.array(model_poss).flatten()
-        model_vels = np.array(model_vels).flatten()
-        return np.concatenate((model_poss, model_vels), axis=0)
+        return self._get_states_of_model_list(['ball', 'goal'])
 
     def _move_ball(self, ball, goal_loc):
         range = self._random_range

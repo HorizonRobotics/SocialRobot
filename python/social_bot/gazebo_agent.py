@@ -47,6 +47,8 @@ class GazeboAgent():
                 pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
                 note that 'agent_type' should be exactly the same string as the model's
                 name at the beginning of model's sdf file
+            name (str): the name of the agent in world
+                if None it will be set the same as agent_type
             config (dict): the configuarations for the agent
                 see `agent_cfg.jason` for details
             use_image_observation (bool): Use image or not
@@ -60,24 +62,32 @@ class GazeboAgent():
         """
         self._world = world
         self.type = agent_type
-        if name == None:
-            name = agent_type
-        if config == None:
-            # Load agent config file
-            with open(
-                    os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
-                    'r') as cfg_file:
-                agent_cfgs = json.load(cfg_file)
-            config = agent_cfgs[agent_type]
-        self.name = name
-        self.config = config
         self._use_image_observation = use_image_observation
         self._resized_image_size = resized_image_size
         self._image_with_internal_states = image_with_internal_states
         self._with_language = with_language
         self._sentence_space = None
 
-        self._agent = self._world.get_agent(agent_type)
+        if config == None:
+            # Load agent configurations
+            with open(
+                    os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
+                    'r') as cfg_file:
+                agent_cfgs = json.load(cfg_file)
+            config = agent_cfgs[agent_type]
+        self.config = config
+        joints = config['control_joints']
+
+        if name:
+            # the agent is wrapped by a new name in world
+            self.name = name
+            self.joints = []
+            for joint in joints:
+                self.joints.append(name + '::' + joint)
+        else:
+            self.name = agent_type
+            self.joints = joints
+        self._agent = self._world.get_agent(self.name)
 
         # Set the funtions from pygazebo.agent to Agent
         self.get_pose = self._agent.get_pose
@@ -91,7 +101,6 @@ class GazeboAgent():
         self.get_velocities = self._agent.get_velocities
 
         # Setup joints and sensors
-        self.joints = config['control_joints']
         self._camera = config['camera_sensor']
         self.action_range = self.setup_joints(self._agent, self.joints, config)
         logging.debug("joints to control: %s" % self.joints)
