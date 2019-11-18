@@ -38,7 +38,6 @@ class TestEmbodiedTeacher(unittest.TestCase):
             agent_cfgs = json.load(cfg_file)
         for agent_type in agents:
             for use_image_obs in [True, False]:
-                for demo_by_human in [True, False]:
                     agent_cfg = agent_cfgs[agent_type]
                     test_tasks = [GoalTask, KickingBallTask]
                     if agent_cfg['camera_sensor'] == '' and use_image_obs:
@@ -52,15 +51,14 @@ class TestEmbodiedTeacher(unittest.TestCase):
                         image_with_internal_states=True,
                         agent_type=agent_type,
                         tasks=test_tasks,
-                        demo_by_human=demo_by_human)
+                        demo_by_human=False)
                     step_cnt = 0
                     last_done_time = time.time()
                     while step_cnt < 100 and (time.time() - last_done_time) < 5:
                         actions = env._control_space.sample()
                         actions = dict(control=actions, sentence="hello")
-                        if not demo_by_human:
-                            teacher_actions = env._teacher_control_space.sample()
-                            actions = OrderedDict(learner=actions, teacher=teacher_actions)
+                        teacher_actions = env._teacher_control_space.sample()
+                        actions = OrderedDict(learner=actions, teacher=teacher_actions)
                         env.step(actions)
                         step_cnt += 1
                     step_per_sec = step_cnt / (time.time() - last_done_time)
