@@ -17,16 +17,17 @@ import random
 import os
 import time
 import json
+from collections import OrderedDict
 import social_bot
 import social_bot.pygazebo as gazebo
 from absl import logging
 from play_ground import PlayGround
+from embodied_teacher import EmbodiedTeacher
 from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask
 
 
 class TestPlayGround(unittest.TestCase):
     def test_play_ground(self):
-        with_language = True
         agents = [
             'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands',
             'youbot_noplugin'
@@ -36,34 +37,40 @@ class TestPlayGround(unittest.TestCase):
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
         for agent_type in agents:
-            for use_image_obs in [True, False]:
-                agent_cfg = agent_cfgs[agent_type]
-                test_tasks = [GoalTask, KickingBallTask]
-                if agent_type.find('icub') != -1:
-                    test_tasks.append(ICubAuxiliaryTask)
-                if agent_cfg['camera_sensor'] == '' and use_image_obs:
-                    continue
-                logging.info("Testing Case: Agent " + agent_type + ", Task " +
-                             str(test_tasks) + ", UseImage: " +
-                             str(use_image_obs))
-                env = PlayGround(
-                    with_language=with_language,
-                    use_image_observation=use_image_obs,
-                    image_with_internal_states=True,
-                    agent_type=agent_type,
-                    tasks=test_tasks)
-                step_cnt = 0
-                last_done_time = time.time()
-                while step_cnt < 500 and (time.time() - last_done_time) < 10:
-                    actions = env._control_space.sample()
-                    if with_language:
-                        actions = dict(control=actions, sentence="hello")
-                    env.step(actions)
-                    step_cnt += 1
-                step_per_sec = step_cnt / (time.time() - last_done_time)
-                logging.info("Test Passed, FPS: " + str(step_per_sec))
-                env.close()
-                gazebo.close()
+            for with_language in [True, False]:
+                for use_image_obs in [True, False]:
+                    for image_with_internal_states in [True, False]:
+                        agent_cfg = agent_cfgs[agent_type]
+                        test_tasks = [GoalTask, KickingBallTask]
+                        if agent_type.find('icub') != -1:
+                            test_tasks.append(ICubAuxiliaryTask)
+                        if agent_cfg['camera_sensor'] == '' and use_image_obs:
+                            continue
+                        logging.info("Testing Case: Agent " + agent_type +
+                                     ", Task " + str(test_tasks) +
+                                     ", UseImage: " + str(use_image_obs))
+                        env = PlayGround(
+                            with_language=with_language,
+                            use_image_observation=use_image_obs,
+                            image_with_internal_states=
+                            image_with_internal_states,
+                            agent_type=agent_type,
+                            tasks=test_tasks)
+                        step_cnt = 0
+                        last_done_time = time.time()
+                        while step_cnt < 100 and (
+                                time.time() - last_done_time) < 5:
+                            actions = env._control_space.sample()
+                            if with_language:
+                                actions = dict(
+                                    control=actions, sentence="hello")
+                            env.step(actions)
+                            step_cnt += 1
+                        step_per_sec = step_cnt / (
+                            time.time() - last_done_time)
+                        logging.info("Test Passed, FPS: " + str(step_per_sec))
+                        env.close()
+                        gazebo.close()
 
 
 if __name__ == '__main__':

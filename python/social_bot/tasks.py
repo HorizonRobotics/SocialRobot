@@ -15,23 +15,18 @@
 A variety of teacher tasks.
 """
 
-from collections import deque
-from abc import abstractmethod
 import math
 import numpy as np
 import os
 import gin
 import itertools
-import time
 import random
 import json
-
-import social_bot
-from social_bot import teacher
-from social_bot.teacher import TeacherAction
-import social_bot.pygazebo as gazebo
-
+from collections import deque
+from abc import abstractmethod
 from absl import logging
+import social_bot
+from social_bot.teacher import TeacherAction
 
 
 class Task(object):
@@ -222,7 +217,7 @@ class GoalTask(Task):
 
     def _push_reward_queue(self, value):
         if (not self.should_use_curriculum_training()
-                or self._is_full_range_in_curriculum):
+            ) or self._is_full_range_in_curriculum:
             return
         self._q.append(value)
         if (value > 0 and len(self._q) == self._max_reward_q_length

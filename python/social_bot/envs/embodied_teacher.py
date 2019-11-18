@@ -20,8 +20,6 @@ from absl import logging
 from collections import OrderedDict
 import gym
 
-from social_bot import teacher
-from social_bot import tasks
 from social_bot.gazebo_agent import GazeboAgent
 from social_bot.tasks import GoalTask, ICubAuxiliaryTask, KickingBallTask
 from play_ground import PlayGround
@@ -148,13 +146,16 @@ class EmbodiedTeacher(PlayGround):
 
         # setup action and observation space
         if not self._demo_by_human:
-            teacher_action_space = self._teacher_embodied.get_action_space()
+            self._teacher_control_space = self._teacher_embodied.get_control_space(
+            )
+            self._teacher_action_space = self._teacher_embodied.get_action_space(
+            )
             obs_sample = self._teacher_embodied.get_dicted_observation(
                 self._teacher)
             teacher_observation_space = self._teacher_embodied.get_observation_space(
                 obs_sample)
             self.action_space = gym.spaces.Dict(
-                learner=self.action_space, teacher=teacher_action_space)
+                learner=self.action_space, teacher=self._teacher_action_space)
             self.observation_space = gym.spaces.Dict(
                 learner=self.observation_space,
                 teacher=teacher_observation_space)
@@ -211,8 +212,8 @@ class EmbodiedTeacher(PlayGround):
         self._teacher_embodied.take_action(teacher_action)
         self._world.step(self._sub_steps)
         teacher_feedback = self._teacher.teach(sentence)
-        obs = self._agent.get_dicted_observation(
-            self._teacher, teacher_feedback.sentence)
+        obs = self._agent.get_dicted_observation(self._teacher,
+                                                 teacher_feedback.sentence)
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(controls)) / controls.shape[0]
         reward = teacher_feedback.reward - self._action_cost * ctrl_cost
@@ -250,7 +251,7 @@ def main():
         if demo_by_human:
             obs, _, done, _ = env.step(actions)
         else:
-            teacher_actions = env._control_space.sample()
+            teacher_actions = env._teacher_control_space.sample()
             combined_actions = OrderedDict(
                 learner=actions, teacher=teacher_actions)
             obs, _, done, _ = env.step(combined_actions)

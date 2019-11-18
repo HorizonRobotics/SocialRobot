@@ -17,7 +17,6 @@ import numpy as np
 import random
 import gym
 from absl import logging
-from gym import spaces
 
 
 class DiscreteSequence(gym.Space):

@@ -147,8 +147,7 @@ class GazeboAgent():
                 sentence_raw, self._vocab_sequence_length)
         return obs
 
-    def get_dicted_observation(self, teacher,
-                                           sentence_raw="hello"):
+    def get_dicted_observation(self, teacher, sentence_raw="hello"):
         if self._image_with_internal_states or self._with_language:
             # observation is an OrderedDict
             obs = self._create_observation_dict(teacher, sentence_raw)
@@ -215,13 +214,18 @@ class GazeboAgent():
     def get_observation_space(self, obs_sample):
         """
         Get the observation space with optional language
+        Args:
+            obs_sample (dict|numpy.array) : a sample observation
         """
         if self._with_language or self._image_with_internal_states:
+            # observation is a dictionary
             observation_space = self._construct_dict_space(obs_sample)
         elif self._use_image_observation:
+            # observation is image
             observation_space = gym.spaces.Box(
                 low=0, high=255, shape=obs_sample.shape, dtype=np.uint8)
         else:
+            # observation is spare states
             observation_space = gym.spaces.Box(
                 low=-np.inf,
                 high=np.inf,
@@ -242,7 +246,7 @@ class GazeboAgent():
         """
         A helper function when gym.spaces.Dict is used as observation
         Args:
-            obs_sample (dict) : a sample observation
+            obs_sample (numpy.array|dict) : a sample observation
         Returns:
             Return a gym.spaces.Dict with keys 'image', 'states', 'sentence'
             Possible situation:
