@@ -18,6 +18,7 @@ from multiprocessing import Process, Value
 from simple_navigation import SimpleNavigationLanguage
 import random
 import os
+import social_bot.pygazebo as gazebo
 
 
 class SimpleNaviEnv(Process):
@@ -39,6 +40,8 @@ class SimpleNaviEnv(Process):
                 dict(control=control, sentence="hello"))
             if done:
                 env.reset()
+        env.close()
+        gazebo.close()
         self.ok.value = 1
 
 
