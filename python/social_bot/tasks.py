@@ -259,7 +259,7 @@ class GoalTask(Task):
                         if distraction_dist < self._distraction_penalty_distance_thresh:
                             distraction_penalty += self._distraction_penalty
 
-            if dist < self._success_distance_thresh and dot > 0.707:
+            if dist < self._success_distance_thresh and ((dot > 0.707) or self._success_without_angle_requirement):
                 # within 45 degrees of the agent direction
                 reward = 1.0 - distraction_penalty
                 self._push_reward_queue(reward)
