@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
-  <model name="blue">
+  <model name="blue_ball">
     <pose>0 0 0 0 0 0</pose>
     <link name="link">
       <pose>0 0 0.127 0 0 0</pose>
