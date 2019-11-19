@@ -418,7 +418,7 @@ class World {
   std::string ModelListInfo() {
     std::stringstream ss;
     for (auto model : world_->Models()) {
-      ss << "Model: " << "\"" << model->GetName() << "\"" << std::endl;
+      ss << "Model: " << '"' << model->GetName() << '"' << std::endl;
     }
     return ss.str();
   }
