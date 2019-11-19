@@ -352,8 +352,8 @@ class GoalTask(Task):
 
         for name in self._additional_observation_list:
             obj = self._world.get_model(name)
-            obj_pose = np.array(obj.get_pose()[0]).flatten() 
-            pose = np.concatenate((pose, obj_pose), axis=0)
+            obj_pos = np.array(obj.get_pose()[0]).flatten() 
+            pose = np.concatenate((pose, obj_pos), axis=0)
             
         return pose
 
