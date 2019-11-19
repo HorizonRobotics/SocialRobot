@@ -79,7 +79,7 @@ class Task(object):
     def task_specific_observation(self, agent):
         """
         Args:
-            agent (Agent): the agent
+            agent (GazeboAgent): the agent
         Returns:
             np.array, the extra observations should be added into the observation
             besides original observation from the environment. This can be overide
@@ -92,7 +92,7 @@ class Task(object):
         The agent can be override by this function. 
         This might be useful when multi agents share the same task or embodied teacher.
         Args:
-            agent (Agent): the agent
+            agent (GazeboAgent): the agent
         """
         self._agent = agent
 
@@ -355,7 +355,7 @@ class GoalTask(Task):
     def task_specific_observation(self, agent):
         """
         Args:
-            agent (Agent): the agent
+            agent (GazeboAgent): the agent
         Returns:
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
@@ -495,7 +495,7 @@ class ICubAuxiliaryTask(Task):
         """
         Get angle from a icub link, relative to target.
         Args:
-            agent (Agent): the agent
+            agent (GazeboAgent): the agent
             agent_pos (numpay array): the pos of agent
             link_name (string): link name of the agent
             offset (float): the yaw offset of link, for some links have initial internal rotation
@@ -517,7 +517,7 @@ class ICubAuxiliaryTask(Task):
     def task_specific_observation(self, agent):
         """
         Args:
-            agent (Agent): the agent
+            agent (GazeboAgent): the agent
         Returns:
             np.array of the extra observations should be added into the
             observation besides self states, for the non-image case
@@ -649,7 +649,7 @@ class KickingBallTask(Task):
     def task_specific_observation(self, agent):
         """
         Args:
-            agent (Agent): the agent
+            agent (GazeboAgent): the agent
         Returns:
             np.array, the extra observations should be added into the observation
         """
