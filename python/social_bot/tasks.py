@@ -143,6 +143,7 @@ class GoalTask(Task):
                  distraction_penalty=0.5,
                  sparse_reward=True,
                  random_range=5.0,
+                 polar_coord=True,
                  random_goal=False,
                  use_curriculum_training=False,
                  curriculum_distractions=True,
@@ -173,6 +174,7 @@ class GoalTask(Task):
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with normalized distance the agent get closer to goal.
             random_range (float): the goal's random position range
+            polar_coord (bool): use cartesian coordinates in random_range, otherwise, use polar coord.
             random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
             curriculum_distractions (bool): move distractions according to curriculum as well
@@ -267,7 +269,7 @@ class GoalTask(Task):
                         ) * self._random_range,
                     self._orig_random_range)
                 if self._random_range < self._orig_random_range:
-                    logging.info("Raising random_range to %f%s", new_range, ctrl_range)
+                    logging.info("Raising random_range to %f", new_range)
                 self._random_range = new_range
             self._q.clear()
 
@@ -402,14 +404,16 @@ class GoalTask(Task):
             range = self._random_range
             self._is_full_range_in_curriculum = False
         while True:
-            loc = (random.random() * range - range / 2,
+            dist = random.random() * range
+            angle = math.radians(
+                math.degrees(agent_dir[2]) +
+                random.random() * self._random_angle - self._random_angle / 2)
+            loc = (dist * math.cos(angle), dist * math.sin(angle), 0) + agent_loc
+
+            if self._polar_coord:
+                loc = (random.random() * range - range / 2,
                    random.random() * range - range / 2, 0)
-            if self._curriculum_target_angle and not self._is_full_range_in_curriculum:
-                dist = random.random() * range
-                angle = math.radians(
-                    math.degrees(agent_dir[2]) +
-                    random.random() * self._random_angle - self._random_angle / 2)
-                loc = (dist * math.cos(angle), dist * math.sin(angle), 0) + agent_loc
+
             self._initial_dist = np.linalg.norm(loc - agent_loc)
             if self._initial_dist > self._success_distance_thresh:
                 break

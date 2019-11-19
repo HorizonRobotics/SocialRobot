@@ -119,6 +119,8 @@ class TaskGroup(object):
             self._current_task.close()
             self._current_task = None
 
+    # This function only returns a generator function.
+    # To get the task object use self._tasks[self._current_tid]
     def _get_current_task(self):
         if self._current_task is None:
             tid = random.randint(0, len(self._tasks) - 1)
@@ -129,9 +131,6 @@ class TaskGroup(object):
             # yield. We ignore the first yielded value.
             self._current_task.send(None)
         return self._current_task
-
-    def get_current_task_non_generator(self):
-        return self._tasks[self._current_tid]
 
     def get_current_reward_weight(self):
         """Get reward weight for current task of the group
