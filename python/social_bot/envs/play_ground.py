@@ -175,7 +175,8 @@ class PlayGround(GazeboEnvBase):
         self._control_space = self._agent.get_control_space()
         self.action_space = self._agent.get_action_space()
         self.reset()
-        self.observation_space = self._agent.get_observation_space(self._teacher)
+        self.observation_space = self._agent.get_observation_space(
+            self._teacher)
 
     def reset(self):
         """
@@ -192,7 +193,7 @@ class PlayGround(GazeboEnvBase):
         # The first call of "teach() after "done" will reset the task
         teacher_action = self._teacher.teach("")
         obs = self._agent.get_observation(self._teacher,
-                                                 teacher_action.sentence)
+                                          teacher_action.sentence)
         return obs
 
     def step(self, action):
@@ -219,7 +220,7 @@ class PlayGround(GazeboEnvBase):
         self._world.step(self._sub_steps)
         teacher_action = self._teacher.teach(sentence)
         obs = self._agent.get_observation(self._teacher,
-                                                 teacher_action.sentence)
+                                          teacher_action.sentence)
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(controls)) / controls.shape[0]
         reward = teacher_action.reward - self._action_cost * ctrl_cost

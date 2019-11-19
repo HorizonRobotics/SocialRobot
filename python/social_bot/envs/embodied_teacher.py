@@ -150,7 +150,8 @@ class EmbodiedTeacher(PlayGround):
             )
             self._teacher_action_space = self._teacher_embodied.get_action_space(
             )
-            teacher_observation_space = self._teacher_embodied.get_observation_space(self._teacher)
+            teacher_observation_space = self._teacher_embodied.get_observation_space(
+                self._teacher)
             self.action_space = gym.spaces.Dict(
                 learner=self.action_space, teacher=self._teacher_action_space)
             self.observation_space = gym.spaces.Dict(
@@ -191,8 +192,7 @@ class EmbodiedTeacher(PlayGround):
             agent_action = action['learner']
             agent_obs, reward, done, _ = self._step_with_teacher_action(
                 teacher_action, agent_action)
-            teacher_obs = self._teacher_embodied.get_observation(
-                self._teacher)
+            teacher_obs = self._teacher_embodied.get_observation(self._teacher)
             combined_obs = OrderedDict(learner=agent_obs, teacher=teacher_obs)
             return combined_obs, reward, done, {}
 
@@ -210,7 +210,7 @@ class EmbodiedTeacher(PlayGround):
         self._world.step(self._sub_steps)
         teacher_feedback = self._teacher.teach(sentence)
         obs = self._agent.get_observation(self._teacher,
-                                                 teacher_feedback.sentence)
+                                          teacher_feedback.sentence)
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(controls)) / controls.shape[0]
         reward = teacher_feedback.reward - self._action_cost * ctrl_cost

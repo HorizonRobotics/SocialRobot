@@ -199,8 +199,10 @@ class GazeboAgent():
         joint_pos = np.array(joint_pos).flatten()
         joint_vel = np.array(joint_vel).flatten()
         # pos of continous joint could be huge, wrap the range to [-pi, pi)
-        joint_pos = (joint_pos + np.pi) % (2 * np.pi) - np.pi
-        internal_states = np.concatenate((joint_pos, joint_vel), axis=0)
+        joint_pos_sin = np.sin(joint_pos)
+        joint_pos_cos = np.cos(joint_pos)
+        internal_states = np.concatenate(
+            (joint_pos_sin, joint_pos_cos, joint_vel), axis=0)
         return internal_states
 
     def get_control_space(self):

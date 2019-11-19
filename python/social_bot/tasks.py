@@ -96,26 +96,29 @@ class Task(object):
         """
         self._agent = agent
 
-    def _get_states_of_model_list(self, model_list, including_rotation=False):
+    def _get_states_of_model_list(self,
+                                  model_list,
+                                  including_velocity=True,
+                                  including_rotation=False):
         """
-        Get the poses and velocities for the models
+        Get the poses and velocities from a model list
         Args:
             model_list (list): a list of model names
+            including_velocity (bool): if Ture, the velocity of objects will be included.
             including_rotation (bool): if Ture, the rotation of objects (in roll pitch yaw) will be included.
         Returns:
             np.array, the poses and velocities of the models
         """
-        model_poss = []
-        model_vels = []
+        model_states = []
         for model_id in range(len(model_list)):
             model = self._world.get_model(model_list[model_id])
-            model_poss.append(model.get_pose()[0])
+            model_states.append(model.get_pose()[0])
             if including_rotation:
-                model_poss.append(model.get_pose()[1])
-            model_vels.append(model.get_velocities()[0])
-        model_poss = np.array(model_poss).flatten()
-        model_vels = np.array(model_vels).flatten()
-        return np.concatenate((model_poss, model_vels), axis=0)
+                model_states.append(model.get_pose()[1])
+            if including_velocity:
+                model_states.append(model.get_velocities()[0])
+        model_states = np.array(model_states).flatten()
+        return model_states
 
 
 @gin.configurable

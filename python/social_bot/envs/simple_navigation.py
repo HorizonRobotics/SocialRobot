@@ -109,7 +109,8 @@ class SimpleNavigation(GazeboEnvBase):
         self._agent.set_sentence_space(self._sentence_space)
         self._control_space = self._agent.get_control_space()
         self._action_space = self._agent.get_action_space()
-        self._observation_space = self._agent.get_observation_space(self._teacher)
+        self._observation_space = self._agent.get_observation_space(
+            self._teacher)
 
     @property
     def observation_space(self):
@@ -145,14 +146,16 @@ class SimpleNavigation(GazeboEnvBase):
         self._agent.take_action(controls)
         self._world.step(self.NUM_SIMULATION_STEPS)
         teacher_action = self._teacher.teach(sentence)
-        obs = self._agent.get_observation(self._teacher, teacher_action.sentence)
+        obs = self._agent.get_observation(self._teacher,
+                                          teacher_action.sentence)
         return (obs, teacher_action.reward, teacher_action.done, {})
 
     def reset(self):
         self._teacher.reset(self._agent, self._world)
         self._world.step(self.NUM_SIMULATION_STEPS)
         teacher_action = self._teacher.teach("")
-        obs = self._agent.get_observation(self._teacher, teacher_action.sentence)
+        obs = self._agent.get_observation(self._teacher,
+                                          teacher_action.sentence)
         return obs
 
 
