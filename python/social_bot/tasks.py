@@ -125,7 +125,7 @@ class GoalTask(Task):
                  max_reward_q_length=100,
                  reward_weight=1.0,
                  move_goal_during_episode=True,
-                 success_without_angle_requirement=False,
+                 success_with_angle_requirement=True,
                  additional_observation_list=[]):
         """
         Args:
@@ -155,7 +155,7 @@ class GoalTask(Task):
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
             move_goal_during_episode (bool): if ture, the goal will be moved during episode, when it has been achieved
-            success_without_angle_requirement: if ture then calculate the reward without considering the angular requirement
+            success_with_angle_requirement: if ture then calculate the reward considering the angular requirement
             additional_observation_list: a list of additonal objects to be added
         """
         super().__init__(
@@ -173,7 +173,7 @@ class GoalTask(Task):
         self._distraction_list = distraction_list
         self._object_list = distraction_list
         self._move_goal_during_episode = move_goal_during_episode
-        self._success_without_angle_requirement = success_without_angle_requirement
+        self._success_with_angle_requirement = success_with_angle_requirement
         self._additional_observation_list = additional_observation_list
         if goal_name not in distraction_list:
             self._object_list.append(goal_name)
@@ -259,7 +259,7 @@ class GoalTask(Task):
                         if distraction_dist < self._distraction_penalty_distance_thresh:
                             distraction_penalty += self._distraction_penalty
 
-            if dist < self._success_distance_thresh and ((dot > 0.707) or self._success_without_angle_requirement):
+            if dist < self._success_distance_thresh and ((dot > 0.707) or (not self._success_with_angle_requirement)):
                 # within 45 degrees of the agent direction
                 reward = 1.0 - distraction_penalty
                 self._push_reward_queue(reward)
