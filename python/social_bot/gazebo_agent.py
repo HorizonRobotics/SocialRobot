@@ -110,22 +110,28 @@ class GazeboAgent():
         logging.debug("joints to control: %s" % self.joints)
 
     def reset(self):
-        """
-        Reset the agent.
-        """
+        """ Reset the agent. """
         self._agent.reset()
 
     def take_action(self, action):
-        """
-        Take actions.
+        """ Take actions.
+        
         Args:
-            the actions to be taken
+            the actions to be taken.
         """
         controls = np.clip(action, -1.0, 1.0) * self.action_range
         controls_dict = dict(zip(self.joints, controls))
         self._agent.take_action(controls_dict)
 
-    def get_low_dim_full_states(self, teacher):
+    def get_full_states_observation(self, teacher):
+        """ Get the low-dimensional full states, an alternate to image observation. 
+        
+        Args:
+            the actions to be taken.
+        Returns:
+            obs (numpy.array): the return incldes agent poses, velocities, internal
+                joints and task specific observations.
+        """
         task_specific_ob = teacher.get_task_specific_observation(self)
         agent_pose = np.array(self.get_pose()).flatten()
         agent_vel = np.array(self.get_velocities()).flatten()
@@ -141,7 +147,7 @@ class GazeboAgent():
             if self._image_with_internal_states:
                 obs['states'] = self.get_internal_states()
         else:
-            obs['states'] = self.get_low_dim_full_states(teacher)
+            obs['states'] = self.get_full_states_observation(teacher)
         if self._with_language:
             obs['sentence'] = teacher.sentence_to_sequence(
                 sentence_raw, self._vocab_sequence_length)
@@ -154,14 +160,14 @@ class GazeboAgent():
         elif self._use_image_observation:  # observation is pure image
             obs = self.get_camera_observation()
         else:  # observation is pure low-dimentional states
-            obs = self.get_low_dim_full_states(teacher)
+            obs = self.get_full_states_observation(teacher)
         return obs
 
     def get_camera_observation(self):
-        """
-        Get the camera image
+        """ Get the camera image.
+
         Returns:
-            a numpy.array of the image
+            a numpy.array of the image.
         """
         image = np.array(
             self._agent.get_camera_observation(self._camera), copy=False)
@@ -172,8 +178,8 @@ class GazeboAgent():
         return image
 
     def get_internal_states(self):
-        """
-        Get the internal joint states of the agent
+        """ Get the internal joint states of the agent.
+
         Returns:
             a numpy.array including joint positions and velocities
         """
@@ -192,17 +198,13 @@ class GazeboAgent():
         return internal_states
 
     def get_control_space(self):
-        """
-        Get the pure controlling space without language.
-        """
+        """ Get the pure controlling space without language. """
         control_space = gym.spaces.Box(
             low=-1.0, high=1.0, shape=[len(self.joints)], dtype=np.float32)
         return control_space
 
     def get_action_space(self):
-        """
-        Get the action space with optional language
-        """
+        """ Get the action space with optional language. """
         control_space = self.get_control_space()
         if self._with_language:
             action_space = gym.spaces.Dict(
@@ -213,7 +215,8 @@ class GazeboAgent():
 
     def get_observation_space(self, obs_sample):
         """
-        Get the observation space with optional language
+        Get the observation space with optional language.
+
         Args:
             obs_sample (dict|numpy.array) : a sample observation
         """
@@ -234,17 +237,16 @@ class GazeboAgent():
         return observation_space
 
     def set_sentence_space(self, sentence_space):
-        """
-        Set the sentence if with_languange is enabled
-        This function should be called if with_language is enabled
+        """ Set the sentence if with_languange is enabled.
+
         Args:
             sentence_space (gym.spaces): the space for sentence sequence
         """
         self._sentence_space = sentence_space
 
     def _construct_dict_space(self, obs_sample):
-        """
-        A helper function when gym.spaces.Dict is used as observation
+        """ A helper function when gym.spaces.Dict is used as observation.
+
         Args:
             obs_sample (numpy.array|dict) : a sample observation
         Returns:
@@ -274,8 +276,8 @@ class GazeboAgent():
         return ob_space
 
     def setup_joints(self, agent, joints, agent_cfg):
-        """
-        Setup the joints acrroding to agent configuration.
+        """  Setup the joints acrroding to agent configuration.
+
         Args:
             agent (pygazebo.Agent): the agent
             joints (list of string): the name of joints

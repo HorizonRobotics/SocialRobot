@@ -225,9 +225,7 @@ class EmbodiedTeacher(PlayGround):
 
 
 def main():
-    """
-    Simple testing of this environment.
-    """
+    """ Simple testing of this environment. """
     import matplotlib.pyplot as plt
     import time
     with_language = True
