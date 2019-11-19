@@ -123,37 +123,25 @@ class GazeboAgent():
         controls_dict = dict(zip(self.joints, controls))
         self._agent.take_action(controls_dict)
 
-    def get_full_states_observation(self, teacher):
-        """ Get the low-dimensional full states, an alternate to image observation. 
+    def get_observation(self, teacher, sentence_raw="hello"):
+        """ Get the observation of agent. 
         
         Args:
-            the actions to be taken.
+            teacher (social_bot.Teacher): the teacher, used to get the task specific
+                observations from teacher's taskgroups.
+            sentence_raw (string): the sentence intened to sent to the Agent. This can
+                be ignored if with_language is False.
         Returns:
-            obs (numpy.array): the return incldes agent poses, velocities, internal
-                joints and task specific observations.
+            obs (dict |numpy.array): the return depends on the configurations: with
+                language or not, use image or not, and image_with_internal_states or not.   
+                Possible situations:
+                    low-dimensional full states
+                    low-dimensional full states with language sentence
+                    image
+                    image with internal states
+                    image with language sentence
+                    image with both internal states and language sentence
         """
-        task_specific_ob = teacher.get_task_specific_observation(self)
-        agent_pose = np.array(self.get_pose()).flatten()
-        agent_vel = np.array(self.get_velocities()).flatten()
-        internal_states = self.get_internal_states()
-        obs = np.concatenate(
-            (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
-        return obs
-
-    def _create_observation_dict(self, teacher, sentence_raw):
-        obs = OrderedDict()
-        if self._use_image_observation:
-            obs['image'] = self.get_camera_observation()
-            if self._image_with_internal_states:
-                obs['states'] = self.get_internal_states()
-        else:
-            obs['states'] = self.get_full_states_observation(teacher)
-        if self._with_language:
-            obs['sentence'] = teacher.sentence_to_sequence(
-                sentence_raw, self._vocab_sequence_length)
-        return obs
-
-    def get_dicted_observation(self, teacher, sentence_raw="hello"):
         if self._image_with_internal_states or self._with_language:
             # observation is an OrderedDict
             obs = self._create_observation_dict(teacher, sentence_raw)
@@ -176,6 +164,24 @@ class GazeboAgent():
                                                       PIL.Image.ANTIALIAS)
             image = np.array(image, copy=False)
         return image
+
+    def get_full_states_observation(self, teacher):
+        """ Get the low-dimensional full states, an alternate to image observation. 
+        
+        Args:
+            teacher (social_bot.Teacher) the teacher, used to get the task specific
+                observations from teacher's taskgroups.
+        Returns:
+            obs (numpy.array): the return incldes agent poses, velocities, internal
+                joints and task specific observations.
+        """
+        task_specific_ob = teacher.get_task_specific_observation(self)
+        agent_pose = np.array(self.get_pose()).flatten()
+        agent_vel = np.array(self.get_velocities()).flatten()
+        internal_states = self.get_internal_states()
+        obs = np.concatenate(
+            (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
+        return obs
 
     def get_internal_states(self):
         """ Get the internal joint states of the agent.
@@ -243,6 +249,19 @@ class GazeboAgent():
             sentence_space (gym.spaces): the space for sentence sequence
         """
         self._sentence_space = sentence_space
+
+    def _create_observation_dict(self, teacher, sentence_raw):
+        obs = OrderedDict()
+        if self._use_image_observation:
+            obs['image'] = self.get_camera_observation()
+            if self._image_with_internal_states:
+                obs['states'] = self.get_internal_states()
+        else:
+            obs['states'] = self.get_full_states_observation(teacher)
+        if self._with_language:
+            obs['sentence'] = teacher.sentence_to_sequence(
+                sentence_raw, self._vocab_sequence_length)
+        return obs
 
     def _construct_dict_space(self, obs_sample):
         """ A helper function when gym.spaces.Dict is used as observation.
