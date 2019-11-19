@@ -150,10 +150,7 @@ class EmbodiedTeacher(PlayGround):
             )
             self._teacher_action_space = self._teacher_embodied.get_action_space(
             )
-            obs_sample = self._teacher_embodied.get_observation(
-                self._teacher)
-            teacher_observation_space = self._teacher_embodied.get_observation_space(
-                obs_sample)
+            teacher_observation_space = self._teacher_embodied.get_observation_space(self._teacher)
             self.action_space = gym.spaces.Dict(
                 learner=self.action_space, teacher=self._teacher_action_space)
             self.observation_space = gym.spaces.Dict(

@@ -219,13 +219,15 @@ class GazeboAgent():
             action_space = control_space
         return action_space
 
-    def get_observation_space(self, obs_sample):
+    def get_observation_space(self, teacher):
         """
         Get the observation space with optional language.
 
         Args:
-            obs_sample (dict|numpy.array) : a sample observation
+            teacher (social_bot.Teacher): the teacher, used to get the task specific
+                observations from teacher's taskgroups as a sample.
         """
+        obs_sample = self.get_observation(teacher)
         if self._with_language or self._image_with_internal_states:
             # observation is a dictionary
             observation_space = self._construct_dict_space(obs_sample)

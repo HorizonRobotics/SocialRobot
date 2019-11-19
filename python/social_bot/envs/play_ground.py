@@ -175,8 +175,7 @@ class PlayGround(GazeboEnvBase):
         self._control_space = self._agent.get_control_space()
         self.action_space = self._agent.get_action_space()
         self.reset()
-        obs_sample = self._agent.get_observation(self._teacher)
-        self.observation_space = self._agent.get_observation_space(obs_sample)
+        self.observation_space = self._agent.get_observation_space(self._teacher)
 
     def reset(self):
         """

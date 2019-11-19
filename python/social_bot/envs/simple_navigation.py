@@ -77,12 +77,14 @@ class SimpleNavigation(GazeboEnvBase):
         self._with_language = with_language
         self._image_with_internal_states = image_with_internal_states
         self.set_rendering_cam_pose('4 -4 3 0 0.4 2.3')
+        self._seq_length = 20
 
         # Setup agent
         self._agent = GazeboAgent(
             world=self._world,
             agent_type='pioneer2dx_noplugin',
             with_language=with_language,
+            vocab_sequence_length=self._seq_length,
             use_image_observation=True,
             resized_image_size=resized_image_size,
             image_with_internal_states=image_with_internal_states)
@@ -99,7 +101,6 @@ class SimpleNavigation(GazeboEnvBase):
             random_range=2.0)
         task_group.add_task(task)
         self._teacher.add_task_group(task_group)
-        self._seq_length = 20
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
                                                 self._seq_length)
 
@@ -108,8 +109,7 @@ class SimpleNavigation(GazeboEnvBase):
         self._agent.set_sentence_space(self._sentence_space)
         self._control_space = self._agent.get_control_space()
         self._action_space = self._agent.get_action_space()
-        obs_sample = self._get_observation('hello')
-        self._observation_space = self._agent.get_observation_space(obs_sample)
+        self._observation_space = self._agent.get_observation_space(self._teacher)
 
     @property
     def observation_space(self):
@@ -145,29 +145,14 @@ class SimpleNavigation(GazeboEnvBase):
         self._agent.take_action(controls)
         self._world.step(self.NUM_SIMULATION_STEPS)
         teacher_action = self._teacher.teach(sentence)
-        obs = self._get_observation(teacher_action.sentence)
+        obs = self._agent.get_observation(self._teacher, teacher_action.sentence)
         return (obs, teacher_action.reward, teacher_action.done, {})
 
     def reset(self):
         self._teacher.reset(self._agent, self._world)
         self._world.step(self.NUM_SIMULATION_STEPS)
         teacher_action = self._teacher.teach("")
-        obs = self._get_observation(teacher_action.sentence)
-        return obs
-
-    def _get_observation(self, sentence_raw):
-        img = self._agent.get_camera_observation()
-        if self._image_with_internal_states or self._with_language:
-            # observation is an OrderedDict
-            obs = OrderedDict()
-            obs['image'] = img
-            if self._image_with_internal_states:
-                obs['states'] = self._agent.get_internal_states()
-            if self._with_language:
-                obs['sentence'] = self._teacher.sentence_to_sequence(
-                    sentence_raw, self._seq_length)
-        else:  # observation is pure image
-            obs = img
+        obs = self._agent.get_observation(self._teacher, teacher_action.sentence)
         return obs
 
 
