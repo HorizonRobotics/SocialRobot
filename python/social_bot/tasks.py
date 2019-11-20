@@ -348,8 +348,9 @@ class GoalTask(Task):
         reward = -1.0
         logging.debug("yielding reward: " + str(reward))
         self._push_reward_queue(0)
-        logging.debug("reward queue len: {}, sum: {}".format(
-            str(len(self._q)), str(sum(self._q))))
+        if self.should_use_curriculum_training():
+            logging.debug("reward queue len: {}, sum: {}".format(
+                str(len(self._q)), str(sum(self._q))))
         yield TeacherAction(reward=reward, sentence="failed", done=True)
 
     def _get_distraction_penalty(self, agent_loc, dot, prev_min_dist_to_distraction):

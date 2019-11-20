@@ -28,6 +28,8 @@ from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask
 
 class TestPlayGround(unittest.TestCase):
     def test_play_ground(self):
+        with_language = True
+        with_agent_language = False
         agents = [
             'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands',
             'youbot_noplugin'
@@ -51,6 +53,7 @@ class TestPlayGround(unittest.TestCase):
                                      ", UseImage: " + str(use_image_obs))
                         env = PlayGround(
                             with_language=with_language,
+                            with_agent_language=with_agent_language,
                             use_image_observation=use_image_obs,
                             image_with_internal_states=
                             image_with_internal_states,
@@ -61,7 +64,7 @@ class TestPlayGround(unittest.TestCase):
                         while step_cnt < 100 and (
                                 time.time() - last_done_time) < 5:
                             actions = env._control_space.sample()
-                            if with_language:
+                            if with_agent_language:
                                 actions = dict(
                                     control=actions, sentence="hello")
                             env.step(actions)
