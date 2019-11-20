@@ -123,7 +123,10 @@ class GoalTask(Task):
                  reward_thresh_to_increase_range=0.4,
                  percent_full_range_in_curriculum=0.1,
                  max_reward_q_length=100,
-                 reward_weight=1.0):
+                 reward_weight=1.0,
+                 move_goal_during_episode=True,
+                 success_with_angle_requirement=True,
+                 additional_observation_list=[]):
         """
         Args:
             env (gym.Env): an instance of Environment
@@ -151,6 +154,9 @@ class GoalTask(Task):
                 where random_range is the full range instead of the easier ones in the curriculum.
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
+            move_goal_during_episode (bool): if ture, the goal will be moved during episode, when it has been achieved
+            success_with_angle_requirement: if ture then calculate the reward considering the angular requirement
+            additional_observation_list: a list of additonal objects to be added
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
@@ -166,6 +172,9 @@ class GoalTask(Task):
         self._random_goal = random_goal
         self._distraction_list = distraction_list
         self._object_list = distraction_list
+        self._move_goal_during_episode = move_goal_during_episode
+        self._success_with_angle_requirement = success_with_angle_requirement
+        self._additional_observation_list = additional_observation_list
         if goal_name not in distraction_list:
             self._object_list.append(goal_name)
         self._goals = self._object_list
@@ -250,7 +259,7 @@ class GoalTask(Task):
                         if distraction_dist < self._distraction_penalty_distance_thresh:
                             distraction_penalty += self._distraction_penalty
 
-            if dist < self._success_distance_thresh and dot > 0.707:
+            if dist < self._success_distance_thresh and ((dot > 0.707) or (not self._success_with_angle_requirement)):
                 # within 45 degrees of the agent direction
                 reward = 1.0 - distraction_penalty
                 self._push_reward_queue(reward)
@@ -259,7 +268,8 @@ class GoalTask(Task):
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done", done=False)
                 steps_since_last_reward = 0
-                self._move_goal(goal, loc)
+                if self._move_goal_during_episode:
+                    self._move_goal(goal, loc)
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
@@ -338,7 +348,14 @@ class GoalTask(Task):
             observation besides self states, for the non-image case
         """
         goal = self._world.get_model(self._goal_name)
-        return np.array(goal.get_pose()[0]).flatten()
+        pose = np.array(goal.get_pose()[0]).flatten()
+
+        for name in self._additional_observation_list:
+            obj = self._world.get_model(name)
+            obj_pos = np.array(obj.get_pose()[0]).flatten() 
+            pose = np.concatenate((pose, obj_pos), axis=0)
+            
+        return pose
 
 
 @gin.configurable
