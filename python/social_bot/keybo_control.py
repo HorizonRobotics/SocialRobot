@@ -164,7 +164,6 @@ def main():
     """
     import matplotlib.pyplot as plt
     import time
-    import social_bot
     from social_bot.envs.play_ground import PlayGround
     from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask
     use_image_obs = False

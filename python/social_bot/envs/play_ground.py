@@ -26,10 +26,10 @@ import gym
 from gym import spaces
 from absl import logging
 from abc import abstractmethod
-from collections import OrderedDict
 
 import social_bot
 import social_bot.pygazebo as gazebo
+from social_bot.gazebo_agent import GazeboAgent
 from social_bot import teacher
 from social_bot import tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
@@ -120,25 +120,24 @@ class PlayGround(GazeboEnvBase):
             vocab_sequence_length (int): the length of encoded sequence
         """
 
-        self._agent_type = agent_type
         self._action_cost = action_cost
         self._with_language = with_language
+        self._seq_length = vocab_sequence_length
         self._use_image_obs = use_image_observation
         self._image_with_internal_states = self._use_image_obs and image_with_internal_states
-        self._resized_image_size = resized_image_size
 
         # Load agent and world file
         with open(
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
-        self._agent_cfg = agent_cfgs[agent_type]
+        agent_cfg = agent_cfgs[agent_type]
         wd_path = os.path.join(social_bot.get_world_dir(), world_name)
         with open(wd_path, 'r+') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
         if world_time_precision is None:
-            world_time_precision = self._agent_cfg['max_sim_step_time']
+            world_time_precision = agent_cfg['max_sim_step_time']
         self._sub_steps = int(round(step_time / world_time_precision))
         self._step_time = world_time_precision * self._sub_steps
         sim_time_cfg = [
@@ -147,8 +146,18 @@ class PlayGround(GazeboEnvBase):
         ]
         super().__init__(
             world_string=world_string, world_config=sim_time_cfg, port=port)
-        self._agent = self._world.get_agent(agent_type)
         logging.debug(self._world.info())
+
+        # Setup agent
+        self._agent = GazeboAgent(
+            world=self._world,
+            agent_type=agent_type,
+            config=agent_cfg,
+            with_language=with_language,
+            vocab_sequence_length=self._seq_length,
+            use_image_observation=use_image_observation,
+            resized_image_size=resized_image_size,
+            image_with_internal_states=image_with_internal_states)
 
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
@@ -157,44 +166,17 @@ class PlayGround(GazeboEnvBase):
             task_group.add_task(task(env=self, max_steps=max_steps))
             self._teacher.add_task_group(task_group)
         self._teacher._build_vocab_from_tasks()
-        self._seq_length = vocab_sequence_length
+
+        # Setup action space and observation space
         if self._teacher.vocab_size:
-            self._sentence_space = gym.spaces.MultiDiscrete(
+            sentence_space = gym.spaces.MultiDiscrete(
                 [self._teacher.vocab_size] * self._seq_length)
-
-        # Setup action space
-        self._agent_joints = self._agent_cfg['control_joints']
-        self._agent_control_range = self._set_joints(
-            self._agent, self._agent_joints, self._agent_cfg)
-        logging.debug("joints to control: %s" % self._agent_joints)
-
-        self._control_space = gym.spaces.Box(
-            low=-1.0,
-            high=1.0,
-            shape=[len(self._agent_joints)],
-            dtype=np.float32)
-        if self._with_language:
-            self.action_space = gym.spaces.Dict(
-                control=self._control_space, sentence=self._sentence_space)
-        else:
-            self.action_space = self._control_space
-
-        # Setup observation space
-        self._agent_camera = self._agent_cfg['camera_sensor']
+        self._agent.set_sentence_space(sentence_space)
+        self._control_space = self._agent.get_control_space()
+        self.action_space = self._agent.get_action_space()
         self.reset()
-        obs_sample = self._get_observation_with_sentence("hello")
-        if self._with_language or self._image_with_internal_states:
-            self.observation_space = self._construct_dict_space(
-                obs_sample, self._teacher.vocab_size)
-        elif self._use_image_obs:
-            self.observation_space = gym.spaces.Box(
-                low=0, high=255, shape=obs_sample.shape, dtype=np.uint8)
-        else:
-            self.observation_space = gym.spaces.Box(
-                low=-np.inf,
-                high=np.inf,
-                shape=obs_sample.shape,
-                dtype=np.float32)
+        self.observation_space = self._agent.get_observation_space(
+            self._teacher)
 
     def reset(self):
         """
@@ -210,13 +192,8 @@ class PlayGround(GazeboEnvBase):
         self._teacher.reset(self._agent, self._world)
         # The first call of "teach() after "done" will reset the task
         teacher_action = self._teacher.teach("")
-        # Give an intilal random pose offset by take random action
-        actions = self._control_space.sample()
-        controls = dict(
-            zip(self._agent_joints, self._agent_control_range * actions))
-        self._agent.take_action(controls)
-        self._world.step(self._sub_steps)
-        obs = self._get_observation_with_sentence(teacher_action.sentence)
+        obs = self._agent.get_observation(self._teacher,
+                                          teacher_action.sentence)
         return obs
 
     def step(self, action):
@@ -235,18 +212,17 @@ class PlayGround(GazeboEnvBase):
             sentence = action.get('sentence', None)
             if type(sentence) != str:
                 sentence = self._teacher.sequence_to_sentence(sentence)
-            action_ctrl = action['control']
+            controls = action['control']
         else:
             sentence = ''
-            action_ctrl = action
-        controls = np.clip(action_ctrl, -1.0, 1.0) * self._agent_control_range
-        controls = dict(zip(self._agent_joints, controls))
+            controls = action
         self._agent.take_action(controls)
         self._world.step(self._sub_steps)
         teacher_action = self._teacher.teach(sentence)
-        obs = self._get_observation_with_sentence(teacher_action.sentence)
+        obs = self._agent.get_observation(self._teacher,
+                                          teacher_action.sentence)
         self._steps_in_this_episode += 1
-        ctrl_cost = np.sum(np.square(action_ctrl)) / action_ctrl.shape[0]
+        ctrl_cost = np.sum(np.square(controls)) / controls.shape[0]
         reward = teacher_action.reward - self._action_cost * ctrl_cost
         self._cum_reward += reward
         if teacher_action.done:
@@ -271,66 +247,6 @@ class PlayGround(GazeboEnvBase):
         insert_str = "<include> <uri>model://" + model + "</uri> </include>\n"
         content.insert(insert_pos, insert_str)
         return "".join(content)
-
-    def _get_camera_observation(self):
-        image = np.array(
-            self._agent.get_camera_observation(self._agent_camera), copy=False)
-        if self._resized_image_size:
-            image = PIL.Image.fromarray(image).resize(self._resized_image_size,
-                                                      PIL.Image.ANTIALIAS)
-            image = np.array(image, copy=False)
-        return image
-
-    def _get_low_dim_full_states(self, agent):
-        task_specific_ob = self._teacher.get_task_pecific_observation(agent)
-        agent_pose = np.array(agent.get_pose()).flatten()
-        agent_vel = np.array(agent.get_velocities()).flatten()
-        internal_states = self._get_internal_states(agent, self._agent_joints)
-        obs = np.concatenate(
-            (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
-        return obs
-
-    def _create_observation_dict(self, sentence_raw):
-        obs = OrderedDict()
-        if self._use_image_obs:
-            obs['image'] = self._get_camera_observation()
-            if self._image_with_internal_states:
-                obs['states'] = self._get_internal_states(
-                    self._agent, self._agent_joints)
-        else:
-            obs['states'] = self._get_low_dim_full_states(self._agent)
-        if self._with_language:
-            obs['sentence'] = self._teacher.sentence_to_sequence(
-                sentence_raw, self._seq_length)
-        return obs
-
-    def _get_observation_with_sentence(self, sentence_raw):
-        if self._image_with_internal_states or self._with_language:
-            # observation is an OrderedDict
-            obs = self._create_observation_dict(sentence_raw)
-        elif self._use_image_obs:  # observation is pure image
-            obs = self._get_camera_observation()
-        else:  # observation is pure low-dimentional states
-            obs = self._get_low_dim_full_states(self._agent)
-        return obs
-
-    def _set_joints(self, agent, joints, agent_cfg):
-        joint_states = list(map(lambda s: agent.get_joint_state(s), joints))
-        joints_limits = list(
-            map(lambda s: s.get_effort_limits()[0], joint_states))
-        if agent_cfg['use_pid']:
-            for joint_index in range(len(joints)):
-                agent.set_pid_controller(
-                    joint_name=joints[joint_index],
-                    pid_control_type=agent_cfg['pid_type'][joint_index],
-                    p=agent_cfg['pid'][joint_index][0],
-                    i=agent_cfg['pid'][joint_index][1],
-                    d=agent_cfg['pid'][joint_index][2],
-                    max_force=joints_limits[joint_index])
-            control_range = agent_cfg['pid_control_limit']
-        else:
-            control_range = np.array(joints_limits)
-        return control_range
 
 
 def main():

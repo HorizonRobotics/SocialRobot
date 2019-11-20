@@ -17,7 +17,6 @@ import numpy as np
 import random
 import gym
 from absl import logging
-from gym import spaces
 
 
 class DiscreteSequence(gym.Space):
@@ -108,7 +107,7 @@ class TaskGroup(object):
         Current task will be closed and a random new one will be chosen.
 
         Args:
-            agent (pygazebo.Agent): the learning agent in the world
+            agent (GazeboAgent): the learning agent in the world
             world (pygazebo.World): the world containing the agent
         Returns:
             None
@@ -209,11 +208,11 @@ class Teacher(object):
         """
         return self._task_groups
 
-    def get_task_pecific_observation(self, agent):
+    def get_task_specific_observation(self, agent):
         """Get the task specific observation of all the tasks added to the teacher
 
         Args:
-            None
+            agent (GazeboAgent): the agent
         Returns:
             numpy.array, the specific observation for all the tasks added
         """
@@ -296,7 +295,7 @@ class Teacher(object):
         group is closed and a random new one will be chosen.
 
         Args:
-            agent (pygazebo.Agent): the learning agent in the world
+            agent (GazeboAgent): the learning agent in the world
             world (pygazebo.World): the world containing the agent
         Returns:
             None
