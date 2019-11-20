@@ -227,6 +227,7 @@ class GoalTask(Task):
         self._goals = self._object_list
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
+        self._polar_coord = polar_coord
         if self.should_use_curriculum_training():
             self._orig_random_range = random_range
             self._random_range = start_range
@@ -405,9 +406,13 @@ class GoalTask(Task):
             self._is_full_range_in_curriculum = False
         while True:
             dist = random.random() * range
+            if self._curriculum_target_angle:
+                angle_range = self._random_angle
+            else:
+                angle_range = 360
             angle = math.radians(
                 math.degrees(agent_dir[2]) +
-                random.random() * self._random_angle - self._random_angle / 2)
+                random.random() * angle_range - angle_range / 2)
             loc = (dist * math.cos(angle), dist * math.sin(angle), 0) + agent_loc
 
             if self._polar_coord:
