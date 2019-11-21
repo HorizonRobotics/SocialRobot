@@ -181,7 +181,7 @@ def main():
     from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D
     use_image_obs = False
     fig = None
-    agent_type = 'kuka_lwr_4plus' #  'youbot_noplugin'
+    agent_type = 'kuka_lwr_4plus'  #  'youbot_noplugin'
     env = PlayGround(
         with_language=False,
         use_image_observation=use_image_obs,

@@ -21,17 +21,16 @@ from pr2 import PR2_WORLD_SETTING
 
 
 class TestPr2(unittest.TestCase):
-
     def test_pr2(self):
         for use_internal_states_only in [True, False]:
             env = Pr2Gripper(
-            world_config=PR2_WORLD_SETTING + [
-                "//sensor[@type='camera']<>visualize=true",
-                "//camera//format=R8G8B8",
-            ],
-            max_steps=100,
-            use_internal_states_only=use_internal_states_only)
-            
+                world_config=PR2_WORLD_SETTING + [
+                    "//sensor[@type='camera']<>visualize=true",
+                    "//camera//format=R8G8B8",
+                ],
+                max_steps=100,
+                use_internal_states_only=use_internal_states_only)
+
             env.run(render=False)
             env.close()
             gazebo.close()

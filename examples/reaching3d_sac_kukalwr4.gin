@@ -13,7 +13,7 @@ create_environment.env_load_fn=@suite_socialbot.load
 
 PlayGround.agent_type="kuka_lwr_4plus"
 PlayGround.tasks=[@Reaching3D]
-Reaching3D.sparse_reward=False
+Reaching3D.reward_shaping=True
 PlayGround.step_time=0.05  # 20Hz step frequence
 PlayGround.max_steps=50  # 2.5s
 # make sure max_episode_steps of gym does not override PlayGround.max_steps

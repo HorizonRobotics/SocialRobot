@@ -284,7 +284,8 @@ class GoalTask(Task):
                         if distraction_dist < self._distraction_penalty_distance_thresh:
                             distraction_penalty += self._distraction_penalty
 
-            if dist < self._success_distance_thresh and ((dot > 0.707) or (not self._success_with_angle_requirement)):
+            if dist < self._success_distance_thresh and (
+                (dot > 0.707) or (not self._success_with_angle_requirement)):
                 # within 45 degrees of the agent direction
                 reward = 1.0 - distraction_penalty
                 self._push_reward_queue(reward)
@@ -377,9 +378,9 @@ class GoalTask(Task):
 
         for name in self._additional_observation_list:
             obj = self._world.get_model(name)
-            obj_pos = np.array(obj.get_pose()[0]).flatten() 
+            obj_pos = np.array(obj.get_pose()[0]).flatten()
             pose = np.concatenate((pose, obj_pos), axis=0)
-            
+
         return pose
 
 
@@ -683,7 +684,7 @@ class KickingBallTask(Task):
 @gin.configurable
 class Reaching3D(Task):
     """
-    A task to reaching a 3D position (x, y, z) with its finger tip or gripper
+    A task to reaching a random 3D position (r, theta, phi) with its finger tip or gripper
     An optional distance based reward shaping can be used.
     This task is only compatiable for Agent kuka_lwr_4plus.
     """
@@ -693,22 +694,25 @@ class Reaching3D(Task):
                  max_steps,
                  random_range=0.75,
                  success_distance_thresh=0.075,
-                 sparse_reward=True,
+                 reward_shaping=True,
                  reward_weight=1.0):
         """
         Args:
             env (gym.Env): an instance of Environment
             max_steps (int): episode will end if not reaching goal in so many steps
-            success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             random_range (float): the goal's random position range
+            success_distance_thresh (float): the goal is reached if it's within this distance to the agent
+            reward_shaping (bool): if false, the reward is -1/0/1, otherwise the 0 case will be replaced
+                with negative distance to goal.
             reward_weight (float): the weight of the reward
         """
-        super().__init__(env=env, max_steps=max_steps, reward_weight=reward_weight)
-        assert self._agent.type == 'kuka_lwr_4plus', "ReachingTask3D only support kuka_lwr_4plus for now"
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
+        assert self._agent.type == 'kuka_lwr_4plus', "Reaching3D Task only support kuka_lwr_4plus for now"
         self._reaching_link = '::lwr_arm_6_link'
-        self._random_range=random_range
-        self._success_distance_thresh=success_distance_thresh
-        self._sparse_reward = sparse_reward
+        self._random_range = random_range
+        self._success_distance_thresh = success_distance_thresh
+        self._reward_shaping = reward_shaping
         self._env.insert_model(model="goal_indicator")
         self._goal = self._world.get_model('goal_indicator')
 
@@ -716,18 +720,22 @@ class Reaching3D(Task):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
         goal_loc, _ = self._goal.get_pose()
-        reaching_loc, _ = self._agent.get_link_pose(self._agent.type + self._reaching_link)
+        reaching_loc, _ = self._agent.get_link_pose(self._agent.type +
+                                                    self._reaching_link)
         self._move_goal(self._goal, np.array(reaching_loc))
         steps = 0
         while steps < self._max_steps:
             steps += 1
-            reaching_loc, _ = self._agent.get_link_pose(self._agent.type + self._reaching_link)
+            reaching_loc, _ = self._agent.get_link_pose(self._agent.type +
+                                                        self._reaching_link)
             goal_loc, _ = self._goal.get_pose()
-            dist = np.linalg.norm(np.array(goal_loc)[:2] - np.array(reaching_loc)[:2])
+            dist = np.linalg.norm(
+                np.array(goal_loc)[:2] - np.array(reaching_loc)[:2])
             if dist < self._success_distance_thresh:
-                agent_sentence = yield TeacherAction(reward=1.0, sentence="well done", done=True)
+                agent_sentence = yield TeacherAction(
+                    reward=1.0, sentence="well done", done=True)
             else:
-                reward = 0 if self._sparse_reward else (-dist)
+                reward = (-dist) if self._reward_shaping else 0
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
@@ -736,9 +744,8 @@ class Reaching3D(Task):
             r = random.random() * self._random_range
             theta = random.random() * 2 * np.pi
             phi = (random.random() - 0.5) * np.pi
-            loc = (r*np.sin(phi)*np.cos(theta),
-                   r*np.sin(phi)*np.sin(theta),
-                   0.1 + np.cos(phi))
+            loc = (r * np.sin(phi) * np.cos(theta),
+                   r * np.sin(phi) * np.sin(theta), 0.1 + np.cos(phi))
             if np.linalg.norm(loc - agent_loc) > self._success_distance_thresh:
                 break
         goal.set_pose((loc, (0, 0, 0)))
@@ -751,5 +758,6 @@ class Reaching3D(Task):
             np.array, the extra observations will be added into the observation
         """
         goal_loc, _ = self._goal.get_pose()
-        reaching_loc, _ = agent.get_link_pose(self._agent.type + self._reaching_link)
+        reaching_loc, _ = agent.get_link_pose(self._agent.type +
+                                              self._reaching_link)
         return np.array([goal_loc, reaching_loc]).flatten()
