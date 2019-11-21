@@ -219,9 +219,7 @@ class PlayGround(GazeboEnvBase):
             controls = action['control']
         else:
             sentence = ''
-            action_ctrl = action
-        controls = np.clip(action_ctrl, -1.0, 1.0) * self._agent_control_range
-        controls = dict(zip(self._agent_joints, controls))
+            controls = action
         self._agent.take_action(controls)
         self._world.step(self._sub_steps)
         teacher_action = self._teacher.teach(sentence)

@@ -292,14 +292,14 @@ class GoalTask(Task):
         loc = np.array(loc)
         self._random_move_objects()
         self.pick_goal()
-        goal = self._world.get_agent(self._goal_name)
+        goal = self._world.get_model(self._goal_name)
         self._move_goal(goal, loc, agent_dir)
         steps_since_last_reward = 0
         prev_min_dist_to_distraction = 100
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
             loc, agent_dir = self._agent.get_pose()
-            if self._agent_type.find('icub') != -1:
+            if self._agent.type.find('icub') != -1:
                 # For agent icub, we need to use the average pos here
                 loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
             goal_loc, _ = goal.get_pose()
@@ -315,7 +315,8 @@ class GoalTask(Task):
                 self._get_distraction_penalty(
                     loc, dot, prev_min_dist_to_distraction))
 
-            if dist < self._success_distance_thresh and ((dot > 0.707) or (not self._success_with_angle_requirement)):
+            if dist < self._success_distance_thresh and (
+                not self._success_with_angle_requirement or dot > 0.707):
                 # within 45 degrees of the agent direction
                 reward = 1.0 - distraction_penalty
                 self._push_reward_queue(max(reward, 0))
@@ -362,7 +363,7 @@ class GoalTask(Task):
             self._distraction_list):
             curr_min_dist = 100
             for obj_name in self._distraction_list:
-                obj = self._world.get_agent(obj_name)
+                obj = self._world.get_model(obj_name)
                 if not obj:
                     continue
                 obj_loc, _ = obj.get_pose()
