@@ -217,7 +217,7 @@ class GazeboAgent():
     def get_action_space(self):
         """ Get the action space with optional language. """
         control_space = self.get_control_space()
-        if self._with_language:
+        if self._with_agent_language and self._with_language:
             action_space = gym.spaces.Dict(
                 control=control_space, sentence=self._sentence_space)
         else:
