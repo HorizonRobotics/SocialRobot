@@ -729,8 +729,7 @@ class Reaching3D(Task):
             reaching_loc, _ = self._agent.get_link_pose(self._agent.type +
                                                         self._reaching_link)
             goal_loc, _ = self._goal.get_pose()
-            dist = np.linalg.norm(
-                np.array(goal_loc)[:2] - np.array(reaching_loc)[:2])
+            dist = np.linalg.norm(np.array(goal_loc) - np.array(reaching_loc))
             if dist < self._success_distance_thresh:
                 agent_sentence = yield TeacherAction(
                     reward=1.0, sentence="well done", done=True)
