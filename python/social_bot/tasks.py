@@ -692,8 +692,8 @@ class Reaching3D(Task):
     def __init__(self,
                  env,
                  max_steps,
-                 random_range=0.75,
-                 success_distance_thresh=0.075,
+                 random_range=0.65,
+                 success_distance_thresh=0.1,
                  reward_shaping=True,
                  reward_weight=1.0):
         """
@@ -740,11 +740,11 @@ class Reaching3D(Task):
 
     def _move_goal(self, goal, agent_loc):
         while True:
-            r = random.random() * self._random_range
+            r = 0.15 + random.random() * self._random_range
             theta = random.random() * 2 * np.pi
             phi = (random.random() - 0.5) * np.pi
             loc = (r * np.sin(phi) * np.cos(theta),
-                   r * np.sin(phi) * np.sin(theta), 0.1 + np.cos(phi))
+                   r * np.sin(phi) * np.sin(theta), 0.2 + np.cos(phi))
             if np.linalg.norm(loc - agent_loc) > self._success_distance_thresh:
                 break
         goal.set_pose((loc, (0, 0, 0)))
