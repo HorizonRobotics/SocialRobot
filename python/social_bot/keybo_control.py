@@ -106,6 +106,8 @@ class KeyboardControl:
             actions = self._to_youbot_action()
         elif agent_type == 'pr2_noplugin':
             actions = self._to_pr2_action()
+        elif agent_type == 'kuka_lwr_4plus':
+            actions = self._to_lwr4_action()
         else:
             actions = []
             logging.info("agent type not supported yet: " + agent_type)
@@ -146,6 +148,17 @@ class KeyboardControl:
         ]
         return actions
 
+    def _to_lwr4_action(self):
+        actions = [
+            # arm joints
+            self._speed,
+            self._turning,
+            self._gripper_pos[0],
+            self._gripper_pos[1],
+            self._gripper_pos[2]
+        ]
+        return actions
+
     def _to_pr2_action(self):
         wheel_joint_bl = self._speed + self._turning
         wheel_joint_br = self._speed - self._turning
@@ -165,10 +178,10 @@ def main():
     import matplotlib.pyplot as plt
     import time
     from social_bot.envs.play_ground import PlayGround
-    from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask
+    from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D
     use_image_obs = False
     fig = None
-    agent_type = 'youbot_noplugin'
+    agent_type = 'kuka_lwr_4plus' #  'youbot_noplugin'
     env = PlayGround(
         with_language=False,
         use_image_observation=use_image_obs,
@@ -176,7 +189,7 @@ def main():
         agent_type=agent_type,
         max_steps=100000,
         real_time_update_rate=500,
-        tasks=[GoalTask])
+        tasks=[Reaching3D])
     env.render()
     keybo = KeyboardControl()
     step_cnt = 0
