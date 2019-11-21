@@ -180,7 +180,7 @@ class GoalTask(Task):
             curriculum_distractions (bool): move distractions according to curriculum as well
             curriculum_target_angle (bool): enlarge angle to target when initializing target according
                 to curriculum.  Only when all angles are satisfied does curriculum try to increase distance.
-                Uses range of 0-180 degrees, starting from 60 with increments of 15.
+                Uses range of 0-360 degrees, starting from 60 with increments of 20.
             switch_goal_within_episode (bool): if random_goal and this are both true, goal will be re-picked
                 within episode every time target is reached, besides picking after whole episode ends.
             start_range (float): for curriculum learning, the starting random_range to set the goal
