@@ -72,7 +72,7 @@ class Task(object):
         ```
 
         Returns:
-            None
+            A generator of TeacherAction
         """
         pass
 
@@ -684,9 +684,9 @@ class KickingBallTask(Task):
 @gin.configurable
 class Reaching3D(Task):
     """
-    A task to reaching a random 3D position (r, theta, phi) with its finger tip or gripper
+    A task to reach a random 3D position with the end effector of a robot arm.
     An optional distance based reward shaping can be used.
-    This task is only compatiable for Agent kuka_lwr_4plus.
+    This task is only compatible for Agent kuka_lwr_4plus.
     """
 
     def __init__(self,
