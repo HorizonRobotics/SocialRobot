@@ -41,6 +41,7 @@ class GazeboAgent():
                  resized_image_size=None,
                  image_with_internal_states=False,
                  with_language=False,
+                 with_agent_language=False,
                  vocab_sequence_length=20):
         """
         Args:
@@ -61,6 +62,7 @@ class GazeboAgent():
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
             with_language (bool): The observation will be a dict with an extra sentence
+            with_agent_language (bool): Include language in agent's action space
             vocab_sequence_length (int): the length of encoded sequence if with_language
         """
         self._world = world
@@ -69,6 +71,7 @@ class GazeboAgent():
         self._resized_image_size = resized_image_size
         self._image_with_internal_states = image_with_internal_states
         self._with_language = with_language
+        self._with_agent_language = with_agent_language
         self._vocab_sequence_length = vocab_sequence_length
         self._sentence_space = None
 
@@ -214,7 +217,7 @@ class GazeboAgent():
     def get_action_space(self):
         """ Get the action space with optional language. """
         control_space = self.get_control_space()
-        if self._with_language:
+        if self._with_agent_language and self._with_language:
             action_space = gym.spaces.Dict(
                 control=control_space, sentence=self._sentence_space)
         else:

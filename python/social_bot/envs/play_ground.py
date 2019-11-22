@@ -72,6 +72,7 @@ class PlayGround(GazeboEnvBase):
                  world_name="play_ground.world",
                  tasks=[GoalTask],
                  with_language=False,
+                 with_agent_language=False,
                  use_image_observation=False,
                  image_with_internal_states=False,
                  max_steps=200,
@@ -92,6 +93,7 @@ class PlayGround(GazeboEnvBase):
                 grocery_ground.world
             tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
             with_language (bool): The observation will be a dict with an extra sentence
+            with_agent_language (bool): Include agent sentence in action space.
             use_image_observation (bool): Use image, or use low-dimentional states as
                 observation. Poses in the states observation are in world coordinate
             max_steps (int): episode will end in so many steps, will be passed to the tasks
@@ -123,6 +125,7 @@ class PlayGround(GazeboEnvBase):
         self._action_cost = action_cost
         self._with_language = with_language
         self._seq_length = vocab_sequence_length
+        self._with_agent_language = with_agent_language
         self._use_image_obs = use_image_observation
         self._image_with_internal_states = self._use_image_obs and image_with_internal_states
 
@@ -154,6 +157,7 @@ class PlayGround(GazeboEnvBase):
             agent_type=agent_type,
             config=agent_cfg,
             with_language=with_language,
+            with_agent_language=with_agent_language,
             vocab_sequence_length=self._seq_length,
             use_image_observation=use_image_observation,
             resized_image_size=resized_image_size,
@@ -208,7 +212,7 @@ class PlayGround(GazeboEnvBase):
             If with_language, it is a dictionary with key 'data' and 'sentence'
             If not with_language, it is a numpy.array or image for observation
         """
-        if self._with_language:
+        if self._with_agent_language and self._with_language:
             sentence = action.get('sentence', None)
             if type(sentence) != str:
                 sentence = self._teacher.sequence_to_sentence(sentence)
