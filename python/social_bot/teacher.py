@@ -57,6 +57,7 @@ class TaskGroup(object):
 
     def __init__(self):
         self._tasks = []
+        self._current_tid = None
         self._current_task = None
         self._current_reward_weight = 1.0
         self._agent = None
@@ -118,9 +119,12 @@ class TaskGroup(object):
             self._current_task.close()
             self._current_task = None
 
+    # This function only returns a generator function.
+    # To get the task object use self._tasks[self._current_tid]
     def _get_current_task(self):
         if self._current_task is None:
             tid = random.randint(0, len(self._tasks) - 1)
+            self._current_tid = tid
             self._current_task = self._tasks[tid].run()
             self._current_reward_weight = self._tasks[tid].reward_weight
             # This send will cause self._current_task to execute until the first
@@ -340,7 +344,4 @@ class Teacher(object):
                 g = self._task_groups.pop(active_group_id)
                 self._task_groups.insert(0, g)
             return_action = TeacherAction(final_reward, final_sentence, done)
-        logging.debug("Teacher Reward: %f, Sentence: %s, Done: %d",
-                      return_action.reward, return_action.sentence,
-                      return_action.done)
         return return_action
