@@ -417,7 +417,10 @@ class ICubAuxiliaryTask(Task):
             else:
                 orient_cost = 0
             # sum all
-            reward = standing_reward - 0.5 * movement_cost - 0.2 * orient_cost
+            if done:
+                reward = -100
+            else:
+                reward = standing_reward - 0.5 * movement_cost - 0.2 * orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
 
     @staticmethod
