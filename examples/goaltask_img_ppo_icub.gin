@@ -14,8 +14,7 @@ import alf.utils.common
 
 # environment config
 create_environment.env_name="SocialBot-PlayGround-v0"
-create_environment.num_parallel_environments=12
-suite_socialbot.load.max_episode_steps=200
+create_environment.num_parallel_environments=16
 
 PlayGround.agent_type='icub'
 PlayGround.tasks=[@GoalTask, @ICubAuxiliaryTask]
@@ -24,6 +23,8 @@ PlayGround.image_with_internal_states=True
 PlayGround.resized_image_size=(48, 48)
 PlayGround.step_time=0.05
 
+suite_socialbot.load.max_episode_steps=200
+GoalTask.max_steps=202
 GoalTask.sparse_reward=False
 GoalTask.distraction_list=[]
 GoalTask.reward_weight=10.0

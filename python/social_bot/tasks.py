@@ -394,7 +394,7 @@ class ICubAuxiliaryTask(Task):
             # reward for not falling (alive reward)
             agent_height = np.array(self._agent.get_link_pose('iCub::head'))[0][2]
             done = agent_height < 0.7  # fall down
-            standing_reward = agent_height
+            standing_reward = 1.0
             # movement cost, to avoid uncessary movements
             joint_pos = []
             for joint_name in self._joints:
