@@ -125,7 +125,7 @@ class PlayGround(GazeboEnvBase):
         self._action_cost = action_cost
         self._with_language = with_language
         self._seq_length = vocab_sequence_length
-        self._with_agent_language = with_agent_language
+        self._with_agent_language = with_language and with_agent_language
         self._use_image_obs = use_image_observation
         self._image_with_internal_states = self._use_image_obs and image_with_internal_states
 
@@ -260,11 +260,13 @@ def main():
     import matplotlib.pyplot as plt
     import time
     with_language = True
+    with_agent_language = False
     use_image_obs = False
     image_with_internal_states = True
     fig = None
     env = PlayGround(
         with_language=with_language,
+        with_agent_language=with_agent_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
         agent_type='kuka_lwr_4plus',
@@ -274,7 +276,7 @@ def main():
     last_done_time = time.time()
     while True:
         actions = env._control_space.sample()
-        if with_language:
+        if with_agent_language:
             actions = dict(control=actions, sentence="hello")
         obs, _, done, _ = env.step(actions)
         step_cnt += 1

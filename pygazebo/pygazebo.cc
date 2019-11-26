@@ -485,8 +485,9 @@ void Initialize(const std::vector<std::string>& args,
     {
       gazebo::util::LogRecordParams params;
       params.period = 1e300;  // In fact, we don't need to do logging.
-      // gazebo::util::LogRecord::Instance()->Init("pygazebo");
+      gazebo::util::LogRecord::Instance()->Init("pygazebo");
       gazebo::util::LogRecord::Instance()->Start(params);
+      gazebo::util::LogRecord::Instance()->Stop();
     }
   }
   gazebo_initialized = true;

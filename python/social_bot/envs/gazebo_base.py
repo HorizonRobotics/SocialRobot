@@ -94,7 +94,7 @@ class GazeboEnvBase(gym.Env):
             if self._rendering_camera is None:
                 render_camera_sdf = """
                 <?xml version='1.0'?>
-                <sdf version ='1.4'>
+                <sdf version ='1.6'>
                 <model name ='render_camera'>
                     <static>1</static>
                     <pose>%s</pose>
@@ -148,7 +148,7 @@ class GazeboEnvBase(gym.Env):
             name = model
         model_sdf = """
         <?xml version='1.0'?>
-        <sdf version ='1.4'>
+        <sdf version ='1.6'>
         <model name=""" + name + """>
             <include>
                 <uri>model://""" + model + """</uri>
