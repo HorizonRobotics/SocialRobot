@@ -54,8 +54,8 @@ class Task(object):
 
     @abstractmethod
     def run(self):
-        """
-        run() use yield to generate TeacherAction
+        """ run() use yield to generate TeacherAction
+
         Structure of run():
         ```python
         def run(self):
@@ -72,7 +72,7 @@ class Task(object):
         ```
 
         Returns:
-            None
+            A generator of TeacherAction
         """
         pass
 
@@ -81,16 +81,17 @@ class Task(object):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations should be added into the observation
+            np.array, the extra observations will be added into the observation
             besides original observation from the environment. This can be overide
             by the sub task
         """
         return np.array([])
 
     def set_agent(self, agent):
-        """
-        The agent can be override by this function. 
-        This might be useful when multi agents share the same task or embodied teacher.
+        """ Set the agent of task.
+        
+        The agent can be override by this function. This might be useful when multi
+        agents share the same task or embodied teacher.
         Args:
             agent (GazeboAgent): the agent
         """
@@ -100,8 +101,8 @@ class Task(object):
                                   model_list,
                                   including_velocity=True,
                                   including_rotation=False):
-        """
-        Get the poses and velocities from a model list
+        """ Get the poses and velocities from a model list
+
         Args:
             model_list (list): a list of model names
             including_velocity (bool): if Ture, the velocity of objects will be included.
@@ -283,9 +284,7 @@ class GoalTask(Task):
             self.set_goal_name(self._goals[random_id])
 
     def run(self):
-        """
-        Start a teaching episode for this task.
-        """
+        """ Start a teaching episode for this task. """
         agent_sentence = yield
         self._agent.reset()
         loc, agent_dir = self._agent.get_pose()
@@ -461,7 +460,7 @@ class GoalTask(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array of the extra observations should be added into the
+            np.array of the extra observations will be added into the
             observation besides self states, for the non-image case
         """
         goal = self._world.get_model(self._goal_name)
@@ -469,9 +468,9 @@ class GoalTask(Task):
 
         for name in self._additional_observation_list:
             obj = self._world.get_model(name)
-            obj_pos = np.array(obj.get_pose()[0]).flatten() 
+            obj_pos = np.array(obj.get_pose()[0]).flatten()
             pose = np.concatenate((pose, obj_pos), axis=0)
-            
+
         return pose
 
 
@@ -516,9 +515,7 @@ class ICubAuxiliaryTask(Task):
         self._joints = agent_cfgs[self._agent.type]['control_joints']
 
     def run(self):
-        """
-        Start a teaching episode for this task.
-        """
+        """ Start a teaching episode for this task. """
         self._pre_agent_pos = self.get_icub_extra_obs(self._agent)[:3]
         agent_sentence = yield
         done = False
@@ -603,8 +600,8 @@ class ICubAuxiliaryTask(Task):
         return obs
 
     def _get_angle_to_target(self, aegnt, agent_pos, link_name, offset=0):
-        """
-        Get angle from a icub link, relative to target.
+        """ Get angle from a icub link, relative to target.
+        
         Args:
             agent (GazeboAgent): the agent
             agent_pos (numpay array): the pos of agent
@@ -630,7 +627,7 @@ class ICubAuxiliaryTask(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array of the extra observations should be added into the
+            np.array of the extra observations will be added into the
             observation besides self states, for the non-image case
         """
         icub_extra_obs = self.get_icub_extra_obs(agent)
@@ -703,9 +700,7 @@ class KickingBallTask(Task):
         self._env.insert_model(model="ball", pose="1.50 1.5 0.2 0 -0 0")
 
     def run(self):
-        """
-        Start a teaching episode for this task.
-        """
+        """ Start a teaching episode for this task. """
         agent_sentence = yield
         goal = self._world.get_model(self._goal_name)
         ball = self._world.get_model('ball')
@@ -762,7 +757,7 @@ class KickingBallTask(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations should be added into the observation
+            np.array, the extra observations will be added into the observation
         """
         return self._get_states_of_model_list(['ball', 'goal'])
 
@@ -774,3 +769,84 @@ class KickingBallTask(Task):
             if np.linalg.norm(loc - goal_loc) > self._success_distance_thresh:
                 break
         ball.set_pose((loc, (0, 0, 0)))
+
+
+@gin.configurable
+class Reaching3D(Task):
+    """
+    A task to reach a random 3D position with the end effector of a robot arm.
+    An optional distance based reward shaping can be used.
+    This task is only compatible for Agent kuka_lwr_4plus.
+    """
+
+    def __init__(self,
+                 env,
+                 max_steps,
+                 random_range=0.65,
+                 success_distance_thresh=0.1,
+                 reward_shaping=True,
+                 reward_weight=1.0):
+        """
+        Args:
+            env (gym.Env): an instance of Environment
+            max_steps (int): episode will end if not reaching goal in so many steps
+            random_range (float): the goal's random position range
+            success_distance_thresh (float): the goal is reached if it's within this distance to the agent
+            reward_shaping (bool): if false, the reward is -1/0/1, otherwise the 0 case will be replaced
+                with negative distance to goal.
+            reward_weight (float): the weight of the reward
+        """
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
+        assert self._agent.type == 'kuka_lwr_4plus', "Reaching3D Task only support kuka_lwr_4plus for now"
+        self._reaching_link = '::lwr_arm_6_link'
+        self._random_range = random_range
+        self._success_distance_thresh = success_distance_thresh
+        self._reward_shaping = reward_shaping
+        self._env.insert_model(model="goal_indicator")
+        self._goal = self._world.get_model('goal_indicator')
+
+    def run(self):
+        """ Start a teaching episode for this task. """
+        agent_sentence = yield
+        goal_loc, _ = self._goal.get_pose()
+        reaching_loc, _ = self._agent.get_link_pose(self._agent.type +
+                                                    self._reaching_link)
+        self._move_goal(self._goal, np.array(reaching_loc))
+        steps = 0
+        while steps < self._max_steps:
+            steps += 1
+            reaching_loc, _ = self._agent.get_link_pose(self._agent.type +
+                                                        self._reaching_link)
+            goal_loc, _ = self._goal.get_pose()
+            dist = np.linalg.norm(np.array(goal_loc) - np.array(reaching_loc))
+            if dist < self._success_distance_thresh:
+                agent_sentence = yield TeacherAction(
+                    reward=1.0, sentence="well done", done=True)
+            else:
+                reward = (-dist) if self._reward_shaping else 0
+                agent_sentence = yield TeacherAction(reward=reward, done=False)
+        yield TeacherAction(reward=-1.0, sentence="failed", done=True)
+
+    def _move_goal(self, goal, agent_loc):
+        while True:
+            r = 0.15 + random.random() * self._random_range
+            theta = random.random() * 2 * np.pi
+            phi = (random.random() - 0.5) * np.pi
+            loc = (r * np.sin(phi) * np.cos(theta),
+                   r * np.sin(phi) * np.sin(theta), 0.2 + np.cos(phi))
+            if np.linalg.norm(loc - agent_loc) > self._success_distance_thresh:
+                break
+        goal.set_pose((loc, (0, 0, 0)))
+
+    def task_specific_observation(self, agent):
+        """
+        Args:
+            agent (GazeboAgent): the agent
+        Returns:
+            np.array, the extra observations will be added into the observation
+        """
+        goal_loc, _ = self._goal.get_pose()
+        reaching_loc, _ = agent.get_link_pose(self._agent.type +
+                                              self._reaching_link)
+        return np.array([goal_loc, reaching_loc]).flatten()

@@ -35,7 +35,7 @@ from social_bot import tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
-from social_bot.tasks import GoalTask, ICubAuxiliaryTask, KickingBallTask
+from social_bot.tasks import GoalTask, ICubAuxiliaryTask, KickingBallTask, Reaching3D
 
 
 @gin.configurable
@@ -267,8 +267,8 @@ def main():
         with_language=with_language,
         use_image_observation=use_image_obs,
         image_with_internal_states=image_with_internal_states,
-        agent_type='pioneer2dx_noplugin',
-        tasks=[GoalTask])
+        agent_type='kuka_lwr_4plus',
+        tasks=[Reaching3D])
     env.render()
     step_cnt = 0
     last_done_time = time.time()
