@@ -20,14 +20,14 @@ PlayGround.agent_type='icub'
 PlayGround.tasks=[@GoalTask, @ICubAuxiliaryTask]
 PlayGround.use_image_observation=True
 PlayGround.image_with_internal_states=True
-PlayGround.resized_image_size=(48, 48)
+PlayGround.resized_image_size=(64, 64)
 PlayGround.step_time=0.05
 
 suite_socialbot.load.max_episode_steps=200
 GoalTask.max_steps=202
 GoalTask.sparse_reward=False
 GoalTask.distraction_list=[]
-GoalTask.reward_weight=10.0
+GoalTask.reward_weight=200.0
 ICubAuxiliaryTask.target='ball'
 ICubAuxiliaryTask.agent_init_pos=(1.0, 0)
 ICubAuxiliaryTask.agent_pos_random_range=1.0
