@@ -3,7 +3,7 @@
 <!--
     Copyright (c) 2019 Horizon Robotics. All Rights Reserved.                            -->
 <!-- =================================================================================== -->
-<sdf version="1.5">
+<sdf version="1.6">
   <world name="default">
     <physics type="ode">
       <max_step_size>0.001</max_step_size>

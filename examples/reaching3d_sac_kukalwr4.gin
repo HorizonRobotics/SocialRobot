@@ -1,0 +1,23 @@
+# Training & playing the reaching3d task with Sac algorithm
+#
+# DISPLAY=null python -m alf.bin.train --root_dir=~/tmp/reaching3d --gin_file=reaching3d_sac_kukalwr4.gin
+# python -m alf.bin.play --root_dir=~/tmp/reaching3d --gin_file=reaching3d_sac_kukalwr4.gin
+
+include 'common_nonimage_sac.gin'
+import social_bot
+
+# environment config
+create_environment.env_name="SocialBot-PlayGround-v0"
+create_environment.num_parallel_environments=12
+create_environment.env_load_fn=@suite_socialbot.load
+
+PlayGround.agent_type="kuka_lwr_4plus"
+PlayGround.tasks=[@Reaching3D]
+Reaching3D.reward_shaping=True
+PlayGround.step_time=0.05  # 20Hz step frequence
+PlayGround.max_steps=50  # 2.5s
+# make sure max_episode_steps of gym does not override PlayGround.max_steps
+suite_socialbot.load.max_episode_steps=52 
+
+TrainerConfig.summary_interval=100
+TrainerConfig.eval_interval=1000

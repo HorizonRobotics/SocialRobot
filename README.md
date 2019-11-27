@@ -69,18 +69,23 @@ You could choose the agent in the environment by setting the paramenter "agent_t
 
 The observation of the agent is also configuable, including internal states, target pose or camera image, and optional language instructions. The action specification is defined in the joint list of file [agent_cfg.json](python/social_bot/models/agent_cfg.json)
 
-* [Goal task](python/social_bot/teacher_tasks.py): A task to chase a goal. The agent will receive reward 1 when it is close enough to the goal, and get -1 if it becomes too far away from the goal or timeout. A training example can be found [here](examples/goaltask_sac_pioneer.gin).
+* [Goal task](python/social_bot/tasks.py): A task to chase a goal. The agent will receive reward 1 when it is close enough to the goal, and get -1 if it becomes too far away from the goal or timeout. A training example can be found [here](examples/goaltask_sac_pioneer.gin).
 
     <img src="media/pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/play_ground_icub.gif" width="360" height="240" alt="icub"/>
 
-* [Kicking-ball task](python/social_bot/teacher_tasks.py): A task to kick a ball into the goal. Simple reward shaping is used to guide the agent to run to the ball first.
+* [Kicking-ball task](python/social_bot/tasks.py): A task to kick a ball into the goal. Simple reward shaping is used to guide the agent to run to the ball first.
 
     <img src="media/play_ground_ball.gif" width="320" height="240" alt="ball"/>
+    
+* [Reaching3D task](python/social_bot/tasks.py): A task to reach a 3D position with the end effector of a robot arm. This task is only compatible for Agent kuka_lwr_4plus. An optional distance based reward shaping can be used.
+
+    <img src="media/reaching.gif" width="320" height="240" alt="reaching"/>
+
 
 ### [Simple Navigation](python/social_bot/envs/simple_navigation.py)
 A simple navigation task for a pioneer2dx agent with camera image as observation.
 
-* [Goal task](python/social_bot/teacher_tasks.py).
+* [Goal task](python/social_bot/tasks.py).
 
     A simple navigation task to chase a goal. The agent will receive reward 1 when it is close enough to the goal, and get -1 it becomes too far away from the goal or timeout.
 

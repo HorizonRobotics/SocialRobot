@@ -18,16 +18,16 @@ PR2_WORLD_SETTING = [
     "//camera//height=256",
     "//camera//format=L8",
     # make head fixed
-    "//joint[contains(@name, 'pr2::head_')].type=fixed",
+    "//joint[contains(@name, 'pr2_noplugin::head_')].type=fixed",
     # make eye camera sensor focus on the table
-    "//link[@name='pr2::head_tilt_link']/pose=0.033267 -0.003973 1.1676 0.000174 1.0 -0.013584",
+    "//link[@name='pr2_noplugin::head_tilt_link']/pose=0.033267 -0.003973 1.1676 0.000174 1.0 -0.013584",
     # using depth camera
     # "//sensor[contains(@name, 'wide_stereo_gazebo_')].type=depth",
     # make eye camera vision a bit wider
     "//sensor[contains(@name, 'wide_stereo_gazebo_')]/camera/horizontal_fov=1.8",
     # remove unused joint
-    "//joint[contains(@name, 'pr2::l_')]=",
-    "//link[contains(@name, 'pr2::l_')]=",
+    "//joint[contains(@name, 'pr2_noplugin::l_')]=",
+    "//link[contains(@name, 'pr2_noplugin::l_')]=",
     "//joint[contains(@name, 'wheel')]=",
     "//link[contains(@name, 'wheel')]=",
     "//joint[contains(@name, 'caster')]=",
@@ -38,7 +38,7 @@ PR2_WORLD_SETTING = [
     "//sensor[@name='r_forearm_cam_sensor']=",
 
     # remove unused collision and sensor
-    # "//link[contains(@name, 'pr2::l_')]/collision=",
+    # "//link[contains(@name, 'pr2_noplugin::l_')]/collision=",
     # "//sensor[contains(@name, 'wide')]=",
 ]
 
@@ -143,7 +143,7 @@ class Pr2Gripper(GazeboEnvBase):
 
         self._r_arm_joints = list(
             filter(
-                lambda s: s.find('pr2::r_') != -1 and s.split("::")[-1] not in unused_joints,
+                lambda s: s.find('pr2_noplugin::r_') != -1 and s.split("::")[-1] not in unused_joints,
                 self._all_joints))
         logging.debug(
             "joints in the right arm to control: %s" % self._r_arm_joints)
@@ -234,9 +234,9 @@ class Pr2Gripper(GazeboEnvBase):
             "beer::link::box_collision")
         self._goal_pose = self._goal.get_pose()
         self._l_finger_pose = self._agent.get_link_pose(
-            "pr2::pr2::r_gripper_l_finger_tip_link")
+            "pr2::pr2_noplugin::r_gripper_l_finger_tip_link")
         self._r_finger_pose = self._agent.get_link_pose(
-            "pr2::pr2::r_gripper_r_finger_tip_link")
+            "pr2::pr2_noplugin::r_gripper_r_finger_tip_link")
 
         joint_states = [
             self._agent.get_joint_state(joint) for joint in self._r_arm_joints
@@ -268,10 +268,10 @@ class Pr2Gripper(GazeboEnvBase):
                 0)
 
             img = get_camera_observation(
-                "default::pr2::pr2::head_tilt_link::wide_stereo_gazebo_l_stereo_camera_sensor"
+                "default::pr2::pr2_noplugin::head_tilt_link::wide_stereo_gazebo_l_stereo_camera_sensor"
             )
             img2 = get_camera_observation(
-                "default::pr2::pr2::head_tilt_link::wide_stereo_gazebo_r_stereo_camera_sensor"
+                "default::pr2::pr2_noplugin::head_tilt_link::wide_stereo_gazebo_r_stereo_camera_sensor"
             )
             obs = OrderedDict(
                 image=np.concatenate((img, img2), axis=-1), states=states)
@@ -300,7 +300,8 @@ class Pr2Gripper(GazeboEnvBase):
     # gripper_joint is 1 DOF prismatic joint, the joint state represent the
     # the parallel distance between two finger tips. see PR2 manual p18.
     def _get_gripper_pos(self):
-        state = self._agent.get_joint_state("pr2::pr2::r_gripper_joint")
+        state = self._agent.get_joint_state(
+            "pr2::pr2_noplugin::r_gripper_joint")
         return state.get_positions()[0]
 
     def step(self, actions):
@@ -383,16 +384,16 @@ class Pr2Gripper(GazeboEnvBase):
         self._prev_gripper_pos = gripper_pos
         return obs, reward, done, {}
 
-    def run(self):
+    def run(self, render=True):
         self.reset()
         reward = 0.0
         count = 0
-
         time_start = time.time()
-        while True:
+        while count <= 200:
             actions = self.action_space.sample()
             obs, r, done, _ = self.step(actions * self._gripper_reward_dir)
-            self.render('human')
+            if render:
+                self.render('human')
             count += 1
             reward += r
 

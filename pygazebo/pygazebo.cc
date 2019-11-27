@@ -3,7 +3,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <stdlib.h>
-#include <sstream>
 #include <gazebo/common/PID.hh>
 #include <gazebo/gazebo.hh>
 #include <gazebo/gazebo_client.hh>
@@ -14,34 +13,43 @@
 #include <gazebo/physics/WorldState.hh>
 #include <gazebo/physics/physics.hh>
 #include <gazebo/rendering/Camera.hh>
+#include <gazebo/rendering/DepthCamera.hh>
 #include <gazebo/sensors/CameraSensor.hh>
-#include <gazebo/sensors/DepthCameraSensor.hh>
 #include <gazebo/sensors/ContactSensor.hh>
+#include <gazebo/sensors/DepthCameraSensor.hh>
 #include <gazebo/sensors/Sensor.hh>
 #include <gazebo/sensors/SensorManager.hh>
 #include <gazebo/sensors/SensorsIface.hh>
-#include <gazebo/rendering/DepthCamera.hh>
 #include <gazebo/util/LogRecord.hh>
 #include <mutex>  // NOLINT
+#include <sstream>
 
 namespace py = pybind11;
 
 namespace social_bot {
 
-bool gazebo_initialized  = false;
-bool gazebo_sensor_initialized  = false;
+bool gazebo_initialized = false;
+bool gazebo_sensor_initialized = false;
 
 class Observation;
 
 class CameraObservation {
  public:
-  CameraObservation(size_t width, size_t height, size_t depth, uint8_t* img_data, float* depth_data)
-      : width_(width), height_(height), depth_(depth), img_data_(img_data), depth_data_(depth_data) {
+  CameraObservation(size_t width,
+                    size_t height,
+                    size_t depth,
+                    uint8_t* img_data,
+                    float* depth_data)
+      : width_(width),
+        height_(height),
+        depth_(depth),
+        img_data_(img_data),
+        depth_data_(depth_data) {
     if (depth_data_) {
       float* buf = new float[height_ * width_ * (depth_ + 1)];
-      for (size_t i=0; i < height_ * width_; i++) {
-        for (size_t j=0; j < depth_; j ++ ) {
-            buf[i * (depth_ + 1) + j] = img_data_[i * depth_ + j];
+      for (size_t i = 0; i < height_ * width_; i++) {
+        for (size_t j = 0; j < depth_; j++) {
+          buf[i * (depth_ + 1) + j] = img_data_[i * depth_ + j];
         }
         buf[i * (depth_ + 1) + depth_] = depth_data_[i];
       }
@@ -56,11 +64,11 @@ class CameraObservation {
   size_t width() const { return width_; }
   size_t height() const { return height_; }
   size_t depth() const { return depth_; }
-  float *data() const { return data_; }
+  float* data() const { return data_; }
 
   ~CameraObservation() {
     if (this->data_) {
-      delete [] this->data_;
+      delete[] this->data_;
       this->data_ = NULL;
     }
   }
@@ -139,9 +147,7 @@ class Model {
         std::make_tuple(lin_ver.X(), lin_ver.Y(), lin_ver.Z()),
         std::make_tuple(ang_ver.X(), ang_ver.Y(), ang_ver.Z()));
   }
-  void Reset() {
-    model_->ResetPhysicsStates();
-  }
+  void Reset() { model_->ResetPhysicsStates(); }
 };
 
 class Agent : public Model {
@@ -205,6 +211,24 @@ class Agent : public Model {
     return std::make_tuple(
         std::make_tuple(pose.Pos().X(), pose.Pos().Y(), pose.Pos().Z()),
         std::make_tuple(euler.X(), euler.Y(), euler.Z()));
+  }
+
+  void SetLinkPose(const std::string& link_name, const Pose& pose) const {
+    auto loc = std::get<0>(pose);
+    auto rot = std::get<1>(pose);
+    auto link = model_->GetLink(link_name);
+
+    if (!link) {
+      std::cerr << "unable to find link: " << link_name << std::endl;
+    }
+
+    ignition::math::Pose3d pose3d(std::get<0>(loc),
+                                  std::get<1>(loc),
+                                  std::get<2>(loc),
+                                  std::get<0>(rot),
+                                  std::get<1>(rot),
+                                  std::get<2>(rot));
+    link->SetWorldPose(pose3d);
   }
 
   void SetJointState(const std::string& joint_name,
@@ -285,7 +309,7 @@ class Agent : public Model {
       //   std::dynamic_pointer_cast<gazebo::sensors::DepthCameraSensor>(sensor);
       // depthData = depthSensor->DepthData(); // it's always null
       gazebo::rendering::DepthCamera* depthCamera =
-        dynamic_cast<gazebo::rendering::DepthCamera *>(camera.get());
+          dynamic_cast<gazebo::rendering::DepthCamera*>(camera.get());
       depthData = depthCamera->DepthData();
       if (depthData == NULL) {
         std::cerr << "Depth data null" << std::endl;
@@ -340,10 +364,10 @@ class Agent : public Model {
                         double d,
                         double i_max,
                         double max_force) {
-    auto pid = gazebo::common::PID(p*max_force, i*max_force, d*max_force);
+    auto pid = gazebo::common::PID(p * max_force, i * max_force, d * max_force);
     pid.SetCmdMax(max_force);
     pid.SetCmdMin(-max_force);
-    pid.SetIMax(max_force * i_max); // limit i term
+    pid.SetIMax(max_force * i_max);  // limit i term
     auto controller = model_->GetJointController();
     if (pid_control_type == "force") {
       joints_control_type_[joint_name] = control_type_force_;
@@ -394,7 +418,7 @@ class World {
   std::string ModelListInfo() {
     std::stringstream ss;
     for (auto model : world_->Models()) {
-      ss << "Model: " << model->GetName() << std::endl;
+      ss << "Model: " << '"' << model->GetName() << '"' << std::endl;
     }
     return ss.str();
   }
@@ -415,10 +439,8 @@ class World {
         ss << "DOF: " << joint->DOF() << std::endl;
 
         for (int i = 0; i < joint->DOF(); i++) {
-          ss << "Position " << i << ":" << joint->Position(i)
-                    << std::endl;
-          ss << "Velocity " << i << ":" << joint->GetVelocity(i)
-                    << std::endl;
+          ss << "Position " << i << ":" << joint->Position(i) << std::endl;
+          ss << "Velocity " << i << ":" << joint->GetVelocity(i) << std::endl;
         }
       }
     }
@@ -428,7 +450,7 @@ class World {
 
     for (auto sensor : mgr->GetSensors()) {
       ss << " sensor name: " << sensor->Name()
-                << ", scoped name: " << sensor->ScopedName() << std::endl;
+         << ", scoped name: " << sensor->ScopedName() << std::endl;
     }
 
     ss << " === the end of world === " << std::endl;
@@ -444,7 +466,9 @@ class World {
   void Reset() { world_->Reset(); }
 };
 
-void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=false) {
+void Initialize(const std::vector<std::string>& args,
+                int port = 0,
+                bool quiet = false) {
   if (port != 0) {
     std::string uri = "localhost:" + std::to_string(port);
     setenv("GAZEBO_MASTER_URI", uri.c_str(), 1);
@@ -461,8 +485,9 @@ void Initialize(const std::vector<std::string>& args, int port=0, bool quiet=fal
     {
       gazebo::util::LogRecordParams params;
       params.period = 1e300;  // In fact, we don't need to do logging.
-      // gazebo::util::LogRecord::Instance()->Init("pygazebo");
+      gazebo::util::LogRecord::Instance()->Init("pygazebo");
       gazebo::util::LogRecord::Instance()->Start(params);
+      gazebo::util::LogRecord::Instance()->Stop();
     }
   }
   gazebo_initialized = true;
@@ -478,20 +503,20 @@ void CloseWithoutModelbaseFini() {
   gazebo::physics::fini();
   gazebo::sensors::fini();
 
-  gazebo_initialized  = false;
-  gazebo_sensor_initialized  = false;
+  gazebo_initialized = false;
+  gazebo_sensor_initialized = false;
 }
 
 void Close() {
   gazebo::shutdown();
-  gazebo_initialized  = false;
-  gazebo_sensor_initialized  = false;
+  gazebo_initialized = false;
+  gazebo_sensor_initialized = false;
 }
 
 void StartSensors() {
   if (!gazebo_sensor_initialized) {
-    gazebo::sensors::run_threads(); 
-    gazebo_sensor_initialized  = true;
+    gazebo::sensors::run_threads();
+    gazebo_sensor_initialized = true;
   }
 }
 
@@ -522,8 +547,8 @@ std::unique_ptr<World> NewWorldFromFile(const std::string& world_file) {
   return std::make_unique<World>(world);
 }
 
-std::unique_ptr<World> NewWorldFromFileWithAgent(const std::string& world_file,
-                                                 const std::string& agent_name) {
+std::unique_ptr<World> NewWorldFromFileWithAgent(
+    const std::string& world_file, const std::string& agent_name) {
   gazebo::physics::WorldPtr world = gazebo::loadWorld(world_file);
   world->InsertModelFile(agent_name);
   world->UpdateStateSDF();
@@ -544,14 +569,13 @@ PYBIND11_MODULE(pygazebo, m) {
         py::arg("port") = 0,
         py::arg("quiet") = false);
 
-  m.def("close",
-        &Close,
-        "Shutdown everything of gazebo");
+  m.def("close", &Close, "Shutdown everything of gazebo");
 
   m.def("close_without_model_base_fini",
         &CloseWithoutModelbaseFini,
         "A customized close function without execute ModelbaseFini"
-        "For some unknwon reason, ModelbaseFini() in the gazebo.shutdown() makes the"
+        "For some unknwon reason, ModelbaseFini() in the gazebo.shutdown() "
+        "makes the"
         "process fail to exit when the environment is wrapped with process");
 
   m.def("world_sdf",
@@ -572,7 +596,8 @@ PYBIND11_MODULE(pygazebo, m) {
 
   m.def("new_world_from_file_with_agent",
         &NewWorldFromFileWithAgent,
-        "Create a world from .world file, and insert the agent model in the mean time",
+        "Create a world from .world file, and insert the agent model in the "
+        "mean time",
         py::arg("world_file"),
         py::arg("agent_name"));
 
@@ -633,24 +658,24 @@ PYBIND11_MODULE(pygazebo, m) {
   py::class_<CameraObservation>(m, "CameraObservation", py::buffer_protocol())
       .def_buffer([](CameraObservation& m) -> py::buffer_info {
         if (m.depth_data()) {
-            return py::buffer_info(m.data(),
-                sizeof(float),
-                py::format_descriptor<float>::format(),
-                3,
-                {m.height(), m.width(), m.depth() + 1},
-                {sizeof(float) * m.width() * (m.depth() + 1),
-                 sizeof(float) * (m.depth() + 1),
-                 sizeof(float)});
+          return py::buffer_info(m.data(),
+                                 sizeof(float),
+                                 py::format_descriptor<float>::format(),
+                                 3,
+                                 {m.height(), m.width(), m.depth() + 1},
+                                 {sizeof(float) * m.width() * (m.depth() + 1),
+                                  sizeof(float) * (m.depth() + 1),
+                                  sizeof(float)});
         } else {
-            return py::buffer_info(m.img_data(),
-                               sizeof(uint8_t),
-                               py::format_descriptor<uint8_t>::format(),
-                               3,
-                               {m.height(), m.width(), m.depth()},
-                               // memory layout for image
-                               {sizeof(uint8_t) * m.width() * m.depth(),
-                                sizeof(uint8_t) * m.depth(),
-                                sizeof(uint8_t)});
+          return py::buffer_info(m.img_data(),
+                                 sizeof(uint8_t),
+                                 py::format_descriptor<uint8_t>::format(),
+                                 3,
+                                 {m.height(), m.width(), m.depth()},
+                                 // memory layout for image
+                                 {sizeof(uint8_t) * m.width() * m.depth(),
+                                  sizeof(uint8_t) * m.depth(),
+                                  sizeof(uint8_t)});
         }
       });
 
@@ -686,11 +711,16 @@ PYBIND11_MODULE(pygazebo, m) {
            &Agent::GetCameraObservation,
            "Get observation from this camera sensor "
            "The shape is (H, W, C) and dtype is uint8 by default "
-           "If it's a depth camera, then the last channel represents the depth data "
+           "If it's a depth camera, then the last channel represents the depth "
+           "data "
            "and its dtype is float32",
            py::arg("sensor_scope_name"))
       .def("get_joint_state", &Agent::GetJointState, py::arg("joint_name"))
       .def("get_link_pose", &Agent::GetLinkPose, py::arg("link_name"))
+      .def("set_link_pose",
+           &Agent::SetLinkPose,
+           py::arg("link_name"),
+           py::arg("link_pose"))
       .def("get_collisions",
            &Agent::GetCollisions,
            "return a set of tuples of collided links detected by the contact "

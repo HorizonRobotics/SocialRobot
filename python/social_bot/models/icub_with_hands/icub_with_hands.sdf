@@ -1,6 +1,6 @@
 <?xml version='1.0'?>
 <sdf version='1.6'>
-  <model name='iCub'>
+  <model name='icub_with_hands'>
     <pose>0 0 0.6 0 0 3.14</pose>
     <link name='root_link'>
       <pose>0 0 0 0 -0 0</pose>

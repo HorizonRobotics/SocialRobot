@@ -17,7 +17,6 @@ import numpy as np
 import random
 import gym
 from absl import logging
-from gym import spaces
 
 
 class DiscreteSequence(gym.Space):
@@ -58,6 +57,7 @@ class TaskGroup(object):
 
     def __init__(self):
         self._tasks = []
+        self._current_tid = None
         self._current_task = None
         self._current_reward_weight = 1.0
         self._agent = None
@@ -108,7 +108,7 @@ class TaskGroup(object):
         Current task will be closed and a random new one will be chosen.
 
         Args:
-            agent (pygazebo.Agent): the learning agent in the world
+            agent (GazeboAgent): the learning agent in the world
             world (pygazebo.World): the world containing the agent
         Returns:
             None
@@ -119,9 +119,12 @@ class TaskGroup(object):
             self._current_task.close()
             self._current_task = None
 
+    # This function only returns a generator function.
+    # To get the task object use self._tasks[self._current_tid]
     def _get_current_task(self):
         if self._current_task is None:
             tid = random.randint(0, len(self._tasks) - 1)
+            self._current_tid = tid
             self._current_task = self._tasks[tid].run()
             self._current_reward_weight = self._tasks[tid].reward_weight
             # This send will cause self._current_task to execute until the first
@@ -209,19 +212,19 @@ class Teacher(object):
         """
         return self._task_groups
 
-    def get_task_pecific_observation(self):
+    def get_task_specific_observation(self, agent):
         """Get the task specific observation of all the tasks added to the teacher
 
         Args:
-            None
+            agent (GazeboAgent): the agent
         Returns:
             numpy.array, the specific observation for all the tasks added
         """
         task_specific_ob = np.array([])
         for task_group in self.get_task_groups():
             for task in task_group.get_tasks():
-                task_specific_ob = np.append(task_specific_ob,
-                                             task.task_specific_observation())
+                task_specific_ob = np.append(
+                    task_specific_ob, task.task_specific_observation(agent))
         return task_specific_ob
 
     def _build_vocab_from_tasks(self):
@@ -296,7 +299,7 @@ class Teacher(object):
         group is closed and a random new one will be chosen.
 
         Args:
-            agent (pygazebo.Agent): the learning agent in the world
+            agent (GazeboAgent): the learning agent in the world
             world (pygazebo.World): the world containing the agent
         Returns:
             None
@@ -341,7 +344,4 @@ class Teacher(object):
                 g = self._task_groups.pop(active_group_id)
                 self._task_groups.insert(0, g)
             return_action = TeacherAction(final_reward, final_sentence, done)
-        logging.debug("Teacher Reward: %f, Sentence: %s, Done: %d",
-                      return_action.reward, return_action.sentence,
-                      return_action.done)
         return return_action

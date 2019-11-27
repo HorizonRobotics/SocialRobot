@@ -18,19 +18,20 @@ from multiprocessing import Process, Value
 from simple_navigation import SimpleNavigationLanguage
 import random
 import os
+import social_bot.pygazebo as gazebo
 
 
-class Agent(Process):
-    def __init__(self, agent_id):
-        super(Agent, self).__init__()
+class SimpleNaviEnv(Process):
+    def __init__(self, env_id):
+        super(SimpleNaviEnv, self).__init__()
         self.ok = Value('i', 0)
-        self.agent_id = agent_id
+        self.env_id = env_id
 
     def run(self):
         port = os.environ.get('PYGAZEBO_PORT', 11345)
-        env = SimpleNavigationLanguage(port=port + self.agent_id + 1)
+        env = SimpleNavigationLanguage(port=port + self.env_id + 1)
         env.reset()
-        for _ in range(1000):
+        for _ in range(500):
             control = [
                 random.random() * 0.2 - 0.1,
                 random.random() * 0.2 - 0.1
@@ -39,20 +40,20 @@ class Agent(Process):
                 dict(control=control, sentence="hello"))
             if done:
                 env.reset()
+        env.close()
+        gazebo.close()
         self.ok.value = 1
 
 
 class TestMultiProcess(unittest.TestCase):
     def test_multiprocessing(self):
-        env = SimpleNavigationLanguage()
-        env.reset()
-        agents = [Agent(i) for i in range(2)]
-        for agent in agents:
-            agent.start()
-        for agent in agents:
-            agent.join()
-        for agent in agents:
-            self.assertTrue(agent.ok.value)
+        envs = [SimpleNaviEnv(i) for i in range(2)]
+        for env in envs:
+            env.start()
+        for env in envs:
+            env.join()
+        for env in envs:
+            self.assertTrue(env.ok.value)
 
 
 if __name__ == '__main__':
