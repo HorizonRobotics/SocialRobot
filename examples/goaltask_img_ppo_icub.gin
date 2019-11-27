@@ -41,15 +41,17 @@ CONV_LAYER_PARAMS=((16, 3, 2), (32, 3, 2))
 
 # encode camera sensor data
 img/mlp_layers.conv_layer_params=%CONV_LAYER_PARAMS
-img/mlp_layers.fc_layer_params=(50,)
+img/mlp_layers.fc_layer_params=(100,)
 img/mlp_layers.activation_fn=@tf.nn.softsign
 img/SequentialLayer.layers = @img/mlp_layers()
+img/SequentialLayer.name = 'img'
 img_enc = @img/SequentialLayer()
 
 # encode proprioception data
 prop/mlp_layers.fc_layer_params=(100,)
 prop/mlp_layers.activation_fn=@tf.nn.softsign
 prop/SequentialLayer.layers = @prop/mlp_layers()
+prop/SequentialLayer.name = 'prop'
 prop_enc=@prop/SequentialLayer()
 
 combiner/tf.keras.layers.Concatenate.axis=-1
@@ -58,14 +60,14 @@ actor/ActorDistributionNetwork.input_tensor_spec=%observation_spec
 actor/ActorDistributionNetwork.output_tensor_spec=%action_spec
 actor/ActorDistributionNetwork.preprocessing_layers={'image':%img_enc, 'states':%prop_enc}
 actor/ActorDistributionNetwork.preprocessing_combiner=@combiner/tf.keras.layers.Concatenate()
-actor/ActorDistributionNetwork.fc_layer_params=(50, 25)
+actor/ActorDistributionNetwork.fc_layer_params=(100, 50)
 actor/ActorDistributionNetwork.activation_fn=@tf.nn.softsign
 
 
 value/ValueNetwork.input_tensor_spec=%observation_spec
 value/ValueNetwork.preprocessing_layers={'image':%img_enc, 'states':%prop_enc}
 value/ValueNetwork.preprocessing_combiner=@combiner/tf.keras.layers.Concatenate()
-value/ValueNetwork.fc_layer_params=(50, 25)
+value/ValueNetwork.fc_layer_params=(100, 50)
 value/ValueNetwork.activation_fn=@tf.nn.softsign
 
 import alf.networks.stable_normal_projection_network

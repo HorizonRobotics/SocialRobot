@@ -197,7 +197,7 @@
             "icub::r_shoulder_roll",
             "icub::r_shoulder_yaw",
             "icub::r_elbow"],
-        "camera_sensor": "default::iCub::left_eye_link::left_camera",
+        "camera_sensor": "default::icub::left_eye_link::left_camera",
         "use_pid": true,
         "pid_type": [
             "velocity",

@@ -204,8 +204,14 @@ class GazeboAgent():
         # pos of continous joint could be huge, wrap the range to [-pi, pi)
         joint_pos_sin = np.sin(joint_pos)
         joint_pos_cos = np.cos(joint_pos)
-        internal_states = np.concatenate(
-            (joint_pos_sin, joint_pos_cos, joint_vel), axis=0)
+        if self.type.find('icub') != -1 and self._image_with_internal_states:
+            icub_extra_ob = self.get_icub_extra_obs(self)
+            internal_states = np.concatenate(
+                (joint_pos_sin, joint_pos_cos, joint_vel, icub_extra_ob),
+                axis=0)
+        else:
+            internal_states = np.concatenate(
+                (joint_pos_sin, joint_pos_cos, joint_vel), axis=0)
         return internal_states
 
     def get_control_space(self):
@@ -325,3 +331,38 @@ class GazeboAgent():
         else:
             control_range = np.array(joints_limits)
         return control_range
+
+    def get_icub_extra_obs(self, agent):
+        """Get contacts_to_ground, pose of key ponit of icub and center of them.
+        which is crucial to balance itself when walking. Only for the agent iCub.
+
+        Returns:
+            np.array of the extra observations of icub
+        """
+
+        def _get_contacts_to_ground(agent, contacts_sensor):
+            contacts = agent.get_collisions(contacts_sensor)
+            for collision in contacts:
+                if collision[1] == 'ground_plane::link::collision':
+                    return True
+            return False
+
+        root_pose = np.array(
+            agent.get_link_pose(agent.name + '::root_link')).flatten()
+        chest_pose = np.array(
+            agent.get_link_pose(agent.name + '::chest')).flatten()
+        l_foot_pose = np.array(
+            agent.get_link_pose(agent.name + '::l_leg::l_foot')).flatten()
+        r_foot_pose = np.array(
+            agent.get_link_pose(agent.name + '::r_leg::r_foot')).flatten()
+        foot_contacts = np.array([
+            _get_contacts_to_ground(agent, "l_foot_contact_sensor"),
+            _get_contacts_to_ground(agent, "r_foot_contact_sensor")
+        ]).astype(np.float32)
+        average_pos = np.sum([
+            root_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
+        ],
+                             axis=0) / 4.0
+        obs = np.concatenate((average_pos, root_pose, chest_pose, l_foot_pose,
+                              r_foot_pose, foot_contacts))
+        return obs
