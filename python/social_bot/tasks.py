@@ -326,7 +326,8 @@ class GoalTask(Task):
                 if self._switch_goal_within_episode:
                     self.pick_goal()
                     goal = self._world.get_agent(self._goal_name)
-                self._move_goal(goal, loc, agent_dir)
+                if self._move_goal_during_episode:
+                    self._move_goal(goal, loc, agent_dir)
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
