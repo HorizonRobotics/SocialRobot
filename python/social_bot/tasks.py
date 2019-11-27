@@ -139,11 +139,7 @@ class GoalTask(Task):
                      'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
                  ],
                  success_distance_thresh=0.5,
-<<<<<<< HEAD
-                 fail_distance_thresh=2.5,
-=======
                  fail_distance_thresh=2.0,
->>>>>>> 249929fc98d3474af1ae911afac22d5f49037875
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
                  sparse_reward=True,
