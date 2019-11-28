@@ -953,8 +953,8 @@ class PickAndPlace(Task):
             palm_dist = np.linalg.norm(
                 np.array(obj_pos) - np.array(finger_pos))
             gripping_feature_num = 1.0 * (
-                obj_pos[2] > 0.05) + 1.0 * l_contact + 1.0 * r_contact
-            # give rewards
+                obj_pos[2] > 0.02) + 1.0 * l_contact + 1.0 * r_contact
+            # yield rewards
             if gripping_feature_num >= 3 and dist < self._success_distance_thresh:
                 logging.debug("object has been successfuly placed")
                 reward = 100.0 if self._reward_shaping else 1.0
