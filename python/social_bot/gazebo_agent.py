@@ -325,3 +325,19 @@ class GazeboAgent():
         else:
             control_range = np.array(joints_limits)
         return control_range
+
+    def get_contacts(self, contacts_sensor, contact_collision):
+        """ Get contacts to the link.
+
+        Args:
+            contacts_sensor(string): the name of contacts_sensor
+            contact_collision(string): the collision to check contacts
+        Returns:
+            bool, there is contact or not
+        """
+        contacts = self.get_collisions(contacts_sensor)
+        for collision in contacts:
+            if collision[0] == contact_collision or collision[
+                    1] == contact_collision:
+                return True
+        return False

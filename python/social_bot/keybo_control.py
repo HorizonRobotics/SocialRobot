@@ -120,8 +120,6 @@ class KeyboardControl:
         return actions
 
     def _to_youbot_action(self):
-        wheel_joint_bl = self._speed + self._turning
-        wheel_joint_br = self._speed - self._turning
         wheel_joint_fl = self._speed + self._turning
         wheel_joint_fr = self._speed - self._turning
         if self._gripper_open:
@@ -141,8 +139,8 @@ class KeyboardControl:
             gripper_joint,
             gripper_joint,
             # wheel joints
-            wheel_joint_bl,
-            wheel_joint_br,
+            # wheel_joint_bl,
+            # wheel_joint_br,
             wheel_joint_fl,
             wheel_joint_fr
         ]
@@ -178,18 +176,18 @@ def main():
     import matplotlib.pyplot as plt
     import time
     from social_bot.envs.play_ground import PlayGround
-    from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D
+    from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace
     use_image_obs = False
     fig = None
-    agent_type = 'kuka_lwr_4plus'  #  'youbot_noplugin'
+    agent_type = 'youbot_noplugin'
     env = PlayGround(
         with_language=False,
         use_image_observation=use_image_obs,
         image_with_internal_states=False,
         agent_type=agent_type,
-        max_steps=100000,
+        max_steps=1000,
         real_time_update_rate=500,
-        tasks=[Reaching3D])
+        tasks=[PickAndPlace])
     env.render()
     keybo = KeyboardControl()
     step_cnt = 0
