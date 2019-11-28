@@ -528,7 +528,7 @@ class ICubAuxiliaryTask(Task):
             # a trick from roboschool humanoid flag run, important to learn to steer
             pos = np.array([x, y, 0.6])
             orient = self._get_angle_to_target(
-                pos, self._agent.type + '::root_link', np.pi)
+                self._agent, pos, self._agent.type + '::root_link', np.pi)
         self._agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
         while not done:
             # reward for not falling (alive reward)
@@ -547,13 +547,13 @@ class ICubAuxiliaryTask(Task):
             if self._target_name:
                 agent_pos = self.get_icub_extra_obs(self._agent)[:3]
                 head_angle = self._get_angle_to_target(
-                    agent_pos, self._agent.type + '::head')
+                    self._agent, agent_pos, self._agent.type + '::head')
                 root_angle = self._get_angle_to_target(
-                    agent_pos, self._agent.type + '::root_link')
+                    self._agent, agent_pos, self._agent.type + '::root_link')
                 l_foot_angle = self._get_angle_to_target(
-                    agent_pos, self._agent.type + '::l_leg::l_foot', np.pi)
+                    self._agent, agent_pos, self._agent.type + '::l_leg::l_foot', np.pi)
                 r_foot_angle = self._get_angle_to_target(
-                    agent_pos, self._agent.type + '::r_leg::r_foot', np.pi)
+                    self._agent, agent_pos, self._agent.type + '::r_leg::r_foot', np.pi)
                 orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
                                np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
             else:
