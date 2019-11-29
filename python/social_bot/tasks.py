@@ -877,9 +877,8 @@ class Reaching3D(Task):
 @gin.configurable
 class PickAndPlace(Task):
     """
-    A task to grip an object (a wood cube), and move to find the destination, and
-    then placing it to the target position.
-    A simple reward shaping is used to guide the agent to grip cube and move to the destination.
+    A task to grip an object (a wood cube), move and then place it to the target position.
+    A simple reward shaping can be used to guide the agent to grip cube and move to the position.
     This task is only compatible for Agent youbot_noplugin.
     """
 
