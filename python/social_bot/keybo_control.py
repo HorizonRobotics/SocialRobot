@@ -139,8 +139,6 @@ class KeyboardControl:
             gripper_joint,
             gripper_joint,
             # wheel joints
-            # wheel_joint_bl,
-            # wheel_joint_br,
             wheel_joint_fl,
             wheel_joint_fr
         ]
