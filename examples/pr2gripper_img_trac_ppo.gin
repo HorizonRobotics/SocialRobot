@@ -1,0 +1,122 @@
+include 'ppo.gin'
+
+import tf_agents.networks.utils
+import alf.environments.suite_socialbot
+import alf.utils.common
+
+# environment config
+
+# "SocialBot-Pr2Gripper-v0"
+PR2_WORLD_SETTING = [
+    # set camera size and format
+    "//camera//width=128",
+    "//camera//height=128",
+    "//camera//format=L8",
+    # make head fixed
+    "//joint[contains(@name, 'pr2::head_')].type=fixed",
+    # make eye camera sensor focus on the table
+    "//link[@name='pr2::head_tilt_link']/pose=0.033267 -0.003973 1.1676 0.000174 1.0 -0.013584",
+    # using depth camera
+    # "//sensor[contains(@name, 'wide_stereo_gazebo_')].type=depth",
+    # make eye camera vision a bit wider
+    "//sensor[contains(@name, 'wide_stereo_gazebo_')]/camera/horizontal_fov=1.8",
+    # remove unused joint
+    "//joint[contains(@name, 'pr2::l_')]=",
+    "//link[contains(@name, 'pr2::l_')]=",
+    "//joint[contains(@name, 'wheel')]=",
+    "//link[contains(@name, 'wheel')]=",
+    "//joint[contains(@name, 'caster')]=",
+    "//link[contains(@name, 'caster')]=",
+    "//sensor[@name='head_mount_sensor']=",
+    "//sensor[@name='head_mount_prosilica_link_sensor']=",
+    "//sensor[@name='l_forearm_cam_sensor']=",
+    "//sensor[@name='r_forearm_cam_sensor']=",
+]
+
+Pr2Gripper.use_internal_states_only=False
+Pr2Gripper.world_config=%PR2_WORLD_SETTING
+
+create_environment.env_name="SocialBot-Pr2Gripper-v0"
+create_environment.num_parallel_environments=30
+create_environment.env_load_fn=@suite_socialbot.load
+
+# algorithm config
+
+CONV_LAYER_PARAMS=((32, 8, 4), (64, 4, 2), (64, 3, 1))
+
+# encode camera sensor data
+img/mlp_layers.conv_layer_params=%CONV_LAYER_PARAMS
+img/mlp_layers.fc_layer_params=(50,)
+img/mlp_layers.activation_fn=@tf.nn.softsign
+img/SequentialLayer.layers = @img/mlp_layers()
+img/SequentialLayer.name = 'img'
+img_enc = @img/SequentialLayer()
+
+# encode internal states
+state/mlp_layers.fc_layer_params=(50,)
+state/mlp_layers.activation_fn=@tf.nn.softsign
+state/SequentialLayer.layers = @state/mlp_layers()
+state/SequentialLayer.name = 'state'
+state_enc=@state/SequentialLayer()
+
+combiner/tf.keras.layers.Concatenate.axis=-1
+
+actor/ActorDistributionNetwork.input_tensor_spec=%observation_spec
+actor/ActorDistributionNetwork.output_tensor_spec=%action_spec
+actor/ActorDistributionNetwork.preprocessing_layers={'image':%img_enc, 'states':%state_enc}
+actor/ActorDistributionNetwork.preprocessing_combiner=@combiner/tf.keras.layers.Concatenate()
+actor/ActorDistributionNetwork.fc_layer_params=(50, 25)
+actor/ActorDistributionNetwork.activation_fn=@tf.nn.softsign
+
+
+# import alf.networks.stable_normal_projection_network
+# ActorDistributionNetwork.continuous_projection_net=@StableNormalProjectionNetwork
+# StableNormalProjectionNetwork.init_means_output_factor=1e-10
+# StableNormalProjectionNetwork.inverse_std_transform='softplus'
+# StableNormalProjectionNetwork.scale_distribution=True
+# StableNormalProjectionNetwork.state_dependent_std=True
+# StableNormalProjectionNetwork.init_std=1.0
+
+# estimated_entropy.check_numerics=True
+# estimated_entropy.assume_reparametrization=True
+
+value/ValueNetwork.input_tensor_spec=%observation_spec
+value/ValueNetwork.preprocessing_layers={'image':%img_enc, 'states':%state_enc}
+value/ValueNetwork.preprocessing_combiner=@combiner/tf.keras.layers.Concatenate()
+value/ValueNetwork.fc_layer_params=(50, 25)
+value/ValueNetwork.activation_fn=@tf.nn.softsign
+
+ac/Adam.learning_rate=5e-5
+
+import alf.algorithms.trac_algorithm
+Agent.action_spec=%action_spec
+ActorCriticAlgorithm.actor_network=@actor/ActorDistributionNetwork()
+ActorCriticAlgorithm.value_network=@value/ValueNetwork()
+Agent.optimizer=@ac/Adam()
+Agent.gradient_clipping=5.0
+Agent.rl_algorithm_cls=@TracAlgorithm
+TracAlgorithm.ac_algorithm_cls=@PPOAlgorithm
+TracAlgorithm.action_dist_clip_per_dim=0.01
+Agent.observation_transformer=@image_scale_transformer
+image_scale_transformer.fields=['image']
+
+PPOLoss.entropy_regularization=0.0
+PPOLoss.gamma=0.99
+PPOLoss.normalize_advantages=True
+PPOLoss.td_lambda=0.95
+PPOLoss.td_error_loss_fn=@element_wise_squared_loss
+PPOLoss.check_numerics=True
+PPOLoss.importance_ratio_clipping=0.1
+
+# training config
+TrainerConfig.mini_batch_length=1
+TrainerConfig.unroll_length=100
+TrainerConfig.mini_batch_size=3000
+TrainerConfig.num_iterations=100000
+TrainerConfig.num_updates_per_train_step=25
+TrainerConfig.eval_interval=1000
+TrainerConfig.debug_summaries=True
+TrainerConfig.summarize_grads_and_vars=True
+TrainerConfig.summary_interval=1
+
+RLAlgorithm.summarize_action_distributions=True
