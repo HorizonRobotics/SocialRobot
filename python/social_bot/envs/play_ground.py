@@ -196,6 +196,7 @@ class PlayGround(GazeboEnvBase):
         self._teacher.reset(self._agent, self._world)
         # The first call of "teach() after "done" will reset the task
         teacher_action = self._teacher.teach("")
+        self._world.step(self._sub_steps)
         obs = self._agent.get_observation(self._teacher,
                                           teacher_action.sentence)
         return obs

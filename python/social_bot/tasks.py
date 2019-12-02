@@ -324,7 +324,8 @@ class GoalTask(Task):
                 if self._switch_goal_within_episode:
                     self.pick_goal()
                     goal = self._world.get_agent(self._goal_name)
-                self._move_goal(goal, loc, agent_dir)
+                if self._move_goal_during_episode:
+                    self._move_goal(goal, loc, agent_dir)
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
@@ -341,7 +342,6 @@ class GoalTask(Task):
                     logging.debug("yielding reward: " + str(reward))
                     self._push_reward_queue(0)
                 self._prev_dist = dist
-                print(reward)
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence=self._goal_name)
         reward = -1.0
@@ -544,11 +544,9 @@ class ICubAuxiliaryTask(Task):
                 root_angle = self._get_angle_to_target(
                     self._agent, agent_pos, self._agent.type + '::root_link')
                 l_foot_angle = self._get_angle_to_target(
-                    self._agent, agent_pos,
-                    self._agent.type + '::l_leg::l_foot', np.pi)
+                    self._agent, agent_pos, self._agent.type + '::l_leg::l_foot', np.pi)
                 r_foot_angle = self._get_angle_to_target(
-                    self._agent, agent_pos,
-                    self._agent.type + '::r_leg::r_foot', np.pi)
+                    self._agent, agent_pos, self._agent.type + '::r_leg::r_foot', np.pi)
                 orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
                                np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
             else:
@@ -557,7 +555,7 @@ class ICubAuxiliaryTask(Task):
             if done:
                 reward = -100
             else:
-                reward = standing_reward - 0.0 * movement_cost - 0.0 * orient_cost
+                reward = standing_reward - 0.5 * movement_cost - 0.2 * orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
 
     def _get_angle_to_target(self, aegnt, agent_pos, link_name, offset=0):
