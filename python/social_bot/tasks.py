@@ -341,6 +341,7 @@ class GoalTask(Task):
                     logging.debug("yielding reward: " + str(reward))
                     self._push_reward_queue(0)
                 self._prev_dist = dist
+                print(reward)
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence=self._goal_name)
         reward = -1.0
@@ -486,27 +487,21 @@ class ICubAuxiliaryTask(Task):
                  env,
                  max_steps,
                  target=None,
-                 agent_init_pos=(0, 0),
-                 agent_pos_random_range=0,
                  reward_weight=1.0):
         """
         Args:
             env (gym.Env): an instance of Environment
             max_steps (int): episode will end in so many steps
-            reward_weight (float): the weight of the reward, should be tuned
-                accroding to reward range of other tasks 
             target (string): this is the target icub should face towards, since
                 you may want the agent interact with something
-            agent_init_pos (tuple): the expected initial position of the agent
-            pos_random_range (float): random range of the initial position
+            reward_weight (float): the weight of the reward, should be tuned
+                accroding to reward range of other tasks 
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self.task_vocab = ['icub']
         self._target_name = target
         self._pre_agent_pos = np.array([0, 0, 0], dtype=np.float32)
-        self._agent_init_pos = agent_init_pos
-        self._random_range = agent_pos_random_range
         if self._target_name:
             self._target = self._world.get_model(self._target_name)
         with open(
@@ -520,16 +515,14 @@ class ICubAuxiliaryTask(Task):
         self._pre_agent_pos = self._agent.get_icub_extra_obs(self._agent)[:3]
         agent_sentence = yield
         done = False
-        # set icub random initial pose
-        x = self._agent_init_pos[0] + random.random() * self._random_range
-        y = self._agent_init_pos[1] + random.random() * self._random_range
+        # set icub random initial orientation
+        pos = np.array(self._agent.get_pose()[0])
         orient = (random.random() - 0.5) * np.pi
         if self._target_name and random.randint(0, 1) == 0:
             # a trick from roboschool humanoid flag run, important to learn to steer
-            pos = np.array([x, y, 0.6])
             orient = self._get_angle_to_target(
                 self._agent, pos, self._agent.type + '::root_link', np.pi)
-        self._agent.set_pose((np.array([x, y, 0.6]), np.array([0, 0, orient])))
+        self._agent.set_pose((pos, np.array([0, 0, orient])))
         while not done:
             # reward for not falling (alive reward)
             agent_height = np.array(
@@ -564,7 +557,7 @@ class ICubAuxiliaryTask(Task):
             if done:
                 reward = -100
             else:
-                reward = standing_reward - 0.5 * movement_cost - 0.2 * orient_cost
+                reward = standing_reward - 0.0 * movement_cost - 0.0 * orient_cost
             agent_sentence = yield TeacherAction(reward=reward, done=done)
 
     def _get_angle_to_target(self, aegnt, agent_pos, link_name, offset=0):
