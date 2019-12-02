@@ -22,7 +22,10 @@ PlayGround.use_image_observation=True
 PlayGround.image_with_internal_states=True
 PlayGround.resized_image_size=(64, 64)
 PlayGround.step_time=0.05
+GazeboAgent.stack_internal_states=True
 
+# suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
+# FrameStack.stack_size=2
 suite_socialbot.load.max_episode_steps=200
 GoalTask.max_steps=202
 GoalTask.sparse_reward=False

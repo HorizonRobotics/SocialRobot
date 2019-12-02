@@ -40,6 +40,7 @@ class GazeboAgent():
                  use_image_observation=True,
                  resized_image_size=None,
                  image_with_internal_states=False,
+                 stack_internal_states=False,
                  with_language=False,
                  with_agent_language=False,
                  vocab_sequence_length=20):
@@ -61,6 +62,8 @@ class GazeboAgent():
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
+            stack_internal_states (bool): If true, the agent's self internal states
+                would be stacked with the one of last step
             with_language (bool): The observation will be a dict with an extra sentence
             with_agent_language (bool): Include language in agent's action space
             vocab_sequence_length (int): the length of encoded sequence if with_language
@@ -70,6 +73,8 @@ class GazeboAgent():
         self._use_image_observation = use_image_observation
         self._resized_image_size = resized_image_size
         self._image_with_internal_states = image_with_internal_states
+        self._stack_internal_states = stack_internal_states
+        self._internal_states = None
         self._with_language = with_language
         self._with_agent_language = with_agent_language
         self._vocab_sequence_length = vocab_sequence_length
@@ -189,6 +194,8 @@ class GazeboAgent():
     def get_internal_states(self):
         """ Get the internal joint states of the agent.
 
+        Args:
+            stack (bool): If true, teh return would be stacked with the one of last step
         Returns:
             a numpy.array including joint positions and velocities
         """
@@ -212,7 +219,14 @@ class GazeboAgent():
         else:
             internal_states = np.concatenate(
                 (joint_pos_sin, joint_pos_cos, joint_vel), axis=0)
-        return internal_states
+        if self._stack_internal_states:
+            if self._internal_states is None:
+                self._internal_states = internal_states
+            stacked_states = np.concatenate((internal_states, self._internal_states), axis=0)
+            self._internal_states = internal_states
+            return stacked_states
+        else:
+            return internal_states
 
     def get_control_space(self):
         """ Get the pure controlling space without language. """
