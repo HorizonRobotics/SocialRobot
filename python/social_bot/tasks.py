@@ -35,6 +35,11 @@ class Task(object):
     A Task is for teaching a single task.
     """
 
+    compatible_agents = [
+        'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands',
+        'youbot_noplugin', 
+    ]
+
     def __init__(self, env, max_steps=200, reward_weight=1.0):
         """
         Setting things up during the initialization.
@@ -801,6 +806,8 @@ class Reaching3D(Task):
     This task is only compatible with Agent kuka_lwr_4plus.
     """
 
+    compatible_agents = ['kuka_lwr_4plus']
+
     def __init__(self,
                  env,
                  max_steps,
@@ -820,7 +827,7 @@ class Reaching3D(Task):
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
-        assert self._agent.type == 'kuka_lwr_4plus', "Reaching3D Task only support kuka_lwr_4plus for now"
+        assert self._agent.type in self.compatible_agents, "Reaching3D Task only support kuka_lwr_4plus for now"
         self._reaching_link = '::lwr_arm_6_link'
         self._random_range = random_range
         self._success_distance_thresh = success_distance_thresh
@@ -886,6 +893,8 @@ class PickAndPlace(Task):
     This task is only compatible with Agent youbot_noplugin.
     """
 
+    compatible_agents = ['youbot_noplugin']
+
     def __init__(self,
                  env,
                  max_steps,
@@ -909,11 +918,11 @@ class PickAndPlace(Task):
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
-        assert self._agent.type == 'youbot_noplugin', "PickAndPlace Task only support youbot_noplugin for now"
+        assert self._agent.type in self.compatible_agents, "PickAndPlace Task only support youbot_noplugin for now"
         self._palm_link = 'youbot_noplugin::gripper_palm_link'
         self._finger_link_l = 'youbot_noplugin::gripper_finger_link_l'
         self._finger_link_r = 'youbot_noplugin::gripper_finger_link_r'
-        self._object_name = 'wood_scube_5cm'
+        self._object_name = 'wood_cube_5cm'
         self._object_collision_name = 'wood_cube_5cm::link::collision'
         self._object_random_range = object_random_range
         self._place_to_random_range = place_to_random_range
