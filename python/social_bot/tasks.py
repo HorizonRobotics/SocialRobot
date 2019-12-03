@@ -125,20 +125,20 @@ class Task(object):
                             target,
                             random_range,
                             center_pos=np.array([0, 0]),
-                            mini_distance=0,
+                            min_distance=0,
                             height=0):
         """ Move an object to a random position.
 
         Args:
             target (pyagzebo.Model): the target to move
             random_range (float): the range of the new position
-            center_pos (numpy.array): the center of the range
-            mini_distance (float): the new position will be not closer than this distance 
+            center_pos (numpy.array): the center coordinates (x, y) of the random range
+            min_distance (float): the new position will not be closer than this distance 
             height (float): height offset 
         Returns:
             np.array, the new position
         """
-        r = random.uniform(mini_distance, random_range)
+        r = random.uniform(min_distance, random_range)
         theta = random.random() * 2 * np.pi
         loc = (center_pos[0] + r * np.cos(theta),
                center_pos[1] + r * np.sin(theta), height)
@@ -655,7 +655,7 @@ class ICubAuxiliaryTask(Task):
         icub_extra_obs = self.get_icub_extra_obs(agent)
         if self._target_name:
             agent_pos = icub_extra_obs[:3]
-            # TODO: be compatible for calling multiple times in one env step
+            # TODO: be compatible with calling multiple times in one env step
             agent_speed = (
                 agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos
@@ -798,7 +798,7 @@ class Reaching3D(Task):
     """
     A task to reach a random 3D position with the end effector of a robot arm.
     An optional distance based reward shaping can be used.
-    This task is only compatible for Agent kuka_lwr_4plus.
+    This task is only compatible with Agent kuka_lwr_4plus.
     """
 
     def __init__(self,
@@ -878,8 +878,12 @@ class Reaching3D(Task):
 class PickAndPlace(Task):
     """
     A task to grip an object (a wood cube), move and then place it to the target position.
-    A simple reward shaping can be used to guide the agent to grip cube and move to the position.
-    This task is only compatible for Agent youbot_noplugin.
+    A simple reward shaping can be used to guide the agent to grip cube and move to the position:
+        If object is not being gripped, the reward is the gripper contacts, wether object is off the
+            ground, and negative distance between object and gripper
+        If being gripped, an extra truncked negative distance from object to goal is added.
+        If suceesfully placed, a reward of 100 is given. 
+    This task is only compatible with Agent youbot_noplugin.
     """
 
     def __init__(self,
@@ -887,7 +891,7 @@ class PickAndPlace(Task):
                  max_steps,
                  object_random_range=0.5,
                  place_to_random_range=0.5,
-                 mini_distance=0.25,
+                 min_distance=0.25,
                  success_distance_thresh=0.05,
                  reward_shaping=False,
                  reward_weight=1.0):
@@ -897,7 +901,7 @@ class PickAndPlace(Task):
             max_steps (int): episode will end if not complet the task in so many steps
             object_random_range (float): the object's random position range to the agent
             place_to_random_range (float): the range of target placing position to the object
-            mini_distance (float): the mini_distance of the placing position to the object
+            min_distance (float): the min_distance of the placing position to the object
             success_distance_thresh (float): consider success if the target is within this distance to the goal position
             reward_shaping (bool): if false, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with shapped reward.
@@ -909,14 +913,16 @@ class PickAndPlace(Task):
         self._palm_link = 'youbot_noplugin::gripper_palm_link'
         self._finger_link_l = 'youbot_noplugin::gripper_finger_link_l'
         self._finger_link_r = 'youbot_noplugin::gripper_finger_link_r'
+        self._object_name = 'wood_scube_5cm'
+        self._object_collision_name = 'wood_cube_5cm::link::collision'
         self._object_random_range = object_random_range
         self._place_to_random_range = place_to_random_range
-        self._mini_distance = mini_distance
+        self._min_distance = min_distance
         self._success_distance_thresh = success_distance_thresh
         self._reward_shaping = reward_shaping
-        self._env.insert_model_list(['wood_cube_5cm', 'goal_indicator'])
+        self._env.insert_model_list([self._object_name, 'goal_indicator'])
         self._goal = self._world.get_model('goal_indicator')
-        self._object = self._world.get_model('wood_cube_5cm')
+        self._object = self._world.get_model(self._object_name)
 
     def run(self):
         """ Start a teaching episode for this task. """
@@ -925,13 +931,13 @@ class PickAndPlace(Task):
             target=self._object,
             random_range=self._object_random_range,
             center_pos=np.array([0, 0]),
-            mini_distance=self._mini_distance,
+            min_distance=self._min_distance,
             height=0)
         goal_pos = self._random_move_object(
             target=self._goal,
             random_range=self._place_to_random_range,
             center_pos=obj_pos[:2],
-            mini_distance=self._mini_distance,
+            min_distance=self._min_distance,
             height=0)
         steps = 0
         while steps < self._max_steps:
@@ -944,23 +950,24 @@ class PickAndPlace(Task):
                 np.array(finger_l_pos) + np.array(finger_r_pos)) / 2.0
             # get contacts
             l_contact = self._agent.get_contacts(
-                'finger_cnta_l', 'wood_cube_5cm::link::collision')
+                'finger_cnta_l', self._object_collision_name)
             r_contact = self._agent.get_contacts(
-                'finger_cnta_r', 'wood_cube_5cm::link::collision')
+                'finger_cnta_r', self._object_collision_name)
             # check distance and contacts
             dist = np.linalg.norm(np.array(obj_pos) - goal_pos)
             palm_dist = np.linalg.norm(
                 np.array(obj_pos) - np.array(finger_pos))
             gripping_feature_num = 1.0 * (
                 obj_pos[2] > 0.02) + 1.0 * l_contact + 1.0 * r_contact
+            gripping = gripping_feature_num >= 3
             # yield rewards
-            if gripping_feature_num >= 3 and dist < self._success_distance_thresh:
+            if gripping and dist < self._success_distance_thresh:
                 logging.debug("object has been successfuly placed")
                 reward = 100.0 if self._reward_shaping else 1.0
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done", done=True)
             else:
-                reward = (gripping_feature_num - dist -
+                reward = (gripping_feature_num - min(dist * gripping, 1.0) -
                           palm_dist) if self._reward_shaping else 0
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
@@ -981,8 +988,8 @@ class PickAndPlace(Task):
         obj_pos, obj_rot = self._object.get_pose()
         # contacts
         finger_contacts = np.array([
-            agent.get_contacts('finger_cnta_l', 'wood_cube_5cm::link::collision'),
-            agent.get_contacts('finger_cnta_r', 'wood_cube_5cm::link::collision')
+            agent.get_contacts('finger_cnta_l', self._object_collision_name),
+            agent.get_contacts('finger_cnta_r', self._object_collision_name)
         ]).astype(np.float32)
         obs = np.array(
             [goal_pos, obj_pos, obj_rot, finger_l_pos, finger_r_pos,
