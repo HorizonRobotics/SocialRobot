@@ -36,8 +36,11 @@ class Task(object):
     """
 
     compatible_agents = [
-        'pioneer2dx_noplugin', 'pr2_noplugin', 'icub', 'icub_with_hands',
-        'youbot_noplugin', 
+        'pioneer2dx_noplugin',
+        'pr2_noplugin',
+        'icub',
+        'icub_with_hands',
+        'youbot_noplugin',
     ]
 
     def __init__(self, env, max_steps=200, reward_weight=1.0):
@@ -907,11 +910,13 @@ class PickAndPlace(Task):
         """
         Args:
             env (gym.Env): an instance of Environment
-            max_steps (int): episode will end if not complet the task in so many steps
+            max_steps (int): episode will end if not complet the task in so many steps, recommend to be 150
+                for agent youbot_noplugin and object 5cm cube
             object_random_range (float): the object's random position range to the agent
             place_to_random_range (float): the range of target placing position to the object
             min_distance (float): the min_distance of the placing position to the object
-            success_distance_thresh (float): consider success if the target is within this distance to the goal position
+            success_distance_thresh (float): consider success if the target is within this distance to the
+                goal position
             reward_shaping (bool): if false, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with shapped reward.
             reward_weight (float): the weight of the reward
@@ -924,6 +929,7 @@ class PickAndPlace(Task):
         self._finger_link_r = 'youbot_noplugin::gripper_finger_link_r'
         self._object_name = 'wood_cube_5cm'
         self._object_collision_name = 'wood_cube_5cm::link::collision'
+        self._object_height = 0.025  # the height of center pos of the 5cm cube
         self._object_random_range = object_random_range
         self._place_to_random_range = place_to_random_range
         self._min_distance = min_distance
@@ -940,14 +946,13 @@ class PickAndPlace(Task):
             target=self._object,
             random_range=self._object_random_range,
             center_pos=np.array([0, 0]),
-            min_distance=self._min_distance,
-            height=0)
+            min_distance=self._min_distance)
         goal_pos = self._random_move_object(
             target=self._goal,
             random_range=self._place_to_random_range,
             center_pos=obj_pos[:2],
             min_distance=self._min_distance,
-            height=0)
+            height=self._object_height)
         steps = 0
         while steps < self._max_steps:
             steps += 1
@@ -958,17 +963,17 @@ class PickAndPlace(Task):
             finger_pos = (
                 np.array(finger_l_pos) + np.array(finger_r_pos)) / 2.0
             # get contacts
-            l_contact = self._agent.get_contacts(
-                'finger_cnta_l', self._object_collision_name)
-            r_contact = self._agent.get_contacts(
-                'finger_cnta_r', self._object_collision_name)
+            l_contact = self._agent.get_contacts('finger_cnta_l',
+                                                 self._object_collision_name)
+            r_contact = self._agent.get_contacts('finger_cnta_r',
+                                                 self._object_collision_name)
             # check distance and contacts
             dist = np.linalg.norm(np.array(obj_pos) - goal_pos)
             palm_dist = np.linalg.norm(
                 np.array(obj_pos) - np.array(finger_pos))
-            gripping_feature_num = 1.0 * (
-                obj_pos[2] > 0.02) + 1.0 * l_contact + 1.0 * r_contact
-            gripping = gripping_feature_num >= 3
+            gripping_feature_num = 1.0 * l_contact + 1.0 * r_contact + 10.0 * min(
+                obj_pos[2], 0.1)  # encourge to lift the object
+            gripping = (gripping_feature_num >= 2.5)
             # yield rewards
             if gripping and dist < self._success_distance_thresh:
                 logging.debug("object has been successfuly placed")
@@ -976,8 +981,9 @@ class PickAndPlace(Task):
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done", done=True)
             else:
-                reward = (gripping_feature_num - min(dist * gripping, 1.0) -
-                          palm_dist) if self._reward_shaping else 0
+                shaped_reward = (3.5 + obj_pos[2] - min(dist, 1.0)) if gripping else (
+                    gripping_feature_num - palm_dist)
+                reward = shaped_reward if self._reward_shaping else 0
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
