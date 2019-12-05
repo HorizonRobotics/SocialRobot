@@ -86,12 +86,17 @@ class Task(object):
 
     def task_specific_observation(self, agent):
         """
+        The extra infomation needed by the task if sparse states are used.
+
+        This can be overide by the sub task. Note that the pose and velocity of
+        agent, and the state of actionable internal joints are already included
+        in agent.get_full_states_observation(). Thus does not need to be added
+        here.
+
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations will be added into the observation
-            besides original observation from the environment. This can be overide
-            by the sub task
+            np.array, the extra observations will be added into the observation.
         """
         return np.array([])
 
@@ -927,9 +932,8 @@ class PickAndPlace(Task):
         self._palm_link = 'youbot_noplugin::gripper_palm_link'
         self._finger_link_l = 'youbot_noplugin::gripper_finger_link_l'
         self._finger_link_r = 'youbot_noplugin::gripper_finger_link_r'
-        self._object_name = 'wood_cube_5cm'
-        self._object_collision_name = 'wood_cube_5cm::link::collision'
-        self._object_height = 0.025  # the height of center pos of the 5cm cube
+        self._object_name = 'wood_cube_5cm_without_offset'
+        self._object_collision_name = 'wood_cube_5cm_without_offset::link::collision'
         self._object_random_range = object_random_range
         self._place_to_random_range = place_to_random_range
         self._min_distance = min_distance
@@ -938,6 +942,7 @@ class PickAndPlace(Task):
         self._env.insert_model_list([self._object_name, 'goal_indicator'])
         self._goal = self._world.get_model('goal_indicator')
         self._object = self._world.get_model(self._object_name)
+        self._obj_init_height = self._object.get_pose()[0][2]
 
     def run(self):
         """ Start a teaching episode for this task. """
@@ -946,18 +951,20 @@ class PickAndPlace(Task):
             target=self._object,
             random_range=self._object_random_range,
             center_pos=np.array([0, 0]),
-            min_distance=self._min_distance)
+            min_distance=self._min_distance,
+            height=self._obj_init_height)
         goal_pos = self._random_move_object(
             target=self._goal,
             random_range=self._place_to_random_range,
             center_pos=obj_pos[:2],
             min_distance=self._min_distance,
-            height=self._object_height)
+            height=self._obj_init_height)
         steps = 0
         while steps < self._max_steps:
             steps += 1
             # get positions
             obj_pos, _ = self._object.get_pose()
+            obj_height = obj_pos[2]
             finger_l_pos, _ = self._agent.get_link_pose(self._finger_link_l)
             finger_r_pos, _ = self._agent.get_link_pose(self._finger_link_r)
             finger_pos = (
@@ -968,21 +975,21 @@ class PickAndPlace(Task):
             r_contact = self._agent.get_contacts('finger_cnta_r',
                                                  self._object_collision_name)
             # check distance and contacts
-            dist = np.linalg.norm(np.array(obj_pos) - goal_pos)
-            palm_dist = np.linalg.norm(
-                np.array(obj_pos) - np.array(finger_pos))
-            gripping_feature_num = 1.0 * l_contact + 1.0 * r_contact + 10.0 * min(
-                obj_pos[2], 0.1)  # encourge to lift the object
-            gripping = (gripping_feature_num >= 2.5)
+            obj_dist = np.linalg.norm(np.array(obj_pos) - goal_pos)
+            palm_dist = np.linalg.norm(np.array(obj_pos) - np.array(finger_pos))
+            obj_lifted = obj_height / self._obj_init_height - 1.0
+            gripping_feature = 0.25 * l_contact + 0.25 * r_contact + min(
+                obj_lifted, 1.0)  # encourge to lift the object by obj_height
+            gripping = (gripping_feature >= 0.999999)
             # yield rewards
-            if gripping and dist < self._success_distance_thresh:
+            if gripping and obj_dist - self._obj_init_height < self._success_distance_thresh:  # minus an offset of object height
                 logging.debug("object has been successfuly placed")
                 reward = 100.0 if self._reward_shaping else 1.0
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done", done=True)
             else:
-                shaped_reward = (3.5 + obj_pos[2] - min(dist, 1.0)) if gripping else (
-                    gripping_feature_num - palm_dist)
+                shaped_reward = 2.0 - min(obj_dist, 1.0) if gripping else (
+                    gripping_feature - palm_dist)
                 reward = shaped_reward if self._reward_shaping else 0
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
