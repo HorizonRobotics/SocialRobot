@@ -976,20 +976,24 @@ class PickAndPlace(Task):
                                                  self._object_collision_name)
             # check distance and contacts
             obj_dist = np.linalg.norm(np.array(obj_pos) - goal_pos)
-            palm_dist = np.linalg.norm(np.array(obj_pos) - np.array(finger_pos))
+            obj_dist_xy = np.linalg.norm(np.array(obj_pos)[:2] - goal_pos[:2])
+            dist_z = abs(obj_height - goal_pos[2])
+            palm_dist = np.linalg.norm(
+                np.array(obj_pos) - np.array(finger_pos))
             obj_lifted = obj_height / self._obj_init_height - 1.0
             gripping_feature = 0.25 * l_contact + 0.25 * r_contact + min(
                 obj_lifted, 1.0)  # encourge to lift the object by obj_height
             gripping = (gripping_feature >= 0.999999)
-            # yield rewards
-            if gripping and obj_dist - self._obj_init_height < self._success_distance_thresh:  # minus an offset of object height
+            # success condition, minus an offset of object height on z-axis
+            if gripping and obj_dist_xy < self._success_distance_thresh and dist_z - self._obj_init_height < self._success_distance_thresh:
                 logging.debug("object has been successfuly placed")
                 reward = 100.0 if self._reward_shaping else 1.0
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done", done=True)
             else:
-                shaped_reward = 2.0 - min(obj_dist, 1.0) if gripping else (
-                    gripping_feature - palm_dist)
+                shaped_reward = max(
+                    2.0 - obj_dist / self._place_to_random_range,
+                    1.0) if gripping else (gripping_feature - palm_dist)
                 reward = shaped_reward if self._reward_shaping else 0
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
