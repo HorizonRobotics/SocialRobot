@@ -584,6 +584,14 @@
           </mesh>
         </geometry>
       </visual>
+      <sensor name="finger_cnta_l" type="contact">
+        <always_on>1</always_on>
+        <update_rate>100.000000</update_rate>
+        <contact>
+          <collision>gripper_finger_link_l_geom</collision>
+          <topic>__default_topic__</topic>
+        </contact>
+      </sensor>
       <gravity>1</gravity>
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
@@ -636,6 +644,14 @@
           </mesh>
         </geometry>
       </visual>
+      <sensor name="finger_cnta_r" type="contact">
+        <always_on>1</always_on>
+        <update_rate>100.000000</update_rate>
+        <contact>
+          <collision>gripper_finger_link_r_geom</collision>
+          <topic>__default_topic__</topic>
+        </contact>
+      </sensor>
       <gravity>1</gravity>
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
@@ -742,8 +758,8 @@
           </contact>
           <friction>
             <ode>
-              <mu>0.1</mu>
-              <mu2>0.1</mu2>
+              <mu>0.01</mu>
+              <mu2>0.01</mu2>
             </ode>
           </friction>
         </surface>
@@ -1137,7 +1153,7 @@
       <child>wheel_link_bl</child>
       <axis>
         <dynamics>
-          <damping>1</damping>
+          <damping>0.01</damping>
           <friction>0</friction>
         </dynamics>
         <limit>
@@ -1153,7 +1169,7 @@
       <child>wheel_link_br</child>
       <axis>
         <dynamics>
-          <damping>1</damping>
+          <damping>0.01</damping>
           <friction>0</friction>
         </dynamics>
         <limit>
