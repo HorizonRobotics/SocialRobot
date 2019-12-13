@@ -37,6 +37,7 @@ class GazeboAgent():
                  agent_type,
                  name=None,
                  config=None,
+                 use_simple_full_states=False,
                  use_image_observation=True,
                  resized_image_size=None,
                  image_with_internal_states=False,
@@ -54,6 +55,8 @@ class GazeboAgent():
                 if None it will be set the same as agent_type
             config (dict): the configuarations for the agent
                 see `agent_cfg.jason` for details
+            use_simple_full_states (bool): Use the simplest full states like
+                agent's distance and direction to goal
             use_image_observation (bool): Use image or not
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
@@ -67,6 +70,7 @@ class GazeboAgent():
         """
         self._world = world
         self.type = agent_type
+        self._use_simple_full_states = use_simple_full_states
         self._use_image_observation = use_image_observation
         self._resized_image_size = resized_image_size
         self._image_with_internal_states = image_with_internal_states
@@ -180,10 +184,22 @@ class GazeboAgent():
         """
         task_specific_ob = teacher.get_task_specific_observation(self)
         agent_pose = np.array(self.get_pose()).flatten()
-        agent_vel = np.array(self.get_velocities()).flatten()
-        internal_states = self.get_internal_states()
-        obs = np.concatenate(
-            (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
+        if self._use_simple_full_states:
+            # assumes GoalTask and that the first 3 dims of the
+            # task_specific_observation give the goal position.
+            yaw = agent_pose[5]
+            x = task_specific_ob[0] - agent_pose[0]
+            y = task_specific_ob[1] - agent_pose[1]
+            # rotate -yaw
+            rotated_x = x * np.cos(-yaw) - y * np.sin(-yaw)
+            rotated_y = x * np.sin(-yaw) + y * np.cos(-yaw)
+            obs = np.array([rotated_x, rotated_y])
+        else:
+            agent_vel = np.array(self.get_velocities()).flatten()
+            internal_states = self.get_internal_states()
+            obs = np.concatenate(
+                (task_specific_ob, agent_pose, agent_vel, internal_states),
+                axis=0)
         return obs
 
     def get_internal_states(self):
