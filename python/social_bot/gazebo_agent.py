@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 import os
 import time
 import random
@@ -38,6 +39,7 @@ class GazeboAgent():
                  name=None,
                  config=None,
                  use_simple_full_states=False,
+                 view_angle_limit=0,
                  use_image_observation=True,
                  resized_image_size=None,
                  image_with_internal_states=False,
@@ -57,6 +59,9 @@ class GazeboAgent():
                 see `agent_cfg.jason` for details
             use_simple_full_states (bool): Use the simplest full states like
                 agent's distance and direction to goal
+            view_angle_limit (float): the radian angle to limit the agent's observation
+                of the goal.  E.g. pi/3 means goal is only visible when it's within
+                +/-60 degrees of the agent's direction.
             use_image_observation (bool): Use image or not
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
@@ -71,6 +76,7 @@ class GazeboAgent():
         self._world = world
         self.type = agent_type
         self._use_simple_full_states = use_simple_full_states
+        self._view_angle_limit = view_angle_limit
         self._use_image_observation = use_image_observation
         self._resized_image_size = resized_image_size
         self._image_with_internal_states = image_with_internal_states
@@ -194,6 +200,16 @@ class GazeboAgent():
             rotated_x = x * np.cos(-yaw) - y * np.sin(-yaw)
             rotated_y = x * np.sin(-yaw) + y * np.cos(-yaw)
             obs = np.array([rotated_x, rotated_y])
+            if self._view_angle_limit > 0.001:
+                dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
+                rotated_x /= dist
+                rotated_y /= dist
+                magnitude = 1. / dist
+                if rotated_x < np.cos(self._view_angle_limit):
+                    rotated_x = 0.
+                    rotated_y = 0.
+                    magnitude = 0.
+                obs = np.array([rotated_x, rotated_y, magnitude])
         else:
             agent_vel = np.array(self.get_velocities()).flatten()
             internal_states = self.get_internal_states()
