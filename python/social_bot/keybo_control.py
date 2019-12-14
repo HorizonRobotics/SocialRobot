@@ -130,14 +130,12 @@ class KeyboardControl(PyKeyboardEvent):
             gripper_joint = -0.5
         actions = [
             # arm joints
+            self._gripper_pos[0],
+            -self._gripper_pos[1],
+            -self._gripper_pos[1],
             0,
-            self._gripper_pos[0] + 0.5,
-            0.3,
-            self._gripper_pos[1] - 0.1,
-            0.2,
             0,
-            # palm joint and gripper joints
-            0,
+            # gripper joints
             gripper_joint,
             gripper_joint,
             # wheel joints
