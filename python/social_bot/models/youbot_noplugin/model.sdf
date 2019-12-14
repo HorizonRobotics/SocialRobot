@@ -120,8 +120,35 @@
       <self_collide>0</self_collide>
       <kinematic>0</kinematic>
     </link>
+    <link name="camera_link">
+      <pose>0.26 0 0.035 0 0 0</pose>
+      <visual name="visual">
+        <geometry>
+          <box>
+            <size>0.025 0.025 0.05</size>
+          </box>
+        </geometry>
+      </visual>
+      <sensor name="camera" type="camera">
+        <camera>
+          <horizontal_fov>2.0944</horizontal_fov>
+          <image>
+            <width>128</width>
+            <height>128</height>
+          </image>
+          <clip>
+            <near>0.025</near>
+            <far>100</far>
+          </clip>
+        </camera>
+        <pose>0 0 0.02 0 0.05 0</pose>
+        <always_on>1</always_on>
+        <update_rate>20</update_rate>
+        <visualize>true</visualize>
+      </sensor>
+    </link>
     <link name="arm_link_0">
-      <pose>0.143000 0 0.046000 0 0 0</pose>
+      <pose>0.103000 0 0.046000 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
         <inertia>
@@ -186,7 +213,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="arm_link_1">
-      <pose>0.167000 0 0.142000 0 0 2.967060</pose>
+      <pose>0.127000 0 0.142000 0 0 2.967060</pose>
       <inertial>
         <pose>0.014890 0.002130 0.002130 0 0 0</pose>
         <inertia>
@@ -245,7 +272,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="arm_link_2">
-      <pose>0.134501 0.005730 0.161000 0 -1.134460 2.967060</pose>
+      <pose>0.094501 0.005730 0.161000 0 -1.134460 2.967060</pose>
       <inertial>
         <pose>0.104530 0.001700 -0.002970 0 0 0</pose>
         <inertia>
@@ -304,7 +331,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="arm_link_3">
-      <pose>0.272845 -0.018663 0.226506 0 1.413720 2.967060</pose>
+      <pose>0.232845 -0.018663 0.226506 0 1.413720 2.967060</pose>
       <inertial>
         <pose>0.000100 0.096700 0.021070 0 0 0</pose>
         <inertia>
@@ -363,7 +390,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="arm_link_4">
-      <pose>0.141533 0.004491 0.247624 0 -0.375246 2.967060</pose>
+      <pose>0.101533 0.004491 0.247624 0 -0.375246 2.967060</pose>
       <inertial>
         <pose>0.000110 0.051030 -0.023190 0 0 0</pose>
         <inertia>
@@ -422,7 +449,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="arm_link_5">
-      <pose>0.190287 -0.004106 0.367846 -0.085052 0.365926 -0.408445</pose>
+      <pose>0.150287 -0.004106 0.367846 -0.085052 0.365926 -0.408445</pose>
       <inertial>
         <pose>0 0.001150 -0.016830 0 0 0</pose>
         <inertia>
@@ -472,7 +499,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="gripper_palm_link">
-      <pose>0.190287 -0.004106 0.367846 -0.085052 0.365926 -0.408445</pose>
+      <pose>0.150287 -0.004106 0.367846 -0.085052 0.365926 -0.408445</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
         <inertia>
@@ -537,7 +564,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="gripper_finger_link_l">
-      <pose>0.218260 0.0099 0.408579 0.085052 -0.365926 2.733150</pose>
+      <pose>0.178260 0.0099 0.408579 0.085052 -0.365926 2.733150</pose>
       <inertial>
         <pose>0 -0.001000 0 0 0 0</pose>
         <inertia>
@@ -597,7 +624,7 @@
       <kinematic>0</kinematic>
     </link>
     <link name="gripper_finger_link_r">
-      <pose>0.202375 -0.025929 0.409848 -0.085052 0.365926 -0.408445</pose>
+      <pose>0.162375 -0.025929 0.409848 -0.085052 0.365926 -0.408445</pose>
       <inertial>
         <pose>0 -0.001000 0 0 0 0</pose>
         <inertia>
@@ -976,6 +1003,11 @@
         <xyz>0 0 1</xyz>
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
+    </joint>
+    <joint name="camera_joint" type="fixed">
+      <pose>0 0 0 0 0 0</pose>
+      <parent>base_link</parent>
+      <child>camera_link</child>
     </joint>
     <joint name="arm_joint_0" type="revolute">
       <pose>0 0 0 0 0 0</pose>

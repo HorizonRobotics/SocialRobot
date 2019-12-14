@@ -19,6 +19,7 @@ from absl import logging
 from pymouse import PyMouse
 from pykeyboard import PyKeyboardEvent
 
+
 class KeyboardControl(PyKeyboardEvent):
     """
     This class is used to generate demonstrations from human through keyboard.
@@ -176,7 +177,7 @@ def main():
     import time
     from social_bot.envs.play_ground import PlayGround
     from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace
-    use_image_obs = False
+    use_image_obs = True
     fig = None
     agent_type = 'youbot_noplugin'
     env = PlayGround(
@@ -187,6 +188,7 @@ def main():
         max_steps=1000,
         step_time=0.05,
         real_time_update_rate=500,
+        resized_image_size=(128, 128),
         tasks=[PickAndPlace])
     env.render()
     keybo = KeyboardControl()

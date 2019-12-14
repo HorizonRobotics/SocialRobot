@@ -38,7 +38,7 @@
             "youbot_noplugin::gripper_finger_joint_r",
             "youbot_noplugin::wheel_joint_fl",
             "youbot_noplugin::wheel_joint_fr"],
-        "camera_sensor": "",
+        "camera_sensor": "default::youbot_noplugin::camera_link::camera",
         "use_pid": true,
         "pid_type": [
             "position",
