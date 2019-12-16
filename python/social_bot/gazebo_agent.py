@@ -86,6 +86,8 @@ class GazeboAgent():
                     'r') as cfg_file:
                 agent_cfgs = json.load(cfg_file)
             config = agent_cfgs[agent_type]
+        if use_pid_control is not None:
+            config["use_pid"] = use_pid_control
         self.config = config
         joints = config['control_joints']
         if action_wrapper is not None:
