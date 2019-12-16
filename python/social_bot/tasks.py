@@ -424,7 +424,9 @@ class GoalTask(Task):
                    random.random() * range - range / 2, 0)
 
             self._initial_dist = np.linalg.norm(loc - agent_loc)
-            if self._initial_dist > self._success_distance_thresh:
+            if self._initial_dist > self._success_distance_thresh and (
+                abs(loc[0]) < 5 and abs(loc[1]) < 5  # within walls
+            ):
                 break
         self._prev_dist = self._initial_dist
         goal.reset()
