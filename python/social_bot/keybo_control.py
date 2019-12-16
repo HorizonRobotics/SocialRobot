@@ -37,7 +37,7 @@ class KeyboardControl(PyKeyboardEvent):
         self._x_center, self._y_center = x / 2.0, y / 2.0
         self._speed = 0
         self._turning = 0
-        self._gripper_pos = [0, 0, 0]
+        self._arm_joints = [0, 0, 0]
         self._gripper_open = True
         self._wheel_step = 0.5
         self._speed_decay = 0.9
@@ -45,7 +45,7 @@ class KeyboardControl(PyKeyboardEvent):
         self.start()
 
     def reset(self):
-        self._gripper_pos = [0, 0, 0]
+        self._arm_joints = [0, 0, 0]
         self._gripper_open = True
         self._speed = 0
         self._turning = 0
@@ -75,6 +75,11 @@ class KeyboardControl(PyKeyboardEvent):
             self._turning = 0 if self._turning > 0.01 else self._turning - self._wheel_step
         elif character == "d":
             self._turning = 0 if self._turning < -0.01 else self._turning + self._wheel_step
+        # arm_joint[2]
+        elif character == "r":
+            self._arm_joints[2] -= 0.1
+        elif character == "f":
+            self._arm_joints[2] += 0.1
         # gripper finger
         elif character == "e":
             self._gripper_open = not self._gripper_open
@@ -96,8 +101,8 @@ class KeyboardControl(PyKeyboardEvent):
         self._turning *= self._turning_decay
         # get gripper pos
         mouse_x, mouse_y = self._get_mouse_pos()
-        self._gripper_pos[0] = mouse_x
-        self._gripper_pos[1] = mouse_y
+        self._arm_joints[0] = mouse_x
+        self._arm_joints[1] = mouse_y
 
         return self._convert_to_agent_action(agent_type)
 
@@ -122,36 +127,22 @@ class KeyboardControl(PyKeyboardEvent):
         return actions
 
     def _to_youbot_action(self):
-        wheel_joint_fl = self._speed + self._turning
-        wheel_joint_fr = self._speed - self._turning
+        """ to the warpped youbot actions
+        """
         if self._gripper_open:
-            gripper_joint = 0.5
+            finger_joint = 0.5
         else:
-            gripper_joint = -0.5
+            finger_joint = -0.5
         actions = [
-            # arm joints
-            self._gripper_pos[0],
-            -self._gripper_pos[1],
-            -self._gripper_pos[1],
-            0,
-            0,
-            # gripper joints
-            gripper_joint,
-            gripper_joint,
-            # wheel joints
-            wheel_joint_fl,
-            wheel_joint_fr
+            self._arm_joints[0], self._arm_joints[1], self._arm_joints[2], 0,
+            finger_joint, self._speed, self._turning
         ]
         return actions
 
     def _to_lwr4_action(self):
         actions = [
-            # arm joints
-            self._speed,
-            self._turning,
-            self._gripper_pos[0],
-            self._gripper_pos[1],
-            self._gripper_pos[2]
+            self._speed, self._turning, self._arm_joints[0],
+            self._arm_joints[1], self._arm_joints[2]
         ]
         return actions
 
@@ -175,6 +166,7 @@ def main():
     import time
     from social_bot.envs.play_ground import PlayGround
     from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace
+    from social_bot.gazebo_agent import YoubotActionWrapper
     use_image_obs = True
     fig = None
     agent_type = 'youbot_noplugin'
@@ -187,7 +179,8 @@ def main():
         step_time=0.05,
         real_time_update_rate=500,
         resized_image_size=(128, 128),
-        tasks=[PickAndPlace])
+        tasks=[PickAndPlace],
+        action_wrapper=YoubotActionWrapper)
     env.render()
     keybo = KeyboardControl()
     step_cnt = 0

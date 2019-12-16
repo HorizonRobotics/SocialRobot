@@ -28,8 +28,7 @@ import social_bot.pygazebo as gazebo
 
 @gin.configurable
 class GazeboAgent():
-    """
-    Class for the agent of gazebo-based SocialRobot enviroments
+    """ Class for the agent of gazebo-based SocialRobot enviroments
     """
 
     def __init__(self,
@@ -42,7 +41,8 @@ class GazeboAgent():
                  image_with_internal_states=False,
                  with_language=False,
                  with_agent_language=False,
-                 vocab_sequence_length=20):
+                 vocab_sequence_length=20,
+                 action_wrapper=None):
         """
         Args:
             world (pygazebo.World): the world
@@ -84,6 +84,12 @@ class GazeboAgent():
             config = agent_cfgs[agent_type]
         self.config = config
         joints = config['control_joints']
+        if action_wrapper is not None:
+            self._action_warpper = action_wrapper()
+            self._action_dim = len(action_wrapper.wrapped_action_list)
+        else:
+            self._action_warpper = None
+            self._action_dim = len(joints)
 
         if name:
             # the agent is wrapped by a new name in world
@@ -122,6 +128,8 @@ class GazeboAgent():
         Args:
             the actions to be taken.
         """
+        if self._action_warpper is not None:
+            action = self._action_warpper.warp_actions(action)
         controls = np.clip(action, -1.0, 1.0) * self.action_range
         controls_dict = dict(zip(self.joints, controls))
         self._agent.take_action(controls_dict)
@@ -211,7 +219,7 @@ class GazeboAgent():
     def get_control_space(self):
         """ Get the pure controlling space without language. """
         control_space = gym.spaces.Box(
-            low=-1.0, high=1.0, shape=[len(self.joints)], dtype=np.float32)
+            low=-1.0, high=1.0, shape=[self._action_dim], dtype=np.float32)
         return control_space
 
     def get_action_space(self):
@@ -341,3 +349,36 @@ class GazeboAgent():
                     1] == contact_collision:
                 return True
         return False
+
+
+class YoubotActionWrapper():
+    """ Wrap the agent actions
+    """
+
+    wrapped_action_list = [
+        "arm_joint_yaw", "arm_joint_pitch", "arm_joint_pitch_2", "palm_joint",
+        "gripper_finger_joint", "wheel_speed", "wheel_turning"
+    ]
+
+    def warp_actions(self, action):
+        [
+            arm_joint_yaw, arm_joint_pitch, arm_joint_pitch_2, palm_joint,
+            gripper_finger_joint, wheel_speed, wheel_turning
+        ] = action
+        wheel_l_joint = wheel_speed + wheel_turning
+        wheel_r_joint = wheel_speed - wheel_turning
+        transformed_actions = [
+            # arm joints
+            arm_joint_yaw,
+            0.25 + arm_joint_pitch / 2,  # add pi/4 offset
+            0.25 + arm_joint_pitch / 2,
+            arm_joint_pitch_2,
+            palm_joint,
+            # gripper joints
+            gripper_finger_joint,
+            gripper_finger_joint,
+            # wheel joints
+            wheel_l_joint,
+            wheel_r_joint
+        ]
+        return transformed_actions

@@ -1058,12 +1058,12 @@
           <friction>0</friction>
         </dynamics>
         <limit>
-          <lower>-3.1415926</lower>
-          <upper>3.1415926</upper>
+          <lower>0</lower>
+          <upper>1.5708</upper>
           <effort>9.5</effort>
           <velocity>-1</velocity>
         </limit>
-        <xyz>-0 -1 0</xyz>
+        <xyz>-0 1 0</xyz>
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
     </joint>
@@ -1077,12 +1077,12 @@
           <friction>0</friction>
         </dynamics>
         <limit>
-          <lower>-3.1415926</lower>
-          <upper>3.1415926</upper>
+          <lower>-1.0472</lower>
+          <upper>1.5708</upper>
           <effort>6.0</effort>
           <velocity>-1</velocity>
         </limit>
-        <xyz>-0 -1 0</xyz>
+        <xyz>-0 1 0</xyz>
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
     </joint>
@@ -1096,12 +1096,12 @@
           <friction>0</friction>
         </dynamics>
         <limit>
-          <lower>-3.1415926</lower>
-          <upper>3.1415926</upper>
+          <lower>-1.0472</lower>
+          <upper>1.5708</upper>
           <effort>2.0</effort>
           <velocity>-1</velocity>
         </limit>
-        <xyz>-0 -1 0</xyz>
+        <xyz>-0 1 0</xyz>
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
     </joint>
@@ -1120,7 +1120,7 @@
           <effort>1.0</effort>
           <velocity>-1</velocity>
         </limit>
-        <xyz>-0.360933 0.063642 -0.930418</xyz>
+        <xyz>0 0 1</xyz>
         <use_parent_model_frame>true</use_parent_model_frame>
       </axis>
     </joint>
