@@ -220,12 +220,14 @@ class GoalTask(Task):
             distraction_list.append(goal_name)
         self._distraction_list = distraction_list
         self._object_list = distraction_list
-        self._move_goal_during_episode = move_goal_during_episode
-        self._success_with_angle_requirement = success_with_angle_requirement
-        self._additional_observation_list = additional_observation_list
         if goal_name and goal_name not in distraction_list:
             self._object_list.append(goal_name)
         self._goals = self._object_list
+        self._move_goal_during_episode = move_goal_during_episode
+        self._success_with_angle_requirement = success_with_angle_requirement
+        if not additional_observation_list:
+            additional_observation_list = self._object_list
+        self._additional_observation_list = additional_observation_list
         self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
         self._pos_list.remove((0, 0))
         self._polar_coord = polar_coord
@@ -468,6 +470,8 @@ class GoalTask(Task):
         pose = np.array(goal.get_pose()[0]).flatten()
 
         for name in self._additional_observation_list:
+            if name == self._goal_name:
+                continue
             obj = self._world.get_model(name)
             obj_pos = np.array(obj.get_pose()[0]).flatten()
             pose = np.concatenate((pose, obj_pos), axis=0)

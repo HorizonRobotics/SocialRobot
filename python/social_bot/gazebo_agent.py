@@ -38,6 +38,7 @@ class GazeboAgent():
                  agent_type,
                  name=None,
                  config=None,
+                 use_pid_control=None,
                  use_simple_full_states=False,
                  view_angle_limit=0,
                  use_image_observation=True,
@@ -57,6 +58,8 @@ class GazeboAgent():
                 if None it will be set the same as agent_type
             config (dict): the configuarations for the agent
                 see `agent_cfg.jason` for details
+            use_pid_control (bool): whether use pid controller for agent.
+                Note: not all agents have pid control setup.  Check agent_cfg.json.
             use_simple_full_states (bool): Use the simplest full states like
                 agent's distance and direction to goal
             view_angle_limit (float): the radian angle to limit the agent's observation
@@ -92,6 +95,8 @@ class GazeboAgent():
                     'r') as cfg_file:
                 agent_cfgs = json.load(cfg_file)
             config = agent_cfgs[agent_type]
+        if use_pid_control is not None:
+            config["use_pid"] = use_pid_control
         self.config = config
         joints = config['control_joints']
 
@@ -194,22 +199,27 @@ class GazeboAgent():
             # assumes GoalTask and that the first 3 dims of the
             # task_specific_observation give the goal position.
             yaw = agent_pose[5]
-            x = task_specific_ob[0] - agent_pose[0]
-            y = task_specific_ob[1] - agent_pose[1]
-            # rotate -yaw
-            rotated_x = x * np.cos(-yaw) - y * np.sin(-yaw)
-            rotated_y = x * np.sin(-yaw) + y * np.cos(-yaw)
-            obs = np.array([rotated_x, rotated_y])
-            if self._view_angle_limit > 0.001:
-                dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
-                rotated_x /= dist
-                rotated_y /= dist
-                magnitude = 1. / dist
-                if rotated_x < np.cos(self._view_angle_limit):
-                    rotated_x = 0.
-                    rotated_y = 0.
-                    magnitude = 0.
-                obs = np.array([rotated_x, rotated_y, magnitude])
+            obs = []
+            while len(task_specific_ob) > 1:
+                x = task_specific_ob[0] - agent_pose[0]
+                y = task_specific_ob[1] - agent_pose[1]
+                # rotate -yaw
+                rotated_x = x * np.cos(-yaw) - y * np.sin(-yaw)
+                rotated_y = x * np.sin(-yaw) + y * np.cos(-yaw)
+                if self._view_angle_limit > 0.001:
+                    dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
+                    rotated_x /= dist
+                    rotated_y /= dist
+                    magnitude = 1. / dist
+                    if rotated_x < np.cos(self._view_angle_limit):
+                        rotated_x = -1.
+                        rotated_y = 0.
+                        magnitude = 0.
+                    obs.extend([rotated_x, rotated_y, magnitude])
+                else:
+                    obs.extend([rotated_x, rotated_y])
+                task_specific_ob = task_specific_ob[3:]
+            obs = np.array(obs)
         else:
             agent_vel = np.array(self.get_velocities()).flatten()
             internal_states = self.get_internal_states()
