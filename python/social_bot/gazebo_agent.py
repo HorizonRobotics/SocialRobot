@@ -64,6 +64,9 @@ class GazeboAgent():
             with_language (bool): The observation will be a dict with an extra sentence
             with_agent_language (bool): Include language in agent's action space
             vocab_sequence_length (int): the length of encoded sequence if with_language
+            action_wrapper (None|class): Some times primitive joints is not wanted, e.g., has
+                redundant dimensions or offset. If not None, this is used to transform the agent
+                actions. See YoubotActionWrapper of gazebo_agent.py for example.
         """
         self._world = world
         self.type = agent_type
@@ -351,6 +354,7 @@ class GazeboAgent():
         return False
 
 
+@gin.configurable
 class YoubotActionWrapper():
     """ Wrap the agent actions
     """
@@ -372,7 +376,7 @@ class YoubotActionWrapper():
             arm_joint_yaw,
             0.25 + arm_joint_pitch / 2,  # add pi/4 offset
             0.25 + arm_joint_pitch / 2,
-            arm_joint_pitch_2,
+            0.25 + arm_joint_pitch_2,
             palm_joint,
             # gripper joints
             gripper_finger_joint,

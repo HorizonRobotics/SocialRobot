@@ -18,6 +18,7 @@ PlayGround.max_steps=150
 suite_socialbot.load.max_episode_steps=152
 PlayGround.step_time=0.05
 PickAndPlace.reward_shaping=True
+PlayGround.action_wrapper=@YoubotActionWrapper
 
 # algorithm config
 actor/Adam.learning_rate=5e-4
