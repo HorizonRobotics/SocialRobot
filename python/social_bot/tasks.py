@@ -469,14 +469,21 @@ class GoalTask(Task):
             observation besides self states, for the non-image case
         """
         goal = self._world.get_model(self._goal_name)
-        pose = np.array(goal.get_pose()[0]).flatten()
+        goal_first = not agent._with_language
+        if goal_first:  # put goal first
+            pose = np.array(goal.get_pose()[0]).flatten()
+        else:  # has language input, don't put goal first
+            pose = None
 
         for name in self._additional_observation_list:
-            if name == self._goal_name:
+            if goal_first and name == self._goal_name:
                 continue
             obj = self._world.get_model(name)
             obj_pos = np.array(obj.get_pose()[0]).flatten()
-            pose = np.concatenate((pose, obj_pos), axis=0)
+            if pose is None:
+                pose = obj_pos
+            else:
+                pose = np.concatenate((pose, obj_pos), axis=0)
 
         return pose
 
