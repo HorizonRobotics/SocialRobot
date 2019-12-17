@@ -906,9 +906,9 @@ class PickAndPlace(Task):
     def __init__(self,
                  env,
                  max_steps,
-                 object_random_range=0.5,
-                 place_to_random_range=0.5,
-                 min_distance=0.25,
+                 object_random_range=0.6,
+                 place_to_random_range=0.6,
+                 min_distance=0.3,
                  success_distance_thresh=0.05,
                  reward_shaping=False,
                  reward_weight=1.0):

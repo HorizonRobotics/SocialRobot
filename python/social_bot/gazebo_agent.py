@@ -66,7 +66,7 @@ class GazeboAgent():
             vocab_sequence_length (int): the length of encoded sequence if with_language
             action_wrapper (None|class): Some times primitive joints is not wanted, e.g., has
                 redundant dimensions or offset. If not None, this is used to transform the agent
-                actions. See YoubotActionWrapper of gazebo_agent.py for example.
+                actions. See ActionWrapper of gazebo_agent.py for example.
         """
         self._world = world
         self.type = agent_type
@@ -89,7 +89,7 @@ class GazeboAgent():
         joints = config['control_joints']
         if action_wrapper is not None:
             self._action_warpper = action_wrapper()
-            self._action_dim = len(action_wrapper.wrapped_action_list)
+            self._action_dim = self._action_warpper.get_actions_dim()
         else:
             self._action_warpper = None
             self._action_dim = len(joints)
@@ -354,24 +354,61 @@ class GazeboAgent():
         return False
 
 
-@gin.configurable
-class YoubotActionWrapper():
-    """ Wrap the agent actions
+class ActionWrapper():
+    """ The action wrapper transform a new actions to primitive actions.
+
+    The primitive actions (like the force/velocity/position of joints) may have redundant
+    dimensions or offsets. By the action wrapper, we can transform the action to more
+    efficency one.
     """
 
-    wrapped_action_list = [
+    def get_actions_dim(self):
+        """ Get the dimension of the new action space
+        """
+        raise NotImplementedError("get_actions_dim not implemented!")
+
+    def warp_actions(self, action):
+        """ Wrap transformed actions to primitive actions.
+
+        Args:
+            action (nparray): the new action from policy network
+        Returns:
+            np.array, the primitive actions send to simulator
+        """
+        raise NotImplementedError("warp_actions not implemented!")
+
+@gin.configurable
+class YoubotActionWrapper(ActionWrapper):
+    """ This action wrapper transform a new actions to primitive actions.
+
+    The new action space is the same as keyboard demostration interface, defined as follows:
+    [
         "arm_joint_yaw", "arm_joint_pitch", "arm_joint_pitch_2", "palm_joint",
         "gripper_finger_joint", "wheel_speed", "wheel_turning"
     ]
+    The primitive actions (the joints) please refer to social_bot/models/agent_cfg.json.
+    """
+
+    def get_actions_dim(self):
+        """ Get the dimension of the new action
+        """
+        return 7
 
     def warp_actions(self, action):
+        """ Wrap transformed actions to primitive actions.
+
+        Args:
+            action (nparray): the new action from policy network
+        Returns:
+            np.array, the primitive actions send to simulator
+        """
         [
             arm_joint_yaw, arm_joint_pitch, arm_joint_pitch_2, palm_joint,
             gripper_finger_joint, wheel_speed, wheel_turning
         ] = action
         wheel_l_joint = wheel_speed + wheel_turning
         wheel_r_joint = wheel_speed - wheel_turning
-        transformed_actions = [
+        primitive_actions = [
             # arm joints
             arm_joint_yaw,
             0.25 + arm_joint_pitch / 2,  # add pi/4 offset
@@ -385,4 +422,4 @@ class YoubotActionWrapper():
             wheel_l_joint,
             wheel_r_joint
         ]
-        return transformed_actions
+        return primitive_actions

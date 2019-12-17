@@ -123,7 +123,7 @@ class PlayGround(GazeboEnvBase):
             vocab_sequence_length (int): the length of encoded sequence
             action_wrapper (None|class): Some times primitive joints is not wanted, e.g., has
                 redundant dimensions or offset. If not None, this is used to transform the agent
-                actions. See YoubotActionWrapper of gazebo_agent.py for example.
+                actions. See ActionWrapper of gazebo_agent.py for example.
         """
 
         self._action_cost = action_cost
