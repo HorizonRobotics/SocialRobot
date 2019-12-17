@@ -23,11 +23,9 @@ from pykeyboard import PyKeyboardEvent
 class KeyboardControl(PyKeyboardEvent):
     """
     This class is used to generate demonstrations from human through keyboard.
-    Note that you should keep the terminal window on the fore-front to capture
-    the key being pressed.
-    Some tricks are used to make the keyboard controlling a little bit more
-    friendly. Move the agent around by key "WASD" and open or close gripper by
-    key "E", and control the robot arm(if there is) by "IJKL".
+    Some tricks are used to make the keyboard controlling more user friendly.
+    Move the agent around by key "W, A, S, D" and open or close gripper by
+    key "E", and move the robot arm joints (if there is) by mouse and key "R, F".
     """
 
     def __init__(self):
@@ -100,7 +98,7 @@ class KeyboardControl(PyKeyboardEvent):
             self._wheel_step *= 0.7
 
     def _get_mouse_pos(self):
-        """ Get the mouse position normalized to (-1, 1).
+        """ Get the mouse position and normalize to (-1, 1).
         """
         x, y = self._mouse.position()
         x, y = x / self._x_center - 1.0, y / self._y_center - 1.0
@@ -127,7 +125,7 @@ class KeyboardControl(PyKeyboardEvent):
         return actions
 
     def _to_youbot_action(self):
-        """ to the warpped youbot actions
+        """ Convert to the warpped youbot actions
         """
         if self._gripper_open:
             finger_joint = 0.5
@@ -163,7 +161,6 @@ def main():
     Simple testing of KeyboardControl class.
     """
     import matplotlib.pyplot as plt
-    import time
     from social_bot.envs.play_ground import PlayGround
     from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace
     from social_bot.gazebo_agent import YoubotActionWrapper
@@ -183,12 +180,9 @@ def main():
         action_wrapper=YoubotActionWrapper)
     env.render()
     keybo = KeyboardControl()
-    step_cnt = 0
-    last_done_time = time.time()
     while True:
         actions = np.array(keybo.get_agent_actions(agent_type))
         obs, _, done, _ = env.step(actions)
-        step_cnt += 1
         if use_image_obs:
             if fig is None:
                 fig = plt.imshow(obs)
@@ -198,10 +192,6 @@ def main():
         if done:
             env.reset()
             keybo.reset()
-            step_per_sec = step_cnt / (time.time() - last_done_time)
-            logging.info("step per second: " + str(step_per_sec))
-            step_cnt = 0
-            last_done_time = time.time()
 
 
 if __name__ == "__main__":
