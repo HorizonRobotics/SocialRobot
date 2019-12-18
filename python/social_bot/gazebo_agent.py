@@ -88,10 +88,10 @@ class GazeboAgent():
         self.config = config
         joints = config['control_joints']
         if action_wrapper is not None:
-            self._action_warpper = action_wrapper()
-            self._action_dim = self._action_warpper.get_actions_dim()
+            self._action_wrapper = action_wrapper()
+            self._action_dim = self._action_wrapper.get_actions_dim()
         else:
-            self._action_warpper = None
+            self._action_wrapper = None
             self._action_dim = len(joints)
 
         if name:
@@ -131,8 +131,8 @@ class GazeboAgent():
         Args:
             the actions to be taken.
         """
-        if self._action_warpper is not None:
-            action = self._action_warpper.warp_actions(action)
+        if self._action_wrapper is not None:
+            action = self._action_wrapper.wrap_actions(action)
         controls = np.clip(action, -1.0, 1.0) * self.action_range
         controls_dict = dict(zip(self.joints, controls))
         self._agent.take_action(controls_dict)
@@ -359,15 +359,17 @@ class ActionWrapper():
 
     The primitive actions (like the force/velocity/position of joints) may have redundant
     dimensions or offsets. By the action wrapper, we can transform the action to more
-    efficency one.
+    efficency one. The sub class should define the new action space in _NEW_ACTION_LIST.
     """
 
+    _NEW_ACTION_LIST = []
+    
     def get_actions_dim(self):
         """ Get the dimension of the new action space
         """
-        raise NotImplementedError("get_actions_dim not implemented!")
+        return len(self._NEW_ACTION_LIST)
 
-    def warp_actions(self, action):
+    def wrap_actions(self, action):
         """ Wrap transformed actions to primitive actions.
 
         Args:
@@ -375,26 +377,22 @@ class ActionWrapper():
         Returns:
             np.array, the primitive actions send to simulator
         """
-        raise NotImplementedError("warp_actions not implemented!")
+        raise NotImplementedError("wrap_actions not implemented!")
 
 @gin.configurable
 class YoubotActionWrapper(ActionWrapper):
     """ This action wrapper transform a new actions to primitive actions.
 
-    The new action space is the same as keyboard demostration interface, defined as follows:
-    [
-        "arm_joint_yaw", "arm_joint_pitch", "arm_joint_pitch_2", "palm_joint",
-        "gripper_finger_joint", "wheel_speed", "wheel_turning"
-    ]
+    The new action space is the same as keyboard demostration interface, defined in _NEW_ACTION_LIST
     The primitive actions (the joints) please refer to social_bot/models/agent_cfg.json.
     """
 
-    def get_actions_dim(self):
-        """ Get the dimension of the new action
-        """
-        return 7
+    _NEW_ACTION_LIST = [
+        'arm_joint_yaw', 'arm_joint_pitch', 'arm_joint_pitch_2', 'palm_joint',
+        'gripper_finger_joint', 'wheel_speed', 'wheel_turning'
+    ]
 
-    def warp_actions(self, action):
+    def wrap_actions(self, action):
         """ Wrap transformed actions to primitive actions.
 
         Args:
@@ -402,24 +400,19 @@ class YoubotActionWrapper(ActionWrapper):
         Returns:
             np.array, the primitive actions send to simulator
         """
-        [
-            arm_joint_yaw, arm_joint_pitch, arm_joint_pitch_2, palm_joint,
-            gripper_finger_joint, wheel_speed, wheel_turning
-        ] = action
-        wheel_l_joint = wheel_speed + wheel_turning
-        wheel_r_joint = wheel_speed - wheel_turning
+        action = dict(zip(self._NEW_ACTION_LIST,action))
         primitive_actions = [
             # arm joints
-            arm_joint_yaw,
-            0.25 + arm_joint_pitch / 2,  # add pi/4 offset
-            0.25 + arm_joint_pitch / 2,
-            0.25 + arm_joint_pitch_2,
-            palm_joint,
+            action['arm_joint_yaw'],
+            0.25 + action['arm_joint_pitch'] / 2,  # add pi/4 offset
+            0.25 + action['arm_joint_pitch'] / 2,
+            0.25 + action['arm_joint_pitch_2'],
+            action['palm_joint'],
             # gripper joints
-            gripper_finger_joint,
-            gripper_finger_joint,
+            action['gripper_finger_joint'],
+            action['gripper_finger_joint'],
             # wheel joints
-            wheel_l_joint,
-            wheel_r_joint
+            action['wheel_speed'] + action['wheel_turning'],
+            action['wheel_speed'] - action['wheel_turning']
         ]
         return primitive_actions

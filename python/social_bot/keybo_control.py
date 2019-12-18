@@ -125,7 +125,7 @@ class KeyboardControl(PyKeyboardEvent):
         return actions
 
     def _to_youbot_action(self):
-        """ Convert to the warpped youbot actions
+        """ Convert to the wrapped youbot actions
         """
         if self._gripper_open:
             finger_joint = 0.5
