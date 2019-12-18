@@ -333,7 +333,8 @@ class GoalTask(Task):
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
-                logging.debug("yielding reward: " + str(reward))
+                logging.debug("yielding reward: {}, farther than {} from goal"
+                    .format(str(reward), str(self._fail_distance_thresh)))
                 yield TeacherAction(
                     reward=reward, sentence="failed", done=True)
             else:
@@ -349,7 +350,8 @@ class GoalTask(Task):
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence=self._goal_name)
         reward = -1.0
-        logging.debug("yielding reward: " + str(reward))
+        logging.debug("yielding reward: {}, took more than {} steps".format(
+            str(reward), str(self._max_steps)))
         self._push_reward_queue(0)
         if self.should_use_curriculum_training():
             logging.debug("reward queue len: {}, sum: {}".format(
@@ -408,6 +410,7 @@ class GoalTask(Task):
         else:
             range = self._random_range
             self._is_full_range_in_curriculum = False
+        attempts = 0
         while True:
             dist = random.random() * range
             if self._curriculum_target_angle:
@@ -425,9 +428,11 @@ class GoalTask(Task):
 
             self._initial_dist = np.linalg.norm(loc - agent_loc)
             if self._initial_dist > self._success_distance_thresh and (
-                abs(loc[0]) < 5 and abs(loc[1]) < 5  # within walls
+                attempts > 10000 or
+                (abs(loc[0]) < 5 and abs(loc[1]) < 5)  # within walls
             ):
                 break
+            attempts += 1
         self._prev_dist = self._initial_dist
         goal.reset()
         goal.set_pose((loc, (0, 0, 0)))
