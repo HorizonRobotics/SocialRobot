@@ -38,7 +38,6 @@ class GazeboAgent():
                  agent_type,
                  name=None,
                  config=None,
-                 use_pid_control=None,
                  use_simple_full_states=False,
                  view_angle_limit=0,
                  use_image_observation=True,
@@ -58,13 +57,11 @@ class GazeboAgent():
                 if None it will be set the same as agent_type
             config (dict): the configuarations for the agent
                 see `agent_cfg.jason` for details
-            use_pid_control (bool): whether use pid controller for agent.
-                Note: not all agents have pid control setup.  Check agent_cfg.json.
             use_simple_full_states (bool): Use the simplest full states like
                 agent's distance and direction to goal
-            view_angle_limit (float): the radian angle to limit the agent's observation
-                of the goal.  E.g. pi/3 means goal is only visible when it's within
-                +/-60 degrees of the agent's direction.
+            view_angle_limit (float): the angle degree to limit the agent's observation.
+                E.g. 60 means goal is only visible when it's within +/-60 degrees
+                of the agent's direction (yaw).
             use_image_observation (bool): Use image or not
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
@@ -95,8 +92,6 @@ class GazeboAgent():
                     'r') as cfg_file:
                 agent_cfgs = json.load(cfg_file)
             config = agent_cfgs[agent_type]
-        if use_pid_control is not None:
-            config["use_pid"] = use_pid_control
         self.config = config
         joints = config['control_joints']
 
@@ -206,13 +201,14 @@ class GazeboAgent():
                 # rotate -yaw
                 rotated_x = x * np.cos(-yaw) - y * np.sin(-yaw)
                 rotated_y = x * np.sin(-yaw) + y * np.cos(-yaw)
-                if self._view_angle_limit > 0.001:
+                if self._view_angle_limit > 0:
                     dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
                     rotated_x /= dist
                     rotated_y /= dist
                     magnitude = 1. / dist
-                    if rotated_x < np.cos(self._view_angle_limit):
-                        rotated_x = -1.
+                    if rotated_x < np.cos(
+                        self._view_angle_limit / 180. * np.pi):
+                        rotated_x = 0.
                         rotated_y = 0.
                         magnitude = 0.
                     obs.extend([rotated_x, rotated_y, magnitude])

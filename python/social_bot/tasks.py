@@ -197,6 +197,10 @@ class GoalTask(Task):
             success_with_angle_requirement: if ture then calculate the reward considering the angular requirement
             additional_observation_list: a list of additonal objects to be added
         """
+        self._max_play_ground_size = 5  # play ground will be (-5, 5) for both x and y axes.
+        # TODO: Remove the default grey walls in the play ground world file,
+        # and insert them according to the max_play_ground_size.
+        # The wall should be lower, and adjustable in length.  Add a custom model for that.
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
@@ -228,7 +232,9 @@ class GoalTask(Task):
         if not additional_observation_list:
             additional_observation_list = self._object_list
         self._additional_observation_list = additional_observation_list
-        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._pos_list = list(itertools.product(
+            range(-self._max_play_ground_size, self._max_play_ground_size),
+            range(-self._max_play_ground_size, self._max_play_ground_size)))
         self._pos_list.remove((0, 0))
         self._polar_coord = polar_coord
         if self.should_use_curriculum_training():
@@ -428,8 +434,9 @@ class GoalTask(Task):
 
             self._initial_dist = np.linalg.norm(loc - agent_loc)
             if self._initial_dist > self._success_distance_thresh and (
-                attempts > 10000 or
-                (abs(loc[0]) < 5 and abs(loc[1]) < 5)  # within walls
+                attempts > 10000 or (
+                    abs(loc[0]) < self._max_play_ground_size and
+                    abs(loc[1]) < self._max_play_ground_size)  # within walls
             ):
                 break
             attempts += 1
