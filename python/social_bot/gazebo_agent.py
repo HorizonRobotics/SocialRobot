@@ -178,6 +178,11 @@ class GazeboAgent():
             image = np.array(image, copy=False)
         return image
 
+    def rotate(self, x, y, radian):
+        rotated_x = x * np.cos(radian) - y * np.sin(radian)
+        rotated_y = x * np.sin(radian) + y * np.cos(radian)
+        return (rotated_x, rotated_y)
+
     def get_full_states_observation(self, teacher):
         """ Get the low-dimensional full states, an alternate to image observation. 
         
@@ -194,13 +199,13 @@ class GazeboAgent():
             # assumes GoalTask and that the first 3 dims of the
             # task_specific_observation give the goal position.
             yaw = agent_pose[5]
-            obs = []
+            vx, vy, vz, a1, a2, a3 = np.array(self.get_velocities()).flatten()
+            rvx, rvy = self.rotate(vx, vy, -yaw)
+            obs = [rvx, rvy, vz, a1, a2, a3]
             while len(task_specific_ob) > 1:
                 x = task_specific_ob[0] - agent_pose[0]
                 y = task_specific_ob[1] - agent_pose[1]
-                # rotate -yaw
-                rotated_x = x * np.cos(-yaw) - y * np.sin(-yaw)
-                rotated_y = x * np.sin(-yaw) + y * np.cos(-yaw)
+                rotated_x, rotated_y = self.rotate(x, y, -yaw)
                 if self._view_angle_limit > 0:
                     dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
                     rotated_x /= dist
