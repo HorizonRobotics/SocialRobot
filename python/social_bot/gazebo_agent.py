@@ -353,20 +353,6 @@ class GazeboAgent():
                 return True
         return False
 
-    def get_egocentric_cord_2d(self, x, y, agent_yaw):
-        """ Get the egocentric coordinate from a global 2D x-y plane coordinate.
-        
-        Args:
-            x (float): x of global x-y plane coordinate
-            y (float): y of global x-y plane coordinate
-            agent_yaw (float): agent yaw (rotation in z-axis), in radian
-        Returns:
-            tuple of float, the position in the transformed coordinate
-        """
-        rotated_x = x * np.cos(agent_yaw) - y * np.sin(agent_yaw)
-        rotated_y = x * np.sin(agent_yaw) + y * np.cos(agent_yaw)
-        return (rotated_x, rotated_y)
-
 
 class ActionWrapper():
     """ The action wrapper transform a new actions to primitive actions.
