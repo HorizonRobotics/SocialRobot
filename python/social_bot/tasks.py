@@ -35,9 +35,17 @@ class Task(object):
     A Task is for teaching a single task.
     """
 
+    compatible_agents = [
+        'pioneer2dx_noplugin',
+        'pr2_noplugin',
+        'icub',
+        'icub_with_hands',
+        'youbot_noplugin',
+    ]
+
     def __init__(self, env, max_steps=200, reward_weight=1.0):
         """
-        Setting things up during the initialization
+        Setting things up during the initialization.
 
         Args:
             env (social_bot.GazeboEnvBase): an instance of Gym Environment
@@ -54,7 +62,7 @@ class Task(object):
 
     @abstractmethod
     def run(self):
-        """ run() use yield to generate TeacherAction
+        """ run() use yield to generate TeacherAction.
 
         Structure of run():
         ```python
@@ -78,6 +86,13 @@ class Task(object):
 
     def task_specific_observation(self, agent):
         """
+        The extra infomation needed by the task if sparse states are used.
+
+        This can be overide by the sub task. Note that the pose and velocity of
+        agent, and the state of actionable internal joints are already included
+        in agent.get_full_states_observation(). Thus does not need to be added
+        here.
+
         Args:
             agent (GazeboAgent): the agent
         Returns:
@@ -99,7 +114,7 @@ class Task(object):
                                   model_list,
                                   including_velocity=True,
                                   including_rotation=False):
-        """ Get the poses and velocities from a model list
+        """ Get the poses and velocities from a model list.
 
         Args:
             model_list (list): a list of model names
@@ -118,6 +133,30 @@ class Task(object):
                 model_states.append(model.get_velocities()[0])
         model_states = np.array(model_states).flatten()
         return model_states
+
+    def _random_move_object(self,
+                            target,
+                            random_range,
+                            center_pos=np.array([0, 0]),
+                            min_distance=0,
+                            height=0):
+        """ Move an object to a random position.
+
+        Args:
+            target (pyagzebo.Model): the target to move
+            random_range (float): the range of the new position
+            center_pos (numpy.array): the center coordinates (x, y) of the random range
+            min_distance (float): the new position will not be closer than this distance 
+            height (float): height offset 
+        Returns:
+            np.array, the new position
+        """
+        r = random.uniform(min_distance, random_range)
+        theta = random.random() * 2 * np.pi
+        loc = (center_pos[0] + r * np.cos(theta),
+               center_pos[1] + r * np.sin(theta), height)
+        target.set_pose((loc, (0, 0, 0)))
+        return np.array(loc)
 
 
 @gin.configurable
@@ -246,9 +285,10 @@ class GoalTask(Task):
             angle_str = ""
             if curriculum_target_angle:
                 angle_str = ", start_angle {}".format(self._random_angle)
-            logging.info("start_range %f%s, reward_thresh_to_increase_range %f",
-                         self._start_range, angle_str,
-                         self._reward_thresh_to_increase_range)
+            logging.info(
+                "start_range %f%s, reward_thresh_to_increase_range %f",
+                self._start_range, angle_str,
+                self._reward_thresh_to_increase_range)
         else:
             self._random_range = random_range
         self.task_vocab += self._object_list
@@ -269,13 +309,10 @@ class GoalTask(Task):
             if self._curriculum_target_angle:
                 self._random_angle += 20
                 logging.info("Raising random_angle to %d", self._random_angle)
-            if (not self._curriculum_target_angle or
-                self._random_angle > 360):
+            if (not self._curriculum_target_angle or self._random_angle > 360):
                 self._random_angle = 60
-                new_range = min(
-                    (1. + self._increase_range_by_percent
-                        ) * self._random_range,
-                    self._orig_random_range)
+                new_range = min((1. + self._increase_range_by_percent) *
+                                self._random_range, self._orig_random_range)
                 if self._random_range < self._orig_random_range:
                     logging.info("Raising random_range to %f", new_range)
                 self._random_range = new_range
@@ -317,11 +354,11 @@ class GoalTask(Task):
             dot = sum(dir * goal_dir)
 
             distraction_penalty, prev_min_dist_to_distraction = (
-                self._get_distraction_penalty(
-                    loc, dot, prev_min_dist_to_distraction))
+                self._get_distraction_penalty(loc, dot,
+                                              prev_min_dist_to_distraction))
 
             if dist < self._success_distance_thresh and (
-                not self._success_with_angle_requirement or dot > 0.707):
+                    not self._success_with_angle_requirement or dot > 0.707):
                 # within 45 degrees of the agent direction
                 reward = 1.0 - distraction_penalty
                 self._push_reward_queue(max(reward, 0))
@@ -362,13 +399,14 @@ class GoalTask(Task):
                 str(len(self._q)), str(sum(self._q))))
         yield TeacherAction(reward=reward, sentence="failed", done=True)
 
-    def _get_distraction_penalty(self, agent_loc, dot, prev_min_dist_to_distraction):
+    def _get_distraction_penalty(self, agent_loc, dot,
+                                 prev_min_dist_to_distraction):
         """
         Calculate penalty for hitting/getting close to distraction objects
         """
         distraction_penalty = 0
-        if (self._distraction_penalty_distance_thresh > 0 and
-            self._distraction_list):
+        if (self._distraction_penalty_distance_thresh > 0
+                and self._distraction_list):
             curr_min_dist = 100
             for obj_name in self._distraction_list:
                 obj = self._world.get_model(obj_name)
@@ -378,14 +416,14 @@ class GoalTask(Task):
                 obj_loc = np.array(obj_loc)
                 distraction_dist = np.linalg.norm(agent_loc - obj_loc)
                 if (distraction_dist >=
-                    self._distraction_penalty_distance_thresh):
+                        self._distraction_penalty_distance_thresh):
                     continue
                 if obj_name == self._goal_name and dot > 0.707:
                     continue  # correctly getting to goal, no penalty
                 if distraction_dist < curr_min_dist:
                     curr_min_dist = distraction_dist
                 if (prev_min_dist_to_distraction >
-                    self._distraction_penalty_distance_thresh):
+                        self._distraction_penalty_distance_thresh):
                     logging.debug("hitting object: " + obj_name)
                     distraction_penalty += self._distraction_penalty
             prev_min_dist_to_distraction = curr_min_dist
@@ -402,7 +440,8 @@ class GoalTask(Task):
                 distractions[item] = 1
         if len(distractions) and self._curriculum_distractions:
             rand_id = random.randrange(len(distractions))
-            distraction = self._world.get_agent(list(distractions.keys())[rand_id])
+            distraction = self._world.get_agent(
+                list(distractions.keys())[rand_id])
             self._move_goal_impl(distraction, agent_loc, agent_dir)
 
     def _move_goal_impl(self, goal, agent_loc, agent_dir):
@@ -422,13 +461,14 @@ class GoalTask(Task):
             else:
                 angle_range = 360
             angle = math.radians(
-                math.degrees(agent_dir[2]) +
-                random.random() * angle_range - angle_range / 2)
-            loc = (dist * math.cos(angle), dist * math.sin(angle), 0) + agent_loc
+                math.degrees(agent_dir[2]) + random.random() * angle_range -
+                angle_range / 2)
+            loc = (dist * math.cos(angle), dist * math.sin(angle),
+                   0) + agent_loc
 
             if self._polar_coord:
                 loc = (random.random() * range - range / 2,
-                   random.random() * range - range / 2, 0)
+                       random.random() * range - range / 2, 0)
 
             self._initial_dist = np.linalg.norm(loc - agent_loc)
             if self._initial_dist > self._success_distance_thresh and (
@@ -499,14 +539,14 @@ class GoalTask(Task):
             yaw = agent_pose[5]
             # adds egocentric velocity input
             vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
-            rvx, rvy = agent.rotate(vx, vy, -yaw)
+            rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, -yaw)
             obs = [rvx, rvy, vz, a1, a2, a3]
             # adds objects' (goal's as well as distractions') egocentric
             # coordinates to observation
             while len(pose) > 1:
                 x = pose[0] - agent_pose[0]
                 y = pose[1] - agent_pose[1]
-                rotated_x, rotated_y = agent.rotate(x, y, -yaw)
+                rotated_x, rotated_y = agent.get_egocentric_cord_2d(x, y, -yaw)
                 if agent._view_angle_limit > 0:
                     dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
                     rotated_x /= dist
@@ -606,9 +646,11 @@ class ICubAuxiliaryTask(Task):
                 root_angle = self._get_angle_to_target(
                     self._agent, agent_pos, self._agent.type + '::root_link')
                 l_foot_angle = self._get_angle_to_target(
-                    self._agent, agent_pos, self._agent.type + '::l_leg::l_foot', np.pi)
+                    self._agent, agent_pos,
+                    self._agent.type + '::l_leg::l_foot', np.pi)
                 r_foot_angle = self._get_angle_to_target(
-                    self._agent, agent_pos, self._agent.type + '::r_leg::r_foot', np.pi)
+                    self._agent, agent_pos,
+                    self._agent.type + '::r_leg::r_foot', np.pi)
                 orient_cost = (np.abs(head_angle) + np.abs(root_angle) +
                                np.abs(l_foot_angle) + np.abs(r_foot_angle)) / 4
             else:
@@ -627,14 +669,6 @@ class ICubAuxiliaryTask(Task):
         Returns:
             np.array of the extra observations of icub, including average pos
         """
-
-        def _get_contacts_to_ground(agent, contacts_sensor):
-            contacts = agent.get_collisions(contacts_sensor)
-            for collision in contacts:
-                if collision[1] == 'ground_plane::link::collision':
-                    return True
-            return False
-
         root_pose = np.array(
             agent.get_link_pose(agent.name + '::root_link')).flatten()
         chest_pose = np.array(
@@ -644,8 +678,10 @@ class ICubAuxiliaryTask(Task):
         r_foot_pose = np.array(
             agent.get_link_pose(agent.name + '::r_leg::r_foot')).flatten()
         foot_contacts = np.array([
-            _get_contacts_to_ground(agent, "l_foot_contact_sensor"),
-            _get_contacts_to_ground(agent, "r_foot_contact_sensor")
+            agent.get_contacts("l_foot_contact_sensor",
+                               'ground_plane::link::collision'),
+            agent.get_contacts("r_foot_contact_sensor",
+                               'ground_plane::link::collision')
         ]).astype(np.float32)
         average_pos = np.sum([
             root_pose[0:3], chest_pose[0:3], l_foot_pose[0:3], r_foot_pose[0:3]
@@ -688,7 +724,7 @@ class ICubAuxiliaryTask(Task):
         icub_extra_obs = self.get_icub_extra_obs(agent)
         if self._target_name:
             agent_pos = icub_extra_obs[:3]
-            # TODO: be compatible for calling multiple times in one env step
+            # TODO: be compatible with calling multiple times in one env step
             agent_speed = (
                 agent_pos - self._pre_agent_pos) / self._env.get_step_time()
             self._pre_agent_pos = agent_pos
@@ -837,8 +873,10 @@ class Reaching3D(Task):
     """
     A task to reach a random 3D position with the end effector of a robot arm.
     An optional distance based reward shaping can be used.
-    This task is only compatible for Agent kuka_lwr_4plus.
+    This task is only compatible with Agent kuka_lwr_4plus.
     """
+
+    compatible_agents = ['kuka_lwr_4plus']
 
     def __init__(self,
                  env,
@@ -859,7 +897,7 @@ class Reaching3D(Task):
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
-        assert self._agent.type == 'kuka_lwr_4plus', "Reaching3D Task only support kuka_lwr_4plus for now"
+        assert self._agent.type in self.compatible_agents, "Reaching3D Task only support kuka_lwr_4plus for now"
         self._reaching_link = '::lwr_arm_6_link'
         self._random_range = random_range
         self._success_distance_thresh = success_distance_thresh
@@ -914,3 +952,141 @@ class Reaching3D(Task):
         obs = np.concatenate(
             (goal_loc, reaching_loc, joints_states), axis=0)
         return obs
+
+
+@gin.configurable
+class PickAndPlace(Task):
+    """
+    A task to grip an object (a wood cube), move and then place it to the target position.
+    A simple reward shaping can be used to guide the agent to grip cube and move to the position:
+        If object is not being gripped, the reward is the gripper contacts, wether object is off the
+            ground, and negative distance between object and gripper
+        If being gripped, an extra truncked negative distance from object to goal is added.
+        If suceesfully placed, a reward of 100 is given. 
+    This task is only compatible with Agent youbot_noplugin.
+    """
+
+    compatible_agents = ['youbot_noplugin']
+
+    def __init__(self,
+                 env,
+                 max_steps,
+                 object_random_range=0.6,
+                 place_to_random_range=0.6,
+                 min_distance=0.3,
+                 success_distance_thresh=0.05,
+                 reward_shaping=False,
+                 reward_weight=1.0):
+        """
+        Args:
+            env (gym.Env): an instance of Environment
+            max_steps (int): episode will end if not complet the task in so many steps, recommend to be 150
+                for agent youbot_noplugin and object 5cm cube
+            object_random_range (float): the object's random position range to the agent
+            place_to_random_range (float): the range of target placing position to the object
+            min_distance (float): the min_distance of the placing position to the object
+            success_distance_thresh (float): consider success if the target is within this distance to the
+                goal position
+            reward_shaping (bool): if false, the reward is -1/0/1, otherwise the 0 case will be replaced
+                with shapped reward.
+            reward_weight (float): the weight of the reward
+        """
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
+        assert self._agent.type in self.compatible_agents, "PickAndPlace Task only support youbot_noplugin for now"
+        self._palm_link = 'youbot_noplugin::gripper_palm_link'
+        self._finger_link_l = 'youbot_noplugin::gripper_finger_link_l'
+        self._finger_link_r = 'youbot_noplugin::gripper_finger_link_r'
+        self._object_name = 'wood_cube_5cm_without_offset'
+        self._object_collision_name = 'wood_cube_5cm_without_offset::link::collision'
+        self._object_random_range = object_random_range
+        self._place_to_random_range = place_to_random_range
+        self._min_distance = min_distance
+        self._success_distance_thresh = success_distance_thresh
+        self._reward_shaping = reward_shaping
+        self._env.insert_model_list([self._object_name, 'goal_indicator'])
+        self._goal = self._world.get_model('goal_indicator')
+        self._object = self._world.get_model(self._object_name)
+        self._obj_init_height = self._object.get_pose()[0][2]
+
+    def run(self):
+        """ Start a teaching episode for this task. """
+        agent_sentence = yield
+        obj_pos = self._random_move_object(
+            target=self._object,
+            random_range=self._object_random_range,
+            center_pos=np.array([0, 0]),
+            min_distance=self._min_distance,
+            height=self._obj_init_height)
+        goal_pos = self._random_move_object(
+            target=self._goal,
+            random_range=self._place_to_random_range,
+            center_pos=obj_pos[:2],
+            min_distance=self._min_distance,
+            height=self._obj_init_height)
+        steps = 0
+        while steps < self._max_steps:
+            steps += 1
+            # get positions
+            obj_pos, _ = self._object.get_pose()
+            obj_height = obj_pos[2]
+            finger_l_pos, _ = self._agent.get_link_pose(self._finger_link_l)
+            finger_r_pos, _ = self._agent.get_link_pose(self._finger_link_r)
+            finger_pos = (
+                np.array(finger_l_pos) + np.array(finger_r_pos)) / 2.0
+            # get contacts
+            l_contact = self._agent.get_contacts('finger_cnta_l',
+                                                 self._object_collision_name)
+            r_contact = self._agent.get_contacts('finger_cnta_r',
+                                                 self._object_collision_name)
+            # check distance and contacts
+            obj_dist = np.linalg.norm(np.array(obj_pos) - goal_pos)
+            obj_dist_xy = np.linalg.norm(np.array(obj_pos)[:2] - goal_pos[:2])
+            dist_z = abs(obj_height - goal_pos[2])
+            palm_dist = np.linalg.norm(
+                np.array(obj_pos) - np.array(finger_pos))
+            obj_lifted = obj_height / self._obj_init_height - 1.0
+            gripping_feature = 0.25 * l_contact + 0.25 * r_contact + min(
+                obj_lifted, 1.0)  # encourge to lift the object by obj_height
+            gripping = (gripping_feature >= 0.999999)
+            # success condition, minus an offset of object height on z-axis
+            if gripping and obj_dist_xy < self._success_distance_thresh and dist_z - self._obj_init_height < self._success_distance_thresh:
+                logging.debug("object has been successfuly placed")
+                reward = 100.0 if self._reward_shaping else 1.0
+                agent_sentence = yield TeacherAction(
+                    reward=reward, sentence="well done", done=True)
+            else:
+                shaped_reward = max(
+                    2.0 - obj_dist / self._place_to_random_range,
+                    1.0) if gripping else (gripping_feature - palm_dist)
+                reward = shaped_reward if self._reward_shaping else 0
+                agent_sentence = yield TeacherAction(reward=reward, done=False)
+        yield TeacherAction(reward=-1.0, sentence="failed", done=True)
+
+    def task_specific_observation(self, agent):
+        """
+        Args:
+            agent (GazeboAgent): the agent
+        Returns:
+            np.array, the observations of the task for non-image case
+        """
+        # Use 3 position of the links to uniquely determine the 6 + 2 DoF gripper
+        finger_l_pos, _ = agent.get_link_pose(self._finger_link_l)
+        finger_r_pos, _ = agent.get_link_pose(self._finger_link_r)
+        palm_pos, _ = agent.get_link_pose(self._palm_link)
+        # goal pos and object pos
+        goal_pos, _ = self._goal.get_pose()
+        obj_pos, obj_rot = self._object.get_pose()
+        # contacts
+        finger_contacts = np.array([
+            agent.get_contacts('finger_cnta_l', self._object_collision_name),
+            agent.get_contacts('finger_cnta_r', self._object_collision_name)
+        ]).astype(np.float32)
+        # agent self states
+        agent_pose = np.array(agent.get_pose()).flatten()
+        joints_states = agent.get_internal_states()
+        obs = np.array(
+            [goal_pos, obj_pos, obj_rot, finger_l_pos, finger_r_pos,
+             palm_pos]).flatten()
+        return np.concatenate((obs, finger_contacts, agent_pose,
+            joints_states), axis=0)

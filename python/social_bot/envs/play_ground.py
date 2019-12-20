@@ -82,7 +82,8 @@ class PlayGround(GazeboEnvBase):
                  port=None,
                  action_cost=0.0,
                  resized_image_size=(64, 64),
-                 vocab_sequence_length=20):
+                 vocab_sequence_length=20,
+                 action_wrapper=None):
         """
         Args:
             agent_type (string): Select the agent robot, supporting pr2_noplugin,
@@ -120,6 +121,9 @@ class PlayGround(GazeboEnvBase):
                 from the camera. Otherwise, the original image will be resized
                 to (width, height)
             vocab_sequence_length (int): the length of encoded sequence
+            action_wrapper (None|class): Some times primitive joints is not wanted, e.g., has
+                redundant dimensions or offset. If not None, this is used to transform the agent
+                actions. See ActionWrapper of gazebo_agent.py for example.
         """
 
         self._action_cost = action_cost
@@ -161,7 +165,8 @@ class PlayGround(GazeboEnvBase):
             vocab_sequence_length=self._seq_length,
             use_image_observation=use_image_observation,
             resized_image_size=resized_image_size,
-            image_with_internal_states=image_with_internal_states)
+            image_with_internal_states=image_with_internal_states,
+            action_wrapper=action_wrapper)
 
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
