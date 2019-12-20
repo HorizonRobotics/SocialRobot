@@ -37,8 +37,6 @@ class GazeboAgent():
                  agent_type,
                  name=None,
                  config=None,
-                 use_simple_full_states=False,
-                 view_angle_limit=0,
                  use_image_observation=True,
                  resized_image_size=None,
                  image_with_internal_states=False,
@@ -57,11 +55,6 @@ class GazeboAgent():
                 if None it will be set the same as agent_type
             config (dict): the configuarations for the agent
                 see `agent_cfg.jason` for details
-            use_simple_full_states (bool): Use the simplest full states like
-                agent's egocentric distance and direction to goal
-            view_angle_limit (float): the angle degree to limit the agent's observation.
-                E.g. 60 means goal is only visible when it's within +/-60 degrees
-                of the agent's direction (yaw).
             use_image_observation (bool): Use image or not
             resized_image_size (None|tuple): If None, use the original image size
                 from the camera. Otherwise, the original image will be resized
@@ -78,8 +71,6 @@ class GazeboAgent():
         """
         self._world = world
         self.type = agent_type
-        self._use_simple_full_states = use_simple_full_states
-        self._view_angle_limit = view_angle_limit
         self._use_image_observation = use_image_observation
         self._resized_image_size = resized_image_size
         self._image_with_internal_states = image_with_internal_states

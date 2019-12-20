@@ -195,7 +195,9 @@ class GoalTask(Task):
                  reward_weight=1.0,
                  move_goal_during_episode=True,
                  success_with_angle_requirement=True,
-                 additional_observation_list=[]):
+                 additional_observation_list=[],
+                 use_egocentric_states=False,
+                 egocentric_perception_range=0):
         """
         Args:
             env (gym.Env): an instance of Environment
@@ -233,6 +235,11 @@ class GoalTask(Task):
             move_goal_during_episode (bool): if ture, the goal will be moved during episode, when it has been achieved
             success_with_angle_requirement: if ture then calculate the reward considering the angular requirement
             additional_observation_list: a list of additonal objects to be added
+            use_egocentric_states (bool): For the non-image observation case, use the states transformed to
+                egocentric coordinate, e.g., agent's egocentric distance and direction to goal
+            egocentric_perception_range (float): the max range in degree to limit the agent's observation.
+                E.g. 60 means object is only visible when it's within +/-60 degrees in front of the agent's
+                direction (yaw).
         """
         self._max_play_ground_size = 5  # play ground will be (-5, 5) for both x and y axes.
         # TODO: Remove the default grey walls in the play ground world file,
@@ -274,6 +281,8 @@ class GoalTask(Task):
             range(-self._max_play_ground_size, self._max_play_ground_size)))
         self._pos_list.remove((0, 0))
         self._polar_coord = polar_coord
+        self._use_egocentric_states = use_egocentric_states
+        self._egocentric_perception_range = egocentric_perception_range
         if self.should_use_curriculum_training():
             self._orig_random_range = random_range
             self._random_range = start_range
@@ -535,7 +544,7 @@ class GoalTask(Task):
                 pose = np.concatenate((pose, obj_pos), axis=0)
 
         agent_pose = np.array(agent.get_pose()).flatten()
-        if agent._use_simple_full_states:
+        if self._use_egocentric_states:
             yaw = agent_pose[5]
             # adds egocentric velocity input
             vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
@@ -547,13 +556,13 @@ class GoalTask(Task):
                 x = pose[0] - agent_pose[0]
                 y = pose[1] - agent_pose[1]
                 rotated_x, rotated_y = agent.get_egocentric_cord_2d(x, y, -yaw)
-                if agent._view_angle_limit > 0:
+                if self._egocentric_perception_range > 0:
                     dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
                     rotated_x /= dist
                     rotated_y /= dist
                     magnitude = 1. / dist
                     if rotated_x < np.cos(
-                        agent._view_angle_limit / 180. * np.pi):
+                        self._egocentric_perception_range / 180. * np.pi):
                         rotated_x = 0.
                         rotated_y = 0.
                         magnitude = 0.
