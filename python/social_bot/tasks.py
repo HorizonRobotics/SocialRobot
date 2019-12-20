@@ -81,9 +81,7 @@ class Task(object):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations will be added into the observation
-            besides original observation from the environment. This can be overide
-            by the sub task
+            np.array, the observations of the task for non-image case
         """
         return np.array([])
 
@@ -477,8 +475,7 @@ class GoalTask(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array of the extra observations will be added into the
-            observation besides self states, for the non-image case
+            np.array, the observations of the task for non-image case
         """
         goal = self._world.get_model(self._goal_name)
         goal_first = not agent._with_language
@@ -526,7 +523,10 @@ class GoalTask(Task):
                 pose = pose[3:]
             obs = np.array(obs)
         else:
-            obs = pose
+            agent_vel = np.array(agent.get_velocities()).flatten()
+            joints_states = agent.get_internal_states()
+            obs = np.concatenate(
+                (pose, agent_pose, agent_vel, joints_states), axis=0)
         return obs
 
 
@@ -683,8 +683,7 @@ class ICubAuxiliaryTask(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array of the extra observations will be added into the
-            observation besides self states, for the non-image case
+            np.array, the observations of the task for non-image case
         """
         icub_extra_obs = self.get_icub_extra_obs(agent)
         if self._target_name:
@@ -813,9 +812,15 @@ class KickingBallTask(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations will be added into the observation
+            np.array, the observations of the task for non-image case
         """
-        return self._get_states_of_model_list(['ball', 'goal'])
+        obj_poses = self._get_states_of_model_list(['ball', 'goal'])
+        agent_pose = np.array(agent.get_pose()).flatten()
+        agent_vel = np.array(agent.get_velocities()).flatten()
+        joints_states = agent.get_internal_states()
+        obs = np.concatenate(
+            (obj_poses, agent_pose, agent_vel, joints_states), axis=0)
+        return obs
 
     def _move_ball(self, ball, goal_loc):
         range = self._random_range
@@ -900,9 +905,12 @@ class Reaching3D(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations will be added into the observation
+            np.array, the observations of the task for non-image case
         """
         goal_loc, _ = self._goal.get_pose()
         reaching_loc, _ = agent.get_link_pose(self._agent.type +
                                               self._reaching_link)
-        return np.array([goal_loc, reaching_loc]).flatten()
+        joints_states = agent.get_internal_states()
+        obs = np.concatenate(
+            (goal_loc, reaching_loc, joints_states), axis=0)
+        return obs

@@ -161,7 +161,7 @@ class GazeboAgent():
         elif self._use_image_observation:  # observation is pure image
             obs = self.get_camera_observation()
         else:  # observation is pure low-dimentional states
-            obs = self.get_full_states_observation(teacher)
+            obs = teacher.get_task_specific_observation(self)
         return obs
 
     def get_camera_observation(self):
@@ -177,33 +177,6 @@ class GazeboAgent():
                                                       PIL.Image.ANTIALIAS)
             image = np.array(image, copy=False)
         return image
-
-    def rotate(self, x, y, radian):
-        rotated_x = x * np.cos(radian) - y * np.sin(radian)
-        rotated_y = x * np.sin(radian) + y * np.cos(radian)
-        return (rotated_x, rotated_y)
-
-    def get_full_states_observation(self, teacher):
-        """ Get the low-dimensional full states, an alternate to image observation. 
-        
-        Args:
-            teacher (social_bot.Teacher) the teacher, used to get the task specific
-                observations from teacher's taskgroups.
-        Returns:
-            obs (numpy.array): the return incldes agent poses, velocities, internal
-                joints and task specific observations.
-        """
-        task_specific_ob = teacher.get_task_specific_observation(self)
-        agent_pose = np.array(self.get_pose()).flatten()
-        if self._use_simple_full_states:
-            obs = task_specific_ob
-        else:
-            agent_vel = np.array(self.get_velocities()).flatten()
-            internal_states = self.get_internal_states()
-            obs = np.concatenate(
-                (task_specific_ob, agent_pose, agent_vel, internal_states),
-                axis=0)
-        return obs
 
     def get_internal_states(self):
         """ Get the internal joint states of the agent.
@@ -283,7 +256,7 @@ class GazeboAgent():
             if self._image_with_internal_states:
                 obs['states'] = self.get_internal_states()
         else:
-            obs['states'] = self.get_full_states_observation(teacher)
+            obs['states'] = teacher.get_task_specific_observation(self)
         if self._with_language:
             obs['sentence'] = teacher.sentence_to_sequence(
                 sentence_raw, self._vocab_sequence_length)
@@ -344,3 +317,17 @@ class GazeboAgent():
         else:
             control_range = np.array(joints_limits)
         return control_range
+
+    def get_egocentric_cord_2d(self, x, y, agent_yaw):
+        """ Get the egocentric coordinate from a global 2D x-y plane coordinate.
+        
+        Args:
+            x (float): x of global x-y plane coordinate
+            y (float): y of global x-y plane coordinate
+            agent_yaw (float): agent yaw (rotation in z-axis), in radian
+        Returns:
+            tuple of float, the position in the transformed coordinate
+        """
+        rotated_x = x * np.cos(agent_yaw) - y * np.sin(agent_yaw)
+        rotated_y = x * np.sin(agent_yaw) + y * np.cos(agent_yaw)
+        return (rotated_x, rotated_y)
