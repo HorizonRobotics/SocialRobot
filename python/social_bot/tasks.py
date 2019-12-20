@@ -485,6 +485,12 @@ class GoalTask(Task):
                     abs(loc[0]) < self._max_play_ground_size and
                     abs(loc[1]) < self._max_play_ground_size)  # within walls
             ):
+                if attempts > 10000:
+                    logging.warning("Took forever to find satisfying " +
+                        "goal location. " +
+                        "agent_loc: {}, range: {}, max_size: {}.".format(
+                            str(agent_loc), str(range),
+                            str(self._max_play_ground_size)))
                 break
             attempts += 1
         self._prev_dist = self._initial_dist
@@ -548,14 +554,14 @@ class GoalTask(Task):
             yaw = agent_pose[5]
             # adds egocentric velocity input
             vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
-            rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, -yaw)
+            rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, yaw)
             obs = [rvx, rvy, vz, a1, a2, a3]
             # adds objects' (goal's as well as distractions') egocentric
             # coordinates to observation
             while len(pose) > 1:
                 x = pose[0] - agent_pose[0]
                 y = pose[1] - agent_pose[1]
-                rotated_x, rotated_y = agent.get_egocentric_cord_2d(x, y, -yaw)
+                rotated_x, rotated_y = agent.get_egocentric_cord_2d(x, y, yaw)
                 if self._egocentric_perception_range > 0:
                     dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
                     rotated_x /= dist

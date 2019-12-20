@@ -322,7 +322,9 @@ class GazeboAgent():
 
     def get_egocentric_cord_2d(self, x, y, agent_yaw):
         """ Get the egocentric coordinate from a global 2D x-y plane coordinate.
-        
+
+        This is achieved by rotating the global coordinates x, y by -agent_yaw.
+
         Args:
             x (float): x of global x-y plane coordinate
             y (float): y of global x-y plane coordinate
@@ -330,10 +332,11 @@ class GazeboAgent():
         Returns:
             tuple of float, the position in the transformed coordinate
         """
-        rotated_x = x * np.cos(agent_yaw) - y * np.sin(agent_yaw)
-        rotated_y = x * np.sin(agent_yaw) + y * np.cos(agent_yaw)
+        rotate = -agent_yaw
+        rotated_x = x * np.cos(rotate) - y * np.sin(rotate)
+        rotated_y = x * np.sin(rotate) + y * np.cos(rotate)
         return (rotated_x, rotated_y)
-        
+
     def get_contacts(self, contacts_sensor, contact_collision):
         """ Get contacts to the link.
 
@@ -360,7 +363,7 @@ class ActionWrapper():
     """
 
     _NEW_ACTION_LIST = []
-    
+
     def get_actions_dim(self):
         """ Get the dimension of the new action space
         """
