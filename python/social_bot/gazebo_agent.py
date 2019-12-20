@@ -58,7 +58,7 @@ class GazeboAgent():
             config (dict): the configuarations for the agent
                 see `agent_cfg.jason` for details
             use_simple_full_states (bool): Use the simplest full states like
-                agent's distance and direction to goal
+                agent's egocentric distance and direction to goal
             view_angle_limit (float): the angle degree to limit the agent's observation.
                 E.g. 60 means goal is only visible when it's within +/-60 degrees
                 of the agent's direction (yaw).
@@ -196,31 +196,7 @@ class GazeboAgent():
         task_specific_ob = teacher.get_task_specific_observation(self)
         agent_pose = np.array(self.get_pose()).flatten()
         if self._use_simple_full_states:
-            # assumes GoalTask and that the first 3 dims of the
-            # task_specific_observation give the goal position.
-            yaw = agent_pose[5]
-            vx, vy, vz, a1, a2, a3 = np.array(self.get_velocities()).flatten()
-            rvx, rvy = self.rotate(vx, vy, -yaw)
-            obs = [rvx, rvy, vz, a1, a2, a3]
-            while len(task_specific_ob) > 1:
-                x = task_specific_ob[0] - agent_pose[0]
-                y = task_specific_ob[1] - agent_pose[1]
-                rotated_x, rotated_y = self.rotate(x, y, -yaw)
-                if self._view_angle_limit > 0:
-                    dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
-                    rotated_x /= dist
-                    rotated_y /= dist
-                    magnitude = 1. / dist
-                    if rotated_x < np.cos(
-                        self._view_angle_limit / 180. * np.pi):
-                        rotated_x = 0.
-                        rotated_y = 0.
-                        magnitude = 0.
-                    obs.extend([rotated_x, rotated_y, magnitude])
-                else:
-                    obs.extend([rotated_x, rotated_y])
-                task_specific_ob = task_specific_ob[3:]
-            obs = np.array(obs)
+            obs = task_specific_ob
         else:
             agent_vel = np.array(self.get_velocities()).flatten()
             internal_states = self.get_internal_states()

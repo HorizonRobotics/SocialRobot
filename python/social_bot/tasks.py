@@ -497,7 +497,37 @@ class GoalTask(Task):
             else:
                 pose = np.concatenate((pose, obj_pos), axis=0)
 
-        return pose
+        agent_pose = np.array(agent.get_pose()).flatten()
+        if agent._use_simple_full_states:
+            yaw = agent_pose[5]
+            # adds egocentric velocity input
+            vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
+            rvx, rvy = agent.rotate(vx, vy, -yaw)
+            obs = [rvx, rvy, vz, a1, a2, a3]
+            # adds objects' (goal's as well as distractions') egocentric
+            # coordinates to observation
+            while len(pose) > 1:
+                x = pose[0] - agent_pose[0]
+                y = pose[1] - agent_pose[1]
+                rotated_x, rotated_y = agent.rotate(x, y, -yaw)
+                if agent._view_angle_limit > 0:
+                    dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
+                    rotated_x /= dist
+                    rotated_y /= dist
+                    magnitude = 1. / dist
+                    if rotated_x < np.cos(
+                        agent._view_angle_limit / 180. * np.pi):
+                        rotated_x = 0.
+                        rotated_y = 0.
+                        magnitude = 0.
+                    obs.extend([rotated_x, rotated_y, magnitude])
+                else:
+                    obs.extend([rotated_x, rotated_y])
+                pose = pose[3:]
+            obs = np.array(obs)
+        else:
+            obs = pose
+        return obs
 
 
 @gin.configurable
