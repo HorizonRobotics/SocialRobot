@@ -21,9 +21,10 @@ PickAndPlace.reward_shaping=True
 PlayGround.action_wrapper=@YoubotActionWrapper
 
 # algorithm config
-actor/Adam.learning_rate=5e-4
-critic/Adam.learning_rate=5e-4
-alpha/Adam.learning_rate=5e-4
+actor/Adam.learning_rate=1e-3
+critic/Adam.learning_rate=1e-3
+alpha/Adam.learning_rate=1e-3
+OneStepTDLoss.gamma=0.98
 
 # training config
 TrainerConfig.initial_collect_steps=2000

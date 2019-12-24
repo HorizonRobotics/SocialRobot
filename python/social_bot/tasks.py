@@ -982,12 +982,12 @@ class PickAndPlace(Task):
                 np.array(obj_pos) - np.array(finger_pos))
             obj_lifted = obj_height / self._obj_init_height - 1.0
             gripping_feature = 0.25 * l_contact + 0.25 * r_contact + min(
-                obj_lifted, 1.0)  # encourge to lift the object by obj_height
-            gripping = (gripping_feature >= 0.999999)
+                obj_lifted, 0.5)  # encourge to lift the object by obj_height
+            gripping = (gripping_feature > 0.99)
             # success condition, minus an offset of object height on z-axis
             if gripping and obj_dist_xy < self._success_distance_thresh and dist_z - self._obj_init_height < self._success_distance_thresh:
                 logging.debug("object has been successfuly placed")
-                reward = 100.0 if self._reward_shaping else 1.0
+                reward = 200.0 if self._reward_shaping else 1.0
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done", done=True)
             else:
