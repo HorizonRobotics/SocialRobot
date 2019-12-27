@@ -447,8 +447,10 @@ class GoalTask(Task):
         """
         Move goal as well as all distraction objects to a random location.
         """
-        self._move_goal_impl(goal=goal, agent_loc=agent_loc,
-            agent_dir=agent_dir, is_goal=True)
+        avoid_locations = [agent_loc]
+        loc = self._move_obj(obj=goal, agent_loc=agent_loc,
+            agent_dir=agent_dir, is_goal=True, avoid_locations=avoid_locations)
+        avoid_locations.append(loc)
         distractions = OrderedDict()
         for item in self._distraction_list:
             if item is not self._goal_name:
@@ -456,11 +458,14 @@ class GoalTask(Task):
         if len(distractions) and self._curriculum_distractions:
             for item, _ in distractions.items():
                 distraction = self._world.get_agent(item)
-                self._move_goal_impl(
-                    goal=distraction, agent_loc=agent_loc,
-                    agent_dir=agent_dir, is_goal=False)
+                loc = self._move_obj(
+                    obj=distraction, agent_loc=agent_loc,
+                    agent_dir=agent_dir, is_goal=False,
+                    avoid_locations=avoid_locations)
+                avoid_locations.append(loc)
 
-    def _move_goal_impl(self, goal, agent_loc, agent_dir, is_goal=True):
+    def _move_obj(
+        self, obj, agent_loc, agent_dir, is_goal=True, avoid_locations=[]):
         if (self.should_use_curriculum_training()
                 and self._percent_full_range_in_curriculum > 0
                 and random.random() < self._percent_full_range_in_curriculum):
@@ -471,6 +476,7 @@ class GoalTask(Task):
             self._is_full_range_in_curriculum = False
         attempts = 0
         while True:
+            attempts += 1
             dist = random.random() * range
             if self._curriculum_target_angle:
                 angle_range = self._random_angle
@@ -487,22 +493,27 @@ class GoalTask(Task):
                        random.random() * range - range / 2, 0)
 
             self._initial_dist = np.linalg.norm(loc - agent_loc)
-            if self._initial_dist > self._success_distance_thresh and (
-                attempts > 10000 or (
-                    abs(loc[0]) < self._max_play_ground_size and
-                    abs(loc[1]) < self._max_play_ground_size)  # within walls
-            ):
-                if attempts > 10000:
+            satisfied = True
+            if (abs(loc[0]) > self._max_play_ground_size or
+                abs(loc[1]) > self._max_play_ground_size):  # not within walls
+                satisfied = False
+            for avoid_loc in avoid_locations:
+                dist = np.linalg.norm(loc - avoid_loc)
+                if dist < self._success_distance_thresh:
+                    satisfied = False
+                    break
+            if satisfied or attempts > 10000:
+                if not satisfied:
                     logging.warning("Took forever to find satisfying " +
-                        "goal location. " +
+                        "object location. " +
                         "agent_loc: {}, range: {}, max_size: {}.".format(
                             str(agent_loc), str(range),
                             str(self._max_play_ground_size)))
                 break
-            attempts += 1
         self._prev_dist = self._initial_dist
-        goal.reset()
-        goal.set_pose((loc, (0, 0, 0)))
+        obj.reset()
+        obj.set_pose((loc, (0, 0, 0)))
+        return loc
 
     def _random_move_objects(self, random_range=10.0):
         obj_num = len(self._object_list)
