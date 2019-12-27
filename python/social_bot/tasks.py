@@ -335,12 +335,19 @@ class GoalTask(Task):
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
 
+    def _get_agent_loc(self):
+        loc, agent_dir = self._agent.get_pose()
+        if self._agent.type.find('icub') != -1:
+            # For agent icub, we need to use the average pos here
+            loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
+        loc = np.array(loc)
+        return loc, agent_dir
+
     def run(self):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
         self._agent.reset()
-        loc, agent_dir = self._agent.get_pose()
-        loc = np.array(loc)
+        loc, agent_dir = self._get_agent_loc()
         self._random_move_objects()
         self.pick_goal()
         goal = self._world.get_model(self._goal_name)
@@ -349,12 +356,8 @@ class GoalTask(Task):
         prev_min_dist_to_distraction = 100
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
-            loc, agent_dir = self._agent.get_pose()
-            if self._agent.type.find('icub') != -1:
-                # For agent icub, we need to use the average pos here
-                loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
+            loc, agent_dir = self._get_agent_loc()
             goal_loc, _ = goal.get_pose()
-            loc = np.array(loc)
             goal_loc = np.array(goal_loc)
             dist = np.linalg.norm(loc - goal_loc)
             # dir from get_pose is (roll, pitch, roll)
@@ -379,6 +382,8 @@ class GoalTask(Task):
                     self.pick_goal()
                     goal = self._world.get_agent(self._goal_name)
                 if self._move_goal_during_episode:
+                    self._agent.reset()
+                    loc, agent_dir = self._get_agent_loc()
                     self._move_goal(goal, loc, agent_dir)
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
@@ -440,25 +445,27 @@ class GoalTask(Task):
 
     def _move_goal(self, goal, agent_loc, agent_dir):
         """
-        Move goal as well as a distraction object to the right location.
+        Move goal as well as all distraction objects to a random location.
         """
-        self._move_goal_impl(goal, agent_loc, agent_dir)
+        self._move_goal_impl(goal=goal, agent_loc=agent_loc,
+            agent_dir=agent_dir, is_goal=True)
         distractions = OrderedDict()
         for item in self._distraction_list:
             if item is not self._goal_name:
                 distractions[item] = 1
         if len(distractions) and self._curriculum_distractions:
-            rand_id = random.randrange(len(distractions))
-            distraction = self._world.get_agent(
-                list(distractions.keys())[rand_id])
-            self._move_goal_impl(distraction, agent_loc, agent_dir)
+            for item, _ in distractions.items():
+                distraction = self._world.get_agent(item)
+                self._move_goal_impl(
+                    goal=distraction, agent_loc=agent_loc,
+                    agent_dir=agent_dir, is_goal=False)
 
-    def _move_goal_impl(self, goal, agent_loc, agent_dir):
+    def _move_goal_impl(self, goal, agent_loc, agent_dir, is_goal=True):
         if (self.should_use_curriculum_training()
                 and self._percent_full_range_in_curriculum > 0
                 and random.random() < self._percent_full_range_in_curriculum):
             range = self._orig_random_range
-            self._is_full_range_in_curriculum = True
+            self._is_full_range_in_curriculum = is_goal
         else:
             range = self._random_range
             self._is_full_range_in_curriculum = False
