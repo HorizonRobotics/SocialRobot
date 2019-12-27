@@ -147,7 +147,7 @@ class Task(object):
             random_range (float): the range of the new position
             center_pos (numpy.array): the center coordinates (x, y) of the random range
             min_distance (float): the new position will not be closer than this distance 
-            height (float): height offset 
+            height (float): height offset
         Returns:
             np.array, the new position
         """
@@ -1105,3 +1105,172 @@ class PickAndPlace(Task):
              palm_pos]).flatten()
         return np.concatenate((obs, finger_contacts, agent_pose,
             joints_states), axis=0)
+
+
+@gin.configurable
+class StackCube(Task):
+    """
+    A task to stack several wood cubes together.
+    A simple reward shaping is used to guide the agent to grip cube first.
+    """
+
+    compatible_agents = ['youbot_noplugin']
+
+    def __init__(self,
+                 env,
+                 max_steps,
+                 max_distance=0.5,
+                 min_distance=0.3,
+                 objects_num=3,
+                 objects_random_range=0.2,
+                 success_distance_thresh=0.025,
+                 reward_shaping=False,
+                 reward_weight=1.0):
+        """
+        Args:
+            env (gym.Env): an instance of Environment
+            max_steps (int): episode will end if not complet the task in so many steps, recommend to be 150
+                for agent youbot_noplugin and object 5cm cube
+            max_distance (float): the max distance from the random object's location to the agent
+            min_distance (float): the min distance from the random object's location to the agent
+            objects_num (int): the number of objects to stacking
+            objects_random_range (float): the range of objects distributed
+            success_distance_thresh (float): consider success if the objects' x-y plance distance is within
+                this threshold
+            reward_shaping (bool): if false, the reward is -1/0/1, otherwise the 0 case will be replaced
+                with shapped reward.
+            reward_weight (float): the weight of the reward
+        """
+        super().__init__(
+            env=env, max_steps=max_steps, reward_weight=reward_weight)
+        assert self._agent.type in self.compatible_agents, "PickAndPlace Task only support youbot_noplugin for now"
+        self._palm_link = 'youbot_noplugin::gripper_palm_link'
+        self._finger_link_l = 'youbot_noplugin::gripper_finger_link_l'
+        self._finger_link_r = 'youbot_noplugin::gripper_finger_link_r'
+        self._object_collision_name = '::link::collision'
+        self._max_distance = max_distance
+        self._min_distance = min_distance
+        self._objects_num = objects_num
+        self._objects_random_range = objects_random_range
+        self._success_distance_thresh = success_distance_thresh
+        self._reward_shaping = reward_shaping
+        self._object_names = []
+        self._objects = []
+        for obj_index in range(objects_num):
+            name = 'wood_cube_' + str(obj_index)
+            self._object_names.append(name)
+            self._env.insert_model(model='wood_cube_5cm_without_offset', name=name)
+            self._objects.append(self._world.get_model(name))
+
+    def run(self):
+        """ Start a teaching episode for this task. """
+        agent_sentence = yield
+        r = random.uniform(self._min_distance, self._max_distance)
+        theta = random.random() * 2 * np.pi
+        stacking_pos = np.array([r * np.cos(theta), r * np.sin(theta)])
+        for obj_index in range(self._objects_num):
+            self._random_move_object(
+                target=self._objects[obj_index],
+                random_range=self._objects_random_range,
+                center_pos=stacking_pos,
+                min_distance=0,
+                height=0.01)
+        steps = 0
+        succ_cnt = 0
+        while steps < self._max_steps:
+            if steps <= 5:
+                self._obj_init_height = self._objects[0].get_pose()[0][2]
+            steps += 1
+            # get finger position
+            finger_l_pos, _ = self._agent.get_link_pose(self._finger_link_l)
+            finger_r_pos, _ = self._agent.get_link_pose(self._finger_link_r)
+            finger_pos = (
+                np.array(finger_l_pos) + np.array(finger_r_pos)) / 2.0
+            obj_poss = []
+            l_contacts = []
+            r_contacts = []
+            for obj_index in range(self._objects_num):
+                # get object's position
+                obj_pos, _ = self._objects[obj_index].get_pose()
+                obj_poss.append(obj_pos)
+                # get contacts
+                l_contacts.append(1.0 * self._agent.get_contacts('finger_cnta_l',
+                    self._object_names[obj_index] + self._object_collision_name))
+                r_contacts.append(1.0 * self._agent.get_contacts('finger_cnta_r',
+                    self._object_names[obj_index] + self._object_collision_name))
+            l_contacts = np.array(l_contacts)
+            r_contacts = np.array(r_contacts)
+            obj_poss = np.array(obj_poss)
+            poss_xy = obj_poss[:, :2]
+            heights = obj_poss[:, 2]
+            bottom_obj_indexs = np.where(heights - self._obj_init_height < 0.01)[0] # np.argmin(heights)
+            bottom_obj_poss_xy = poss_xy[bottom_obj_indexs]
+            obj_num_on_ground = len(bottom_obj_indexs)
+            if obj_num_on_ground == 1: # only one object is on the ground
+                pos_xy = np.full(poss_xy.shape, bottom_obj_poss_xy[0]) # the bottom obj position
+                # find the cubes being stacked
+                aligned_obj_indexs = 0
+                for obj_index in range(self._objects_num):
+                    if np.linalg.norm(poss_xy[obj_index] - pos_xy) < self._success_distance_thresh:
+                        aligned_obj_indexs += 1
+                # success condition
+                if aligned_obj_indexs == self._objects_num and np.sum(l_contacts) + np.sum(r_contacts) < 0.01:
+                    # successfully stacked and gripper left the objects for one step
+                    succ_cnt += 1
+                else:
+                    succ_cnt = 0
+                
+                if succ_cnt >= 5:
+                    logging.debug("object has been successfuly placed")
+                    reward = 200.0 if self._reward_shaping else 1.0
+                    agent_sentence = yield TeacherAction(
+                        reward=reward, sentence="well done", done=True)
+                else:
+                    shaped_reward = 0
+                    reward = shaped_reward if self._reward_shaping else 0
+                    agent_sentence = yield TeacherAction(reward=reward, done=False)
+
+            elif obj_num_on_ground < self._objects_num: # some objects are stacked
+                shaped_reward = 0
+                reward = shaped_reward if self._reward_shaping else 0
+                agent_sentence = yield TeacherAction(reward=reward, done=False)
+                succ_cnt = 0
+            else: # all objects are on ground
+                shaped_reward = 0
+                reward = shaped_reward if self._reward_shaping else 0
+                agent_sentence = yield TeacherAction(reward=reward, done=False)
+                succ_cnt = 0
+
+        yield TeacherAction(reward=-1.0, sentence="failed", done=True)
+
+    def task_specific_observation(self, agent):
+        """
+        Args:
+            agent (GazeboAgent): the agent
+        Returns:
+            np.array, the observations of the task for non-image case
+        """
+        # object poses
+        obj_poses = []
+        for obj_index in range(self._objects_num):
+            # get object's position
+            obj_pos, obj_rot = self._objects[obj_index].get_pose()
+            obj_poses.append(obj_pos)
+            obj_poses.append(obj_rot)
+        obj_poses = np.array(obj_poses).flatten()
+        # Use 3 position of the links to uniquely determine the 6 + 2 DoF gripper
+        finger_l_pos, _ = agent.get_link_pose(self._finger_link_l)
+        finger_r_pos, _ = agent.get_link_pose(self._finger_link_r)
+        palm_pos, _ = agent.get_link_pose(self._palm_link)
+        gripper_states = np.array([finger_l_pos, finger_r_pos,
+             palm_pos]).flatten()
+        # contacts
+        finger_contacts = np.array([
+            agent.get_contacts('finger_cnta_l', self._object_names[obj_index] + self._object_collision_name),
+            agent.get_contacts('finger_cnta_r', self._object_names[obj_index] + self._object_collision_name)
+        ]).astype(np.float32)
+        # agent self states
+        agent_pose = np.array(agent.get_pose()).flatten()
+        joints_states = agent.get_internal_states()
+        return np.concatenate((agent_pose, joints_states, gripper_states,
+            finger_contacts, obj_poses), axis=0)
