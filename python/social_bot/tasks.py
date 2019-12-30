@@ -488,8 +488,8 @@ class GoalTask(Task):
             loc = (dist * math.cos(angle), dist * math.sin(angle),
                    0) + agent_loc
 
-            if self._polar_coord:
-                loc = (random.random() * range - range / 2,
+            if not self._polar_coord:
+                loc = np.asarray(random.random() * range - range / 2,
                        random.random() * range - range / 2, 0)
 
             self._initial_dist = np.linalg.norm(loc - agent_loc)
