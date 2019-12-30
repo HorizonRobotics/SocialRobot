@@ -489,8 +489,8 @@ class GoalTask(Task):
                    0) + agent_loc
 
             if not self._polar_coord:
-                loc = np.asarray(random.random() * range - range / 2,
-                       random.random() * range - range / 2, 0)
+                loc = np.asarray((random.random() * range - range / 2,
+                       random.random() * range - range / 2, 0))
 
             self._initial_dist = np.linalg.norm(loc - agent_loc)
             satisfied = True
