@@ -162,7 +162,7 @@ def main():
     """
     import matplotlib.pyplot as plt
     from social_bot.envs.play_ground import PlayGround
-    from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace, StackCube
+    from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace, Stack
     from social_bot.gazebo_agent import YoubotActionWrapper
     use_image_obs = True
     fig = None
@@ -176,7 +176,7 @@ def main():
         step_time=0.05,
         real_time_update_rate=500,
         resized_image_size=(128, 128),
-        tasks=[StackCube],
+        tasks=[Stack],
         action_wrapper=YoubotActionWrapper)
     env.render()
     keybo = KeyboardControl()

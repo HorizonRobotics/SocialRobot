@@ -81,9 +81,13 @@ The observation of the agent is also configuable, including internal states, tar
 
     <img src="media/reaching.gif" width="320" height="240" alt="reaching"/>
 
-* [PickAndPlace task](python/social_bot/tasks.py): A task to grip an object (a wood cube), move and then place it to the target position. An optional reward shaping can be used to guide the agent to grip cube and move to the position. This task is only compatible with Agent youbot_noplugin.
+* [PickAndPlace task](python/social_bot/tasks.py): A task to grip an object (a wood cube), move and then place it to the target position. An optional reward shaping can be used to guide the agent to grasp cube and move to the position. This task is only compatible with Agent youbot_noplugin.
 
     <img src="media/pick_and_palce.gif" width="320" height="200" alt="pick_and_palce"/>
+
+* [Stack task](python/social_bot/tasks.py): A task to stack several objects (wood cubes) together object. An optional reward shaping can be enabled to guide the agent to grasp the cube and place to another cube. This task is only compatible with Agent youbot_noplugin. Image can be used as the observation.
+
+    <img src="media/stack.gif" width="450" height="200" alt="stack"/>
 
 
 ### [Simple Navigation](python/social_bot/envs/simple_navigation.py)
