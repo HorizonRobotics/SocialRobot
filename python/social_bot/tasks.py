@@ -1292,7 +1292,7 @@ class Stack(Task):
                     stage_reward = 0.5 * max(
                         1.0 - distance_to_closest_obj / self._max_distance, 0)
                 reward = stacked_obj_num + stage_reward if self._reward_shaping else 0
-                agent_sentence = yield TeacherAction(reward=0, done=False)
+                agent_sentence = yield TeacherAction(reward=reward, done=False)
             else:  # an object is being grasped
                 if stacked_obj_num == 0:  # any target on the ground is fine, prefer the closest one
                     distance_to_target = np.min(
