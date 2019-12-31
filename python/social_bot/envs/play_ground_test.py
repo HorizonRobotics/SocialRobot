@@ -23,7 +23,7 @@ import social_bot.pygazebo as gazebo
 from absl import logging
 from play_ground import PlayGround
 from embodied_teacher import EmbodiedTeacher
-from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace
+from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace, Stack
 
 
 class TestPlayGround(unittest.TestCase):
