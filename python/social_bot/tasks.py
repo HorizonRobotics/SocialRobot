@@ -276,9 +276,11 @@ class GoalTask(Task):
         if not additional_observation_list:
             additional_observation_list = self._object_list
         self._additional_observation_list = additional_observation_list
-        self._pos_list = list(itertools.product(
-            range(-self._max_play_ground_size, self._max_play_ground_size),
-            range(-self._max_play_ground_size, self._max_play_ground_size)))
+        self._pos_list = list(
+            itertools.product(
+                range(-self._max_play_ground_size, self._max_play_ground_size),
+                range(-self._max_play_ground_size,
+                      self._max_play_ground_size)))
         self._pos_list.remove((0, 0))
         self._polar_coord = polar_coord
         self._use_egocentric_states = use_egocentric_states
@@ -388,8 +390,9 @@ class GoalTask(Task):
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
-                logging.debug("yielding reward: {}, farther than {} from goal"
-                    .format(str(reward), str(self._fail_distance_thresh)))
+                logging.debug(
+                    "yielding reward: {}, farther than {} from goal".format(
+                        str(reward), str(self._fail_distance_thresh)))
                 yield TeacherAction(
                     reward=reward, sentence="failed", done=True)
             else:
@@ -448,8 +451,12 @@ class GoalTask(Task):
         Move goal as well as all distraction objects to a random location.
         """
         avoid_locations = [agent_loc]
-        loc = self._move_obj(obj=goal, agent_loc=agent_loc,
-            agent_dir=agent_dir, is_goal=True, avoid_locations=avoid_locations)
+        loc = self._move_obj(
+            obj=goal,
+            agent_loc=agent_loc,
+            agent_dir=agent_dir,
+            is_goal=True,
+            avoid_locations=avoid_locations)
         avoid_locations.append(loc)
         distractions = OrderedDict()
         for item in self._distraction_list:
@@ -459,13 +466,19 @@ class GoalTask(Task):
             for item, _ in distractions.items():
                 distraction = self._world.get_agent(item)
                 loc = self._move_obj(
-                    obj=distraction, agent_loc=agent_loc,
-                    agent_dir=agent_dir, is_goal=False,
+                    obj=distraction,
+                    agent_loc=agent_loc,
+                    agent_dir=agent_dir,
+                    is_goal=False,
                     avoid_locations=avoid_locations)
                 avoid_locations.append(loc)
 
-    def _move_obj(
-        self, obj, agent_loc, agent_dir, is_goal=True, avoid_locations=[]):
+    def _move_obj(self,
+                  obj,
+                  agent_loc,
+                  agent_dir,
+                  is_goal=True,
+                  avoid_locations=[]):
         if (self.should_use_curriculum_training()
                 and self._percent_full_range_in_curriculum > 0
                 and random.random() < self._percent_full_range_in_curriculum):
@@ -490,12 +503,12 @@ class GoalTask(Task):
 
             if not self._polar_coord:
                 loc = np.asarray((random.random() * range - range / 2,
-                       random.random() * range - range / 2, 0))
+                                  random.random() * range - range / 2, 0))
 
             self._initial_dist = np.linalg.norm(loc - agent_loc)
             satisfied = True
-            if (abs(loc[0]) > self._max_play_ground_size or
-                abs(loc[1]) > self._max_play_ground_size):  # not within walls
+            if (abs(loc[0]) > self._max_play_ground_size or abs(loc[1]) >
+                    self._max_play_ground_size):  # not within walls
                 satisfied = False
             for avoid_loc in avoid_locations:
                 dist = np.linalg.norm(loc - avoid_loc)
@@ -504,7 +517,8 @@ class GoalTask(Task):
                     break
             if satisfied or attempts > 10000:
                 if not satisfied:
-                    logging.warning("Took forever to find satisfying " +
+                    logging.warning(
+                        "Took forever to find satisfying " +
                         "object location. " +
                         "agent_loc: {}, range: {}, max_size: {}.".format(
                             str(agent_loc), str(range),
@@ -581,12 +595,13 @@ class GoalTask(Task):
                 y = pose[1] - agent_pose[1]
                 rotated_x, rotated_y = agent.get_egocentric_cord_2d(x, y, yaw)
                 if self._egocentric_perception_range > 0:
-                    dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
+                    dist = math.sqrt(rotated_x * rotated_x +
+                                     rotated_y * rotated_y)
                     rotated_x /= dist
                     rotated_y /= dist
                     magnitude = 1. / dist
                     if rotated_x < np.cos(
-                        self._egocentric_perception_range / 180. * np.pi):
+                            self._egocentric_perception_range / 180. * np.pi):
                         rotated_x = 0.
                         rotated_y = 0.
                         magnitude = 0.
@@ -598,8 +613,8 @@ class GoalTask(Task):
         else:
             agent_vel = np.array(agent.get_velocities()).flatten()
             joints_states = agent.get_internal_states()
-            obs = np.concatenate(
-                (pose, agent_pose, agent_vel, joints_states), axis=0)
+            obs = np.concatenate((pose, agent_pose, agent_vel, joints_states),
+                                 axis=0)
         return obs
 
 
@@ -887,8 +902,8 @@ class KickingBallTask(Task):
         agent_pose = np.array(agent.get_pose()).flatten()
         agent_vel = np.array(agent.get_velocities()).flatten()
         joints_states = agent.get_internal_states()
-        obs = np.concatenate(
-            (obj_poses, agent_pose, agent_vel, joints_states), axis=0)
+        obs = np.concatenate((obj_poses, agent_pose, agent_vel, joints_states),
+                             axis=0)
         return obs
 
     def _move_ball(self, ball, goal_loc):
@@ -982,8 +997,7 @@ class Reaching3D(Task):
         reaching_loc, _ = agent.get_link_pose(self._agent.type +
                                               self._reaching_link)
         joints_states = agent.get_internal_states()
-        obs = np.concatenate(
-            (goal_loc, reaching_loc, joints_states), axis=0)
+        obs = np.concatenate((goal_loc, reaching_loc, joints_states), axis=0)
         return obs
 
 
@@ -1121,5 +1135,5 @@ class PickAndPlace(Task):
         obs = np.array(
             [goal_pos, obj_pos, obj_rot, finger_l_pos, finger_r_pos,
              palm_pos]).flatten()
-        return np.concatenate((obs, finger_contacts, agent_pose,
-            joints_states), axis=0)
+        return np.concatenate(
+            (obs, finger_contacts, agent_pose, joints_states), axis=0)

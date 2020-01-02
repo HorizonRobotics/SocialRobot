@@ -379,6 +379,7 @@ class ActionWrapper():
         """
         raise NotImplementedError("wrap_actions not implemented!")
 
+
 @gin.configurable
 class YoubotActionWrapper(ActionWrapper):
     """ This action wrapper transform a new actions to primitive actions.
@@ -400,7 +401,7 @@ class YoubotActionWrapper(ActionWrapper):
         Returns:
             np.array, the primitive actions send to simulator
         """
-        action = dict(zip(self._NEW_ACTION_LIST,action))
+        action = dict(zip(self._NEW_ACTION_LIST, action))
         primitive_actions = [
             # arm joints
             action['arm_joint_yaw'],
