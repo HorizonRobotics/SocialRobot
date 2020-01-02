@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 import os
 import time
 import random
@@ -162,7 +163,7 @@ class GazeboAgent():
         elif self._use_image_observation:  # observation is pure image
             obs = self.get_camera_observation()
         else:  # observation is pure low-dimentional states
-            obs = self.get_full_states_observation(teacher)
+            obs = teacher.get_task_specific_observation(self)
         return obs
 
     def get_camera_observation(self):
@@ -178,24 +179,6 @@ class GazeboAgent():
                                                       PIL.Image.ANTIALIAS)
             image = np.array(image, copy=False)
         return image
-
-    def get_full_states_observation(self, teacher):
-        """ Get the low-dimensional full states, an alternate to image observation. 
-        
-        Args:
-            teacher (social_bot.Teacher) the teacher, used to get the task specific
-                observations from teacher's taskgroups.
-        Returns:
-            obs (numpy.array): the return incldes agent poses, velocities, internal
-                joints and task specific observations.
-        """
-        task_specific_ob = teacher.get_task_specific_observation(self)
-        agent_pose = np.array(self.get_pose()).flatten()
-        agent_vel = np.array(self.get_velocities()).flatten()
-        internal_states = self.get_internal_states()
-        obs = np.concatenate(
-            (task_specific_ob, agent_pose, agent_vel, internal_states), axis=0)
-        return obs
 
     def get_internal_states(self):
         """ Get the internal joint states of the agent.
@@ -275,7 +258,7 @@ class GazeboAgent():
             if self._image_with_internal_states:
                 obs['states'] = self.get_internal_states()
         else:
-            obs['states'] = self.get_full_states_observation(teacher)
+            obs['states'] = teacher.get_task_specific_observation(self)
         if self._with_language:
             obs['sentence'] = teacher.sentence_to_sequence(
                 sentence_raw, self._vocab_sequence_length)
@@ -337,6 +320,23 @@ class GazeboAgent():
             control_range = np.array(joints_limits)
         return control_range
 
+    def get_egocentric_cord_2d(self, x, y, agent_yaw):
+        """ Get the egocentric coordinate from a global 2D x-y plane coordinate.
+
+        This is achieved by rotating the global coordinates x, y by -agent_yaw.
+
+        Args:
+            x (float): x of global x-y plane coordinate
+            y (float): y of global x-y plane coordinate
+            agent_yaw (float): agent yaw (rotation in z-axis), in radian
+        Returns:
+            tuple of float, the position in the transformed coordinate
+        """
+        rotate = -agent_yaw
+        rotated_x = x * np.cos(rotate) - y * np.sin(rotate)
+        rotated_y = x * np.sin(rotate) + y * np.cos(rotate)
+        return (rotated_x, rotated_y)
+
     def get_contacts(self, contacts_sensor, contact_collision):
         """ Get contacts to the link.
 
@@ -363,7 +363,7 @@ class ActionWrapper():
     """
 
     _NEW_ACTION_LIST = []
-    
+
     def get_actions_dim(self):
         """ Get the dimension of the new action space
         """
@@ -378,6 +378,7 @@ class ActionWrapper():
             np.array, the primitive actions send to simulator
         """
         raise NotImplementedError("wrap_actions not implemented!")
+
 
 @gin.configurable
 class YoubotActionWrapper(ActionWrapper):
@@ -400,7 +401,7 @@ class YoubotActionWrapper(ActionWrapper):
         Returns:
             np.array, the primitive actions send to simulator
         """
-        action = dict(zip(self._NEW_ACTION_LIST,action))
+        action = dict(zip(self._NEW_ACTION_LIST, action))
         primitive_actions = [
             # arm joints
             action['arm_joint_yaw'],

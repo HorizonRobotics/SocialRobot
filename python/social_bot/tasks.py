@@ -96,7 +96,7 @@ class Task(object):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations will be added into the observation.
+            np.array, the observations of the task for non-image case
         """
         return np.array([])
 
@@ -195,7 +195,9 @@ class GoalTask(Task):
                  reward_weight=1.0,
                  move_goal_during_episode=True,
                  success_with_angle_requirement=True,
-                 additional_observation_list=[]):
+                 additional_observation_list=[],
+                 use_egocentric_states=False,
+                 egocentric_perception_range=0):
         """
         Args:
             env (gym.Env): an instance of Environment
@@ -233,7 +235,16 @@ class GoalTask(Task):
             move_goal_during_episode (bool): if ture, the goal will be moved during episode, when it has been achieved
             success_with_angle_requirement: if ture then calculate the reward considering the angular requirement
             additional_observation_list: a list of additonal objects to be added
+            use_egocentric_states (bool): For the non-image observation case, use the states transformed to
+                egocentric coordinate, e.g., agent's egocentric distance and direction to goal
+            egocentric_perception_range (float): the max range in degree to limit the agent's observation.
+                E.g. 60 means object is only visible when it's within +/-60 degrees in front of the agent's
+                direction (yaw).
         """
+        self._max_play_ground_size = 5  # play ground will be (-5, 5) for both x and y axes.
+        # TODO: Remove the default grey walls in the play ground world file,
+        # and insert them according to the max_play_ground_size.
+        # The wall should be lower, and adjustable in length.  Add a custom model for that.
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
@@ -257,15 +268,23 @@ class GoalTask(Task):
             distraction_list.append(goal_name)
         self._distraction_list = distraction_list
         self._object_list = distraction_list
-        self._move_goal_during_episode = move_goal_during_episode
-        self._success_with_angle_requirement = success_with_angle_requirement
-        self._additional_observation_list = additional_observation_list
         if goal_name and goal_name not in distraction_list:
             self._object_list.append(goal_name)
         self._goals = self._object_list
-        self._pos_list = list(itertools.product(range(-5, 5), range(-5, 5)))
+        self._move_goal_during_episode = move_goal_during_episode
+        self._success_with_angle_requirement = success_with_angle_requirement
+        if not additional_observation_list:
+            additional_observation_list = self._object_list
+        self._additional_observation_list = additional_observation_list
+        self._pos_list = list(
+            itertools.product(
+                range(-self._max_play_ground_size, self._max_play_ground_size),
+                range(-self._max_play_ground_size,
+                      self._max_play_ground_size)))
         self._pos_list.remove((0, 0))
         self._polar_coord = polar_coord
+        self._use_egocentric_states = use_egocentric_states
+        self._egocentric_perception_range = egocentric_perception_range
         if self.should_use_curriculum_training():
             self._orig_random_range = random_range
             self._random_range = start_range
@@ -318,12 +337,19 @@ class GoalTask(Task):
             random_id = random.randrange(len(self._goals))
             self.set_goal_name(self._goals[random_id])
 
+    def _get_agent_loc(self):
+        loc, agent_dir = self._agent.get_pose()
+        if self._agent.type.find('icub') != -1:
+            # For agent icub, we need to use the average pos here
+            loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
+        loc = np.array(loc)
+        return loc, agent_dir
+
     def run(self):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
         self._agent.reset()
-        loc, agent_dir = self._agent.get_pose()
-        loc = np.array(loc)
+        loc, agent_dir = self._get_agent_loc()
         self._random_move_objects()
         self.pick_goal()
         goal = self._world.get_model(self._goal_name)
@@ -332,12 +358,8 @@ class GoalTask(Task):
         prev_min_dist_to_distraction = 100
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
-            loc, agent_dir = self._agent.get_pose()
-            if self._agent.type.find('icub') != -1:
-                # For agent icub, we need to use the average pos here
-                loc = ICubAuxiliaryTask.get_icub_extra_obs(self._agent)[:3]
+            loc, agent_dir = self._get_agent_loc()
             goal_loc, _ = goal.get_pose()
-            loc = np.array(loc)
             goal_loc = np.array(goal_loc)
             dist = np.linalg.norm(loc - goal_loc)
             # dir from get_pose is (roll, pitch, roll)
@@ -362,11 +384,15 @@ class GoalTask(Task):
                     self.pick_goal()
                     goal = self._world.get_agent(self._goal_name)
                 if self._move_goal_during_episode:
+                    self._agent.reset()
+                    loc, agent_dir = self._get_agent_loc()
                     self._move_goal(goal, loc, agent_dir)
             elif dist > self._initial_dist + self._fail_distance_thresh:
                 reward = -1.0 - distraction_penalty
                 self._push_reward_queue(0)
-                logging.debug("yielding reward: " + str(reward))
+                logging.debug(
+                    "yielding reward: {}, farther than {} from goal".format(
+                        str(reward), str(self._fail_distance_thresh)))
                 yield TeacherAction(
                     reward=reward, sentence="failed", done=True)
             else:
@@ -382,7 +408,8 @@ class GoalTask(Task):
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence=self._goal_name)
         reward = -1.0
-        logging.debug("yielding reward: " + str(reward))
+        logging.debug("yielding reward: {}, took more than {} steps".format(
+            str(reward), str(self._max_steps)))
         self._push_reward_queue(0)
         if self.should_use_curriculum_training():
             logging.debug("reward queue len: {}, sum: {}".format(
@@ -421,29 +448,48 @@ class GoalTask(Task):
 
     def _move_goal(self, goal, agent_loc, agent_dir):
         """
-        Move goal as well as a distraction object to the right location.
+        Move goal as well as all distraction objects to a random location.
         """
-        self._move_goal_impl(goal, agent_loc, agent_dir)
+        avoid_locations = [agent_loc]
+        loc = self._move_obj(
+            obj=goal,
+            agent_loc=agent_loc,
+            agent_dir=agent_dir,
+            is_goal=True,
+            avoid_locations=avoid_locations)
+        avoid_locations.append(loc)
         distractions = OrderedDict()
         for item in self._distraction_list:
             if item is not self._goal_name:
                 distractions[item] = 1
         if len(distractions) and self._curriculum_distractions:
-            rand_id = random.randrange(len(distractions))
-            distraction = self._world.get_agent(
-                list(distractions.keys())[rand_id])
-            self._move_goal_impl(distraction, agent_loc, agent_dir)
+            for item, _ in distractions.items():
+                distraction = self._world.get_agent(item)
+                loc = self._move_obj(
+                    obj=distraction,
+                    agent_loc=agent_loc,
+                    agent_dir=agent_dir,
+                    is_goal=False,
+                    avoid_locations=avoid_locations)
+                avoid_locations.append(loc)
 
-    def _move_goal_impl(self, goal, agent_loc, agent_dir):
+    def _move_obj(self,
+                  obj,
+                  agent_loc,
+                  agent_dir,
+                  is_goal=True,
+                  avoid_locations=[]):
         if (self.should_use_curriculum_training()
                 and self._percent_full_range_in_curriculum > 0
                 and random.random() < self._percent_full_range_in_curriculum):
             range = self._orig_random_range
-            self._is_full_range_in_curriculum = True
+            self._is_full_range_in_curriculum = is_goal
         else:
             range = self._random_range
             self._is_full_range_in_curriculum = False
+        attempts = 0
         while True:
+            attempts += 1
             dist = random.random() * range
             if self._curriculum_target_angle:
                 angle_range = self._random_angle
@@ -455,16 +501,33 @@ class GoalTask(Task):
             loc = (dist * math.cos(angle), dist * math.sin(angle),
                    0) + agent_loc
 
-            if self._polar_coord:
-                loc = (random.random() * range - range / 2,
-                       random.random() * range - range / 2, 0)
+            if not self._polar_coord:
+                loc = np.asarray((random.random() * range - range / 2,
+                                  random.random() * range - range / 2, 0))
 
             self._initial_dist = np.linalg.norm(loc - agent_loc)
-            if self._initial_dist > self._success_distance_thresh:
+            satisfied = True
+            if (abs(loc[0]) > self._max_play_ground_size or abs(loc[1]) >
+                    self._max_play_ground_size):  # not within walls
+                satisfied = False
+            for avoid_loc in avoid_locations:
+                dist = np.linalg.norm(loc - avoid_loc)
+                if dist < self._success_distance_thresh:
+                    satisfied = False
+                    break
+            if satisfied or attempts > 10000:
+                if not satisfied:
+                    logging.warning(
+                        "Took forever to find satisfying " +
+                        "object location. " +
+                        "agent_loc: {}, range: {}, max_size: {}.".format(
+                            str(agent_loc), str(range),
+                            str(self._max_play_ground_size)))
                 break
         self._prev_dist = self._initial_dist
-        goal.reset()
-        goal.set_pose((loc, (0, 0, 0)))
+        obj.reset()
+        obj.set_pose((loc, (0, 0, 0)))
+        return loc
 
     def _random_move_objects(self, random_range=10.0):
         obj_num = len(self._object_list)
@@ -499,18 +562,60 @@ class GoalTask(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array of the extra observations will be added into the
-            observation besides self states, for the non-image case
+            np.array, the observations of the task for non-image case
         """
         goal = self._world.get_model(self._goal_name)
-        pose = np.array(goal.get_pose()[0]).flatten()
+        goal_first = not agent._with_language
+        if goal_first:  # put goal first
+            pose = np.array(goal.get_pose()[0]).flatten()
+        else:  # has language input, don't put goal first
+            pose = None
 
         for name in self._additional_observation_list:
+            if goal_first and name == self._goal_name:
+                continue
             obj = self._world.get_model(name)
             obj_pos = np.array(obj.get_pose()[0]).flatten()
-            pose = np.concatenate((pose, obj_pos), axis=0)
+            if pose is None:
+                pose = obj_pos
+            else:
+                pose = np.concatenate((pose, obj_pos), axis=0)
 
-        return pose
+        agent_pose = np.array(agent.get_pose()).flatten()
+        if self._use_egocentric_states:
+            yaw = agent_pose[5]
+            # adds egocentric velocity input
+            vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
+            rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, yaw)
+            obs = [rvx, rvy, vz, a1, a2, a3]
+            # adds objects' (goal's as well as distractions') egocentric
+            # coordinates to observation
+            while len(pose) > 1:
+                x = pose[0] - agent_pose[0]
+                y = pose[1] - agent_pose[1]
+                rotated_x, rotated_y = agent.get_egocentric_cord_2d(x, y, yaw)
+                if self._egocentric_perception_range > 0:
+                    dist = math.sqrt(rotated_x * rotated_x +
+                                     rotated_y * rotated_y)
+                    rotated_x /= dist
+                    rotated_y /= dist
+                    magnitude = 1. / dist
+                    if rotated_x < np.cos(
+                            self._egocentric_perception_range / 180. * np.pi):
+                        rotated_x = 0.
+                        rotated_y = 0.
+                        magnitude = 0.
+                    obs.extend([rotated_x, rotated_y, magnitude])
+                else:
+                    obs.extend([rotated_x, rotated_y])
+                pose = pose[3:]
+            obs = np.array(obs)
+        else:
+            agent_vel = np.array(agent.get_velocities()).flatten()
+            joints_states = agent.get_internal_states()
+            obs = np.concatenate((pose, agent_pose, agent_vel, joints_states),
+                                 axis=0)
+        return obs
 
 
 @gin.configurable
@@ -662,8 +767,7 @@ class ICubAuxiliaryTask(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array of the extra observations will be added into the
-            observation besides self states, for the non-image case
+            np.array, the observations of the task for non-image case
         """
         icub_extra_obs = self.get_icub_extra_obs(agent)
         if self._target_name:
@@ -792,9 +896,15 @@ class KickingBallTask(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations will be added into the observation
+            np.array, the observations of the task for non-image case
         """
-        return self._get_states_of_model_list(['ball', 'goal'])
+        obj_poses = self._get_states_of_model_list(['ball', 'goal'])
+        agent_pose = np.array(agent.get_pose()).flatten()
+        agent_vel = np.array(agent.get_velocities()).flatten()
+        joints_states = agent.get_internal_states()
+        obs = np.concatenate((obj_poses, agent_pose, agent_vel, joints_states),
+                             axis=0)
+        return obs
 
     def _move_ball(self, ball, goal_loc):
         range = self._random_range
@@ -881,12 +991,14 @@ class Reaching3D(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations will be added into the observation
+            np.array, the observations of the task for non-image case
         """
         goal_loc, _ = self._goal.get_pose()
         reaching_loc, _ = agent.get_link_pose(self._agent.type +
                                               self._reaching_link)
-        return np.array([goal_loc, reaching_loc]).flatten()
+        joints_states = agent.get_internal_states()
+        obs = np.concatenate((goal_loc, reaching_loc, joints_states), axis=0)
+        return obs
 
 
 @gin.configurable
@@ -1003,7 +1115,7 @@ class PickAndPlace(Task):
         Args:
             agent (GazeboAgent): the agent
         Returns:
-            np.array, the extra observations will be added into the observation
+            np.array, the observations of the task for non-image case
         """
         # Use 3 position of the links to uniquely determine the 6 + 2 DoF gripper
         finger_l_pos, _ = agent.get_link_pose(self._finger_link_l)
@@ -1017,7 +1129,11 @@ class PickAndPlace(Task):
             agent.get_contacts('finger_cnta_l', self._object_collision_name),
             agent.get_contacts('finger_cnta_r', self._object_collision_name)
         ]).astype(np.float32)
+        # agent self states
+        agent_pose = np.array(agent.get_pose()).flatten()
+        joints_states = agent.get_internal_states()
         obs = np.array(
             [goal_pos, obj_pos, obj_rot, finger_l_pos, finger_r_pos,
              palm_pos]).flatten()
-        return np.concatenate((obs, finger_contacts))
+        return np.concatenate(
+            (obs, finger_contacts, agent_pose, joints_states), axis=0)
