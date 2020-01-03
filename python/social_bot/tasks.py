@@ -1221,6 +1221,7 @@ class Stack(Task):
             obj_positions_xy = obj_positions[:, :2]
             obj_heights = obj_positions[:, 2]
             # get the objects in different stacking states
+            obj_list = np.arange(self._objects_num)
             on_ground_obj_list = np.where(
                 obj_heights - self._object_center_height < 0.01)[0]
             stacked_candidate_list = np.where(
@@ -1230,6 +1231,8 @@ class Stack(Task):
             stacked_pos = obj_positions[stacked_candidate_list]
             top_index = None
             bottom_obj = None
+            print("stacked_candidate_list", end=' ')
+            print(stacked_candidate_list, end=' ')
             stacked_obj_num = 0
             while (len(stacked_pos) > 0):
                 # find the highest object of the stack
@@ -1253,6 +1256,8 @@ class Stack(Task):
                             obj_positions_xy[bottom_obj[0]][:2],
                             axis=1) < self._success_distance_thresh))[0]) - 1
                     break
+            print("stacked_obj_num", end=' ')
+            print(stacked_obj_num)
             # check success condition and give returns
             # if reward shaping is used, base of the reward is the stacking number, plus:
             #   if not gripping, - distance to the closest obj not being stacked
@@ -1266,6 +1271,9 @@ class Stack(Task):
             succ_flag = (stacked_obj_num == self._objects_num -
                          1) and np.sum(contacts) < 0.01
             succ_cnt = succ_cnt + 1 if succ_flag else 0
+            if succ_flag:
+                print("succeed:", end=' ')
+                print(succ_cnt)
             # give returns
             if succ_cnt >= 5:  # successfully stacked and gripper left the objects for 5 steps
                 logging.debug("object has been successfuly placed")
@@ -1274,7 +1282,7 @@ class Stack(Task):
                     reward=reward, sentence="well done", done=True)
             elif len(grasped_obj_index) == 0:  # nothing is being grasped
                 if stacked_obj_num == 0:
-                    unstacked_obj_list = on_ground_obj_list
+                    unstacked_obj_list = obj_list
                 else:
                     unstacked_obj_list = np.where(
                         np.linalg.norm(
@@ -1295,19 +1303,23 @@ class Stack(Task):
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
             else:  # an object is being grasped
                 if stacked_obj_num == 0:  # any target on the ground is fine, prefer the closest one
-                    distance_to_target = np.min(
-                        np.linalg.norm(
-                            obj_positions[on_ground_obj_list] -
+                    print(on_ground_obj_list)
+                    print(obj_positions[on_ground_obj_list])
+                    print(obj_positions[grasped_obj_index[0]])
+                    target_list = np.delete(obj_list, grasped_obj_index[0])
+                    print(target_list)
+                    target_id = np.argmin(np.linalg.norm(
+                            obj_positions[target_list] -
                             obj_positions[grasped_obj_index[0]],
                             axis=1))
                 else:
+                    target_id = bottom_obj[0]
                     # add an height offset
-                    target_pos = obj_positions[bottom_obj] + np.array([
-                        0, 0, obj_heights[top_index] +
-                        2.0 * self._object_center_height
-                    ])
-                    distance_to_target = np.linalg.norm(
-                        obj_positions[grasped_obj_index[0]] - target_pos)
+                target_pos = obj_positions[target_id] + np.array([
+                    0, 0, 2.0 * (stacked_obj_num + 1.5) * self._object_center_height
+                ])
+                distance_to_target = np.linalg.norm(
+                    obj_positions[grasped_obj_index[0]] - target_pos)
                 stage_reward = 0.5 + 0.5 * max(
                     1.0 - distance_to_target / self._objects_random_range, 0)
                 reward = stacked_obj_num + stage_reward if self._reward_shaping else 0
