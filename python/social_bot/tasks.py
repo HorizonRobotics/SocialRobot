@@ -173,7 +173,7 @@ class GoalTask(Task):
                  max_steps,
                  goal_name="ball",
                  distraction_list=[
-                     'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
+                    'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
                  ],
                  success_distance_thresh=0.5,
                  fail_distance_thresh=2.0,
@@ -1250,6 +1250,8 @@ class Stack(Task):
                             obj_positions_xy[bottom_obj[0]][:2],
                             axis=1) < self._success_distance_thresh))[0]) - 1
                     break
+            print("stacked_obj_num", end=' ')
+            print(stacked_obj_num, end=' ')
             # check success condition and give returns
             # if reward shaping is used, the reward is the stacking number plus:
             #   if not gripping, - distance to the closest obj not being stacked
@@ -1265,6 +1267,9 @@ class Stack(Task):
             succ_flag = (stacked_obj_num == self._objects_num -
                          1) and np.sum(contacts) < 0.01
             succ_cnt = succ_cnt + 1 if succ_flag else 0
+            if succ_flag:
+                print("succeed:", end=' ')
+                print(succ_cnt)
             # give returns
             if succ_cnt >= 5:  # successfully stacked and gripper left the objects for 5 steps
                 logging.debug("object has been successfuly placed")
@@ -1295,6 +1300,8 @@ class Stack(Task):
                         1.0 - distance_to_closest_obj / self._max_distance, 0)
                                     + min(lifted, 1.0)) / 3.0
                 reward = stacked_obj_num + 0.5 * stage_reward if self._reward_shaping else 0
+                print("reward", end=' ')
+                print(reward)
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
             else:  # an object is being grasped
                 if stacked_obj_num == 0:  # any target on the ground is fine, prefer the closest one
@@ -1308,15 +1315,17 @@ class Stack(Task):
                 else:
                     target_id = bottom_obj[0]
                     target_pos = obj_positions[target_id]
-                # add height offset
-                lifted_ratio = (
-                    target_pos[2] /
-                    self._object_half_size) / target_height_by_half_size
-                distance_to_target = np.linalg.norm(
+
+                print("grasped", end=' ')
+                dist_xy = np.linalg.norm(
                     obj_positions[grasped_obj_index[0]][:2] - target_pos[:2])
-                stage_reward = (max(
-                    1.0 - distance_to_target / self._objects_random_range, 0) + lifted_ratio) / 2.0
+                dist_z = abs((target_pos[2] / self._object_half_size)
+                    / target_height_by_half_size - 1.0)
+                stage_reward = 1.0 - min(
+                    dist_xy / self._objects_random_range + dist_z, 2.0) / 2.0
                 reward = stacked_obj_num + 0.5 + 0.5 * stage_reward if self._reward_shaping else 0
+                print("reward", end=' ')
+                print(reward)
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
 
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
