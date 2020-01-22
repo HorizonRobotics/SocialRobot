@@ -52,31 +52,31 @@ class ICubWalk(GazeboEnvBase):
         logging.debug(self._world.info())
 
         self._agent_joints = [
-            'icub::iCub::l_leg::l_hip_pitch',
-            'icub::iCub::l_leg::l_hip_roll',
-            'icub::iCub::l_leg::l_hip_yaw',
-            'icub::iCub::l_leg::l_knee',
-            'icub::iCub::l_leg::l_ankle_pitch',
-            'icub::iCub::l_leg::l_ankle_roll',
-            'icub::iCub::r_leg::r_hip_pitch',
-            'icub::iCub::r_leg::r_hip_roll',
-            'icub::iCub::r_leg::r_hip_yaw',
-            'icub::iCub::r_leg::r_knee',
-            'icub::iCub::r_leg::r_ankle_pitch',
-            'icub::iCub::r_leg::r_ankle_roll',
-            'icub::iCub::torso_yaw',
-            'icub::iCub::torso_roll',
-            'icub::iCub::torso_pitch',
-            'icub::iCub::l_shoulder_pitch',
-            'icub::iCub::l_shoulder_roll',
-            'icub::iCub::l_shoulder_yaw',
-            'icub::iCub::l_elbow',
-            'icub::iCub::neck_pitch',
-            'icub::iCub::neck_roll',
-            'icub::iCub::r_shoulder_pitch',
-            'icub::iCub::r_shoulder_roll',
-            'icub::iCub::r_shoulder_yaw',
-            'icub::iCub::r_elbow',
+            'icub::icub::l_leg::l_hip_pitch',
+            'icub::icub::l_leg::l_hip_roll',
+            'icub::icub::l_leg::l_hip_yaw',
+            'icub::icub::l_leg::l_knee',
+            'icub::icub::l_leg::l_ankle_pitch',
+            'icub::icub::l_leg::l_ankle_roll',
+            'icub::icub::r_leg::r_hip_pitch',
+            'icub::icub::r_leg::r_hip_roll',
+            'icub::icub::r_leg::r_hip_yaw',
+            'icub::icub::r_leg::r_knee',
+            'icub::icub::r_leg::r_ankle_pitch',
+            'icub::icub::r_leg::r_ankle_roll',
+            'icub::icub::torso_yaw',
+            'icub::icub::torso_roll',
+            'icub::icub::torso_pitch',
+            'icub::icub::l_shoulder_pitch',
+            'icub::icub::l_shoulder_roll',
+            'icub::icub::l_shoulder_yaw',
+            'icub::icub::l_elbow',
+            'icub::icub::neck_pitch',
+            'icub::icub::neck_roll',
+            'icub::icub::r_shoulder_pitch',
+            'icub::icub::r_shoulder_roll',
+            'icub::icub::r_shoulder_yaw',
+            'icub::icub::r_elbow',
         ]
 
         joint_states = list(
@@ -142,13 +142,13 @@ class ICubWalk(GazeboEnvBase):
 
     def _get_observation(self):
         agent_pose = np.array(
-            self._agent.get_link_pose('icub::iCub::root_link')).flatten()
+            self._agent.get_link_pose('icub::icub::root_link')).flatten()
         chest_pose = np.array(
-            self._agent.get_link_pose('icub::iCub::chest')).flatten()
+            self._agent.get_link_pose('icub::icub::chest')).flatten()
         l_foot_pose = np.array(
-            self._agent.get_link_pose('icub::iCub::l_leg::l_foot')).flatten()
+            self._agent.get_link_pose('icub::icub::l_leg::l_foot')).flatten()
         r_foot_pose = np.array(
-            self._agent.get_link_pose('icub::iCub::r_leg::r_foot')).flatten()
+            self._agent.get_link_pose('icub::icub::r_leg::r_foot')).flatten()
         average_pos = np.sum([
             agent_pose[0:3], chest_pose[0:3], l_foot_pose[0:3],
             r_foot_pose[0:3]
@@ -193,7 +193,7 @@ class ICubWalk(GazeboEnvBase):
         stacked_obs = np.concatenate((obs, self._obs_prev), axis=0)
         self._obs_prev = obs
         torso_pose = np.array(
-            self._agent.get_link_pose('icub::iCub::chest')).flatten()
+            self._agent.get_link_pose('icub::icub::chest')).flatten()
         action_cost = np.sum(np.square(action)) / action.shape[0]
         movement_cost = np.sum(np.abs(
             self.joint_pos)) / self.joint_pos.shape[0]
