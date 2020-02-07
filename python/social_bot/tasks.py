@@ -1044,7 +1044,9 @@ class PickAndPlace(Task):
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
-        assert self._agent.type in self.compatible_agents, "PickAndPlace Task only support youbot_noplugin for now"
+        assert self._agent.type in self.compatible_agents, "PickAndPlace Task \
+            only support youbot_noplugin for now"
+
         self._palm_link = 'youbot_noplugin::gripper_palm_link'
         self._finger_link_l = 'youbot_noplugin::gripper_finger_link_l'
         self._finger_link_r = 'youbot_noplugin::gripper_finger_link_r'
@@ -1101,7 +1103,9 @@ class PickAndPlace(Task):
                 obj_lifted, 0.5)  # encourge to lift the object by obj_height
             gripping = (gripping_feature > 0.99)
             # success condition, minus an offset of object height on z-axis
-            if gripping and obj_dist_xy < self._success_distance_thresh and dist_z - self._object_half_height < self._success_distance_thresh:
+            if gripping and obj_dist_xy < self._success_distance_thresh and (
+                    dist_z - self._object_half_height <
+                    self._success_distance_thresh):
                 logging.debug("object has been successfuly placed")
                 reward = 200.0 if self._reward_shaping else 1.0
                 agent_sentence = yield TeacherAction(
@@ -1146,7 +1150,20 @@ class PickAndPlace(Task):
 @gin.configurable
 class Stack(Task):
     """
-    A task to stack several wood cubes together.
+    A task to stack several wood cubes. The agent need to grasp the cube and
+        stack it one by one, until all of them are stacked together.
+    The number of cubes can be configured by objects_num. Distribution of
+        cubes' initial position is configured by average_distance_max,
+        average_distance_min and objects_range.
+    Success condition is that all objects are stacked, and the gripper of agent
+        leave the cubes (no contacts to cubes) for 5 time steps.
+    The agent will receive a reward of 1 when success if reward shaping is not
+    used. If reward shaping is used, the reward is the stacking number plus:
+        if not gripping, negative distance to the closest obj not being stacked
+        if gripping, distance to closet stacking candidate, i.e, (x, y, 
+            target_height). target_height is (stacked_num + 1) * object_height,
+            plus a margin of 0.55 * object_height
+    This task is only compatible with Agent youbot_noplugin.
     """
 
     compatible_agents = ['youbot_noplugin']
@@ -1154,45 +1171,51 @@ class Stack(Task):
     def __init__(self,
                  env,
                  max_steps,
-                 max_distance=0.5,
-                 min_distance=0.3,
+                 average_distance_max=0.5,
+                 average_distance_min=0.3,
                  objects_num=3,
-                 objects_random_range=0.25,
+                 objects_range=0.25,
                  object_half_height=0.025,
                  success_distance_thresh=0.03,
                  reward_shaping=True,
                  reward_weight=1.0):
         """
         Args:
-            env (gym.Env): an instance of Environment
-            max_steps (int): episode will end if not complet the task in so many steps, recommend to be 150
-                for agent youbot_noplugin and object 5cm cube
-            max_distance (float): the max distance from the random object's location to the agent
-            min_distance (float): the min distance from the random object's location to the agent
-            objects_num (int): the number of objects to stack
-            objects_random_range (float): the range of objects distributed
-            object_half_height (float): Note that model for stacking task should be of no offset inside the model.
-                This means an initial pose of 0 height makes half of the obejct underground. This specifies the
-                initial height of object's center, e.g, half of the edge length of a cube, or radius of a ball.
-            success_distance_thresh (float): consider success if the objects' x-y plance distance is within
-                this threshold
-            reward_shaping (bool): if false, the reward is -1/0/1, otherwise the 0 case will be replaced
-                with shapped reward.
-            reward_weight (float): the weight of the reward
+            env (gym.Env): an instance of Environment.
+            max_steps (int): episode will end if not complet the task in so
+                many steps.
+            average_distance_max (float): the max distance from the agent to
+                the center of the objects' initial position distribution
+            average_distance_min (float):  the min distance from the agent to
+                the center of the objects' initial position distribution
+            objects_num (int): the number of objects to stack.
+            objects_range (float): the range of objects around center position.
+            object_half_height (float): Note that model for stacking task 
+                should be of no offset inside the model. This means an initial
+                pose of 0 height makes half of the obejct underground. This
+                specifies the initial height of object's center, e.g, half of
+                the edge length of a cube, or radius of a ball.
+            success_distance_thresh (float): consider success if the objects'
+                x-y plance distance is within this threshold.
+            reward_shaping (bool): if false, the reward is -1/0/1, otherwise
+                the shapeed reward will be used.
+            reward_weight (float): the weight of the reward.
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
-        assert self._agent.type in self.compatible_agents, "Stack task only support youbot_noplugin for now"
+        assert self._agent.type in self.compatible_agents, "Stack task only \
+            support youbot_noplugin for now"
+
         self._reward_shaping = reward_shaping
         self._palm_link = 'youbot_noplugin::gripper_palm_link'
         self._finger_link_l = 'youbot_noplugin::gripper_finger_link_l'
         self._finger_link_r = 'youbot_noplugin::gripper_finger_link_r'
         self._object_collision_name = '::wood_cube_5cm_without_offset::link::collision'
         self._object_half_height = object_half_height
-        self._max_distance = max_distance
-        self._min_distance = min_distance
+        self._avg_distance_max = average_distance_max
+        self._avg_distance_min = average_distance_min
         self._objects_num = objects_num
-        self._objects_random_range = objects_random_range
+        self._objects_range = objects_range
         self._success_distance_thresh = success_distance_thresh
         self._object_names = []
         self._objects = []
@@ -1207,13 +1230,13 @@ class Stack(Task):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
         # randomly move objects
-        r = random.uniform(self._min_distance, self._max_distance)
+        r = random.uniform(self._avg_distance_min, self._avg_distance_max)
         theta = random.random() * 2 * np.pi
         stacking_pos = np.array([r * np.cos(theta), r * np.sin(theta)])
         for obj_index in range(self._objects_num):
             self._random_move_object(
                 target=self._objects[obj_index],
-                random_range=self._objects_random_range,
+                random_range=self._objects_range,
                 center_pos=stacking_pos,
                 min_distance=0,
                 height=self._object_half_height)
@@ -1249,7 +1272,8 @@ class Stack(Task):
             # get the objects in different stacking states
             obj_list = np.arange(self._objects_num)
             stacked_candidates = np.where(
-                (contacts == 0) * (obj_heights / self._object_half_height > 1.5)
+                (contacts == 0) *
+                (obj_heights / self._object_half_height > 1.5)
             )[0]  # off the ground and not being grasped, considerd as being stacked
             stacked_pos = obj_positions[stacked_candidates]
             top_index = None
@@ -1265,8 +1289,8 @@ class Stack(Task):
                         obj_positions_xy - stacked_pos[top_index][:2], axis=1)
                      < self._success_distance_thresh))[0]
                 if (len(bottom_obj) == 0):
-                    # can not find a object below, for some reason the object is
-                    # in the air without being grasped or stacked
+                    # can not find an object below, for some reason the object
+                    # is in the air without being grasped or stacked
                     stacked_pos = np.delete(stacked_pos, top_index, axis=0)
                 else:
                     # get the stacked object list in which object is
@@ -1280,20 +1304,21 @@ class Stack(Task):
             # check success condition and give returns
             # if reward shaping is used, the reward is the stacking number plus:
             #   if not gripping, - distance to the closest obj not being stacked
-            #   if gripping, distance to closet stacking candidate (x, y, height = stacking_num*cube size)
-            #
+            #   if gripping, distance to closet stacking candidate:
+            #       (x, y, target_height)
+            #       target_height: (stacked_num + 1) * object_height,
+            #           plus a margin 0.55 * object_height
             # being_grasped: contacts are True and off the ground
-            # 3.0 * half_size is the stacking height, add 0.1 as the desired grasp height
-            target_height_by_half_size = 3.1 + stacked_obj_num * 2.0
+            target_height_by_half_obj_height = 3.1 + stacked_obj_num * 2.0
             grasped_obj_index = np.where(
                 (l_contacts * r_contacts) *
                 (obj_heights / self._object_half_height > 2.0))[0]
             # success flag: all objects are stacked and no contacts to gripper
             succ_flag = (stacked_obj_num == self._objects_num -
-                         1) and np.sum(contacts) < 0.01
+                         1) and np.sum(contacts) == 0
             succ_cnt = succ_cnt + 1 if succ_flag else 0
             # give returns
-            if succ_cnt >= 5:  # successfully stacked and gripper left the objects for 5 steps
+            if succ_cnt >= 5:  # successfully stacked and leave the objects for 5 steps
                 logging.debug("object has been successfuly placed")
                 reward = 200.0 * self._objects_num if self._reward_shaping else 1.0
                 agent_sentence = yield TeacherAction(
@@ -1321,8 +1346,8 @@ class Stack(Task):
                     lifted = obj_heights[
                         closest_obj] / self._object_half_height - 1.0
                     stage_reward = (0.5 * contacts[closest_obj] + max(
-                        1.0 - distance_to_closest_obj / self._max_distance, 0)
-                                    + min(lifted, 1.0)) / 3.0
+                        1.0 - distance_to_closest_obj / self._avg_distance_max,
+                        0) + min(lifted, 1.0)) / 3.0
                 reward = stacked_obj_num + 0.5 * stage_reward if self._reward_shaping else 0
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
             else:  # an object is being grasped
@@ -1339,10 +1364,11 @@ class Stack(Task):
                     target_pos = obj_positions[target_id]
                 dist_xy = np.linalg.norm(
                     obj_positions[grasped_obj_index[0]][:2] - target_pos[:2])
-                dist_z = abs((obj_positions[grasped_obj_index[0]][2] / self._object_half_height) /
-                             target_height_by_half_size - 1.0)
+                dist_z = abs((obj_positions[grasped_obj_index[0]][2] /
+                              self._object_half_height) /
+                             target_height_by_half_obj_height - 1.0)
                 stage_reward = 1.0 - min(
-                    dist_xy / self._objects_random_range + dist_z, 2.0) / 2.0
+                    dist_xy / self._objects_range + dist_z, 2.0) / 2.0
                 reward = stacked_obj_num + 0.5 + 0.5 * stage_reward if self._reward_shaping else 0
                 agent_sentence = yield TeacherAction(reward=reward, done=False)
 
@@ -1375,7 +1401,7 @@ class Stack(Task):
         l_contacts = np.array(l_contacts)
         r_contacts = np.array(r_contacts)
         contacts = l_contacts + r_contacts
-        # Use 3 position of the links to uniquely determine the 6 + 2 DoF gripper
+        # Use 3 points to uniquely determine the 6 + 2 DoF gripper
         finger_l_pos, _ = agent.get_link_pose(self._finger_link_l)
         finger_r_pos, _ = agent.get_link_pose(self._finger_link_r)
         palm_pos, _ = agent.get_link_pose(self._palm_link)
