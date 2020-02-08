@@ -1,0 +1,39 @@
+# Training & playing the pick and place task with agent youbot_noplugin
+#
+# DISPLAY=null python -m alf.bin.train --root_dir=~/tmp/stack --gin_file=stack_sac_youbot.gin
+# python -m alf.bin.play --root_dir=~/tmp/stack --gin_file=stack_sac_youbot.gin
+
+include 'common_nonimage_sac.gin'
+import social_bot
+
+# environment config
+create_environment.env_name="SocialBot-PlayGround-v0"
+create_environment.num_parallel_environments=12
+create_environment.env_load_fn=@suite_socialbot.load
+# suite_socialbot.load.gym_env_wrappers=(@FrameStack,)
+
+PlayGround.agent_type='youbot_noplugin'
+PlayGround.tasks=[@Stack]
+PlayGround.max_steps=150
+suite_socialbot.load.max_episode_steps=252
+PlayGround.step_time=0.05
+Stack.reward_shaping=True
+PlayGround.action_wrapper=@YoubotActionWrapper
+
+# algorithm config
+actor/Adam.learning_rate=1e-3
+critic/Adam.learning_rate=1e-3
+alpha/Adam.learning_rate=1e-3
+OneStepTDLoss.gamma=0.98
+
+# training config
+TrainerConfig.initial_collect_steps=2000
+TrainerConfig.mini_batch_length=2
+TrainerConfig.unroll_length=1
+TrainerConfig.mini_batch_size=512
+TrainerConfig.summary_interval=1000
+TrainerConfig.eval_interval=10000
+TrainerConfig.checkpoint_interval=20000
+TrainerConfig.num_updates_per_train_step=1
+
+TFUniformReplayBuffer.max_length=500000

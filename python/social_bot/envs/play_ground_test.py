@@ -23,7 +23,7 @@ import social_bot.pygazebo as gazebo
 from absl import logging
 from play_ground import PlayGround
 from embodied_teacher import EmbodiedTeacher
-from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace
+from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace, Stack
 
 
 class TestPlayGround(unittest.TestCase):
@@ -38,7 +38,7 @@ class TestPlayGround(unittest.TestCase):
                 os.path.join(social_bot.get_model_dir(), "agent_cfg.json"),
                 'r') as cfg_file:
             agent_cfgs = json.load(cfg_file)
-        tasks = [GoalTask, KickingBallTask, Reaching3D, PickAndPlace]
+        tasks = [GoalTask, KickingBallTask, Reaching3D, PickAndPlace, Stack]
         for task in tasks:
             for agent_type in task.compatible_agents:
                 for with_language in [True, False]:
