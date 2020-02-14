@@ -273,7 +273,7 @@ class GoalTask(Task):
         self._goals = self._object_list
         self._move_goal_during_episode = move_goal_during_episode
         self._success_with_angle_requirement = success_with_angle_requirement
-        if not additional_observation_list:
+        if use_egocentric_states and not additional_observation_list:
             additional_observation_list = self._object_list
         self._additional_observation_list = additional_observation_list
         self._pos_list = list(
