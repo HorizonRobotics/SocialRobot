@@ -17,6 +17,7 @@ A variety of teacher tasks.
 
 import math
 import numpy as np
+import operator
 import os
 import gin
 import itertools
@@ -169,44 +170,48 @@ class GoalTask(Task):
     it will get reward -1.
     """
 
-    def __init__(self,
-                 env,
-                 max_steps,
-                 goal_name="ball",
-                 distraction_list=[
-                     'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
-                 ],
-                 success_distance_thresh=0.5,
-                 fail_distance_thresh=2.0,
-                 distraction_penalty_distance_thresh=0,
-                 distraction_penalty=0.5,
-                 random_agent_orientation=False,
-                 sparse_reward=True,
-                 random_range=5.0,
-                 polar_coord=True,
-                 random_goal=False,
-                 use_curriculum_training=False,
-                 curriculum_distractions=True,
-                 curriculum_target_angle=False,
-                 switch_goal_within_episode=False,
-                 start_range=0,
-                 increase_range_by_percent=50.,
-                 reward_thresh_to_increase_range=0.4,
-                 percent_full_range_in_curriculum=0.1,
-                 max_reward_q_length=100,
-                 reward_weight=1.0,
-                 move_goal_during_episode=True,
-                 end_episode_after_success=False,
-                 success_with_angle_requirement=True,
-                 additional_observation_list=[],
-                 use_egocentric_states=False,
-                 egocentric_perception_range=0):
+    def __init__(
+            self,
+            env,
+            max_steps,
+            goal_name="ball",
+            distraction_list=[
+                'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
+            ],
+            end_on_hitting_distraction=False,
+            end_episode_after_success=False,
+            success_distance_thresh=0.5,
+            fail_distance_thresh=2.0,
+            distraction_penalty_distance_thresh=0,
+            distraction_penalty=0.5,
+            random_agent_orientation=False,
+            sparse_reward=True,
+            random_range=5.0,
+            polar_coord=True,
+            random_goal=False,
+            use_curriculum_training=False,
+            curriculum_distractions=True,
+            curriculum_target_angle=False,
+            switch_goal_within_episode=False,
+            start_range=0,
+            increase_range_by_percent=50.,
+            reward_thresh_to_increase_range=0.4,
+            percent_full_range_in_curriculum=0.1,
+            max_reward_q_length=100,
+            reward_weight=1.0,
+            move_goal_during_episode=True,
+            success_with_angle_requirement=True,
+            additional_observation_list=[],
+            use_egocentric_states=False,
+            egocentric_perception_range=0,
+            order_obj_by_view=False):
         """
         Args:
             env (gym.Env): an instance of Environment
             max_steps (int): episode will end if not reaching gaol in so many steps
             goal_name (string): name of the goal in the world
             distraction_list (list of string): a list of model. the model shoud be in gazebo database
+            end_on_hitting_distraction (bool): whether to end episode on hitting distraction
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
@@ -247,6 +252,8 @@ class GoalTask(Task):
             egocentric_perception_range (float): the max range in degree to limit the agent's observation.
                 E.g. 60 means object is only visible when it's within +/-60 degrees in front of the agent's
                 direction (yaw).
+            order_obj_by_view (bool): False to order object coordinates (full states) in object id order;
+                True to order according to y axis value (left to right) together with object id.
         """
         self._max_play_ground_size = 5  # play ground will be (-5, 5) for both x and y axes.
         # TODO: Remove the default grey walls in the play ground world file,
@@ -255,6 +262,7 @@ class GoalTask(Task):
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
+        self.end_on_hitting_distraction = end_on_hitting_distraction
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._distraction_penalty_distance_thresh = distraction_penalty_distance_thresh
@@ -294,6 +302,7 @@ class GoalTask(Task):
         self._polar_coord = polar_coord
         self._use_egocentric_states = use_egocentric_states
         self._egocentric_perception_range = egocentric_perception_range
+        self._order_obj_by_view = order_obj_by_view
         if self.should_use_curriculum_training():
             self._orig_random_range = random_range
             self._random_range = start_range
@@ -306,8 +315,8 @@ class GoalTask(Task):
             if curriculum_target_angle:
                 angle_str = ", start_angle {}".format(self._random_angle)
             logging.info(
-                "start_range %f%s, reward_thresh_to_increase_range %f",
-                self._start_range, angle_str,
+                "Env %d: start_range %f%s, reward_thresh_to_increase_range %f",
+                self._env._port, self._start_range, angle_str,
                 self._reward_thresh_to_increase_range)
         else:
             self._random_range = random_range
@@ -328,13 +337,15 @@ class GoalTask(Task):
                 self._reward_thresh_to_increase_range):
             if self._curriculum_target_angle:
                 self._random_angle += 20
-                logging.info("Raising random_angle to %d", self._random_angle)
+                logging.info("Env %d: Raising random_angle to %d",
+                             self._env._port, self._random_angle)
             if (not self._curriculum_target_angle or self._random_angle > 360):
                 self._random_angle = 60
                 new_range = min((1. + self._increase_range_by_percent) *
                                 self._random_range, self._orig_random_range)
                 if self._random_range < self._orig_random_range:
-                    logging.info("Raising random_range to %f", new_range)
+                    logging.info("Env %d: Raising random_range to %f",
+                                 self._env._port, new_range)
                 self._random_range = new_range
             self._q.clear()
 
@@ -417,12 +428,14 @@ class GoalTask(Task):
                 else:
                     reward = (self._prev_dist - dist) / self._initial_dist
                 reward = reward - distraction_penalty
+                done = False
                 if distraction_penalty > 0:
                     logging.debug("yielding reward: " + str(reward))
                     self._push_reward_queue(0)
+                    done = self.end_on_hitting_distraction
                 self._prev_dist = dist
                 agent_sentence = yield TeacherAction(
-                    reward=reward, sentence=self._goal_name)
+                    reward=reward, sentence=self._goal_name, done=done)
         reward = -1.0
         logging.debug("yielding reward: {}, took more than {} steps".format(
             str(reward), str(self._max_steps)))
@@ -597,6 +610,7 @@ class GoalTask(Task):
             else:
                 pose = np.concatenate((pose, obj_pos), axis=0)
 
+        obj_array = []
         agent_pose = np.array(agent.get_pose()).flatten()
         if self._use_egocentric_states:
             yaw = agent_pose[5]
@@ -604,6 +618,12 @@ class GoalTask(Task):
             vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
             rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, yaw)
             obs = [rvx, rvy, vz, a1, a2, a3]
+            if self._egocentric_perception_range > 0:
+                obj_array.extend([[0, rvx, rvy, vz], [1, a1, a2, a3]])
+                i = 2
+            else:
+                obj_array.extend([[0, rvx, rvy], [1, vz, a1], [2, a2, a3]])
+                i = 3
             # adds objects' (goal's as well as distractions') egocentric
             # coordinates to observation
             while len(pose) > 1:
@@ -621,8 +641,10 @@ class GoalTask(Task):
                         rotated_x = 0.
                         rotated_y = 0.
                         magnitude = 0.
+                    obj_array.append([i, rotated_x, rotated_y, magnitude])
                     obs.extend([rotated_x, rotated_y, magnitude])
                 else:
+                    obj_array.append([i, rotated_x, rotated_y])
                     obs.extend([rotated_x, rotated_y])
                 pose = pose[3:]
             obs = np.array(obs)
@@ -631,6 +653,10 @@ class GoalTask(Task):
             joints_states = agent.get_internal_states()
             obs = np.concatenate((pose, agent_pose, agent_vel, joints_states),
                                  axis=0)
+
+        if self._order_obj_by_view:
+            obj_array.sort(key=operator.itemgetter(2))
+            obs = np.array(obj_array).flatten()
         return obs
 
 
