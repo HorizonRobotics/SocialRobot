@@ -88,10 +88,11 @@ class Task(object):
         """
         The extra infomation needed by the task if sparse states are used.
 
-        This can be overide by the sub task. Note that the pose and velocity of
-        agent, and the state of actionable internal joints are already included
-        in agent.get_full_states_observation(). Thus does not need to be added
-        here.
+        This can be overide by the sub task. Note that this is only for the
+        case "Agent._use_image_observation" is False. For image case, the 
+        image form camera of agent is used. For case of image with internal
+        states, Agent.get_internal_states() is used, which only returns 
+        self joint positions and velocities.
 
         Args:
             agent (GazeboAgent): the agent
