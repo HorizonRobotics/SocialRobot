@@ -67,7 +67,7 @@ You can choose the agent type in the environment by setting the paramenter "agen
 
 <img src="media/pioneer.jpg" width="160" height="240" alt="pioneer"/> <img src="media/pr2.jpg" width="160" height="240" alt="pr2"/> <img src="media/turtlebot.jpg" width="160" height="240" alt="turtlebot"/> <img src="media/icub.jpg" width="160" height="240" alt="icub"/> <img src="media/youbot.jpg" width="160" height="240" alt="youbot"/>
 
-The common functions for agents are in file [gazebo_agent.py](python/social_bot/gazebo_agent.py). It sets things up accroding to agent configuration file [agent_cfg.json](python/social_bot/models/agent_cfg.json).
+The common functions for agents are in file [gazebo_agent.py](python/social_bot/gazebo_agent.py). It sets things up according to agent configuration file [agent_cfg.json](python/social_bot/models/agent_cfg.json).
 
 Your can configure the type of observation using gin: with_language or not, use_image or not, and image_with_internal_states or not. Possible situations can be:
     low-dimensional full states,
@@ -81,10 +81,10 @@ By default low-dimensional full states is used.
 The action specification is defined in the joint list of file [agent_cfg.json](python/social_bot/models/agent_cfg.json).
 
 Tasks are in file [tasks.py](python/social_bot/tasks.py). To implement a new task, you should:
-1. Inherit "tasks.Task", speficy the compatible agent types in "Task.compatible_agents".
-2. Override "__init__()" to set things up.
-3. Override "run()" to yeild reward, observation, and optional language string at each time step.
-4. Override "task_specific_observation()" to speficy the observation for the task for the non-image case.
+1. Inherit `tasks.Task`, speficy the compatible agent types in "Task.compatible_agents".
+2. Override `Task.__init__()` to set things up.
+3. Override `Task.run()` to yeild reward, observation, and optional language string at each time step.
+4. Override `Task.task_specific_observation()` to speficy the observation for the task for the non-image case.
 
 The tasks we have for now are listed as below:
 
@@ -144,7 +144,7 @@ The playing back can also be recorded to a video file like this:
 ```bash
 python -m alf.bin.play --root_dir=~/tmp/goal_task --gin_file=goaltask_sac_pioneer.gin --record_file=goal_task.mp4
 ```
-You can find the gin config files for other tasks [here](examples).
+You can find the gin config files for other tasks [here](examples). Training curves for the tasks are in folder [here](examples/figures).
 
 
 ### Demonstrating using keyboard and mouse
