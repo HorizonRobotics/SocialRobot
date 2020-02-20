@@ -67,7 +67,7 @@ You can choose the agent type in the environment by setting the paramenter "agen
 
 <img src="media/pioneer.jpg" width="160" height="240" alt="pioneer"/> <img src="media/pr2.jpg" width="160" height="240" alt="pr2"/> <img src="media/turtlebot.jpg" width="160" height="240" alt="turtlebot"/> <img src="media/icub.jpg" width="160" height="240" alt="icub"/> <img src="media/youbot.jpg" width="160" height="240" alt="youbot"/>
 
-The common functions for agents are in file [gazebo_agent.py](python/social_bot/gazebo_agent.py). It sets things up according to agent configuration file [agent_cfg.json](python/social_bot/models/agent_cfg.json).
+The common functions for agents like setting observation space and action space are in file [gazebo_agent.py](python/social_bot/gazebo_agent.py). Class GazeboAgent sets those things up according to agent configuration file [agent_cfg.json](python/social_bot/models/agent_cfg.json).
 
 Your can configure the type of observation using gin: with_language or not, use_image or not, and image_with_internal_states or not. Possible situations can be:
     low-dimensional full states,
@@ -78,7 +78,7 @@ Your can configure the type of observation using gin: with_language or not, use_
     image with both internal states and language sentence. 
 By default low-dimensional full states is used.
 
-The action specification is defined in the joint list of file [agent_cfg.json](python/social_bot/models/agent_cfg.json).
+The action specification is defined in the joint list of file [agent_cfg.json](python/social_bot/models/agent_cfg.json). 
 
 Tasks are in file [tasks.py](python/social_bot/tasks.py). To implement a new task, you should:
 1. Inherit `tasks.Task`, speficy the compatible agent types in "Task.compatible_agents".
@@ -154,9 +154,9 @@ Try this for a test:
 cd REPO_ROOT/python/social_bot/
 python keybo_control.py
 ``` 
-Move the agent around by key "W, A, S, D", open or close gripper by key "E", and move the robot arm joints (if there is, such as agent youbot) by mouse(lef-right, forward-backward) and key "R, F" (up and down).
+Move the agent around by key "W, A, S, D", open or close gripper by key "E", and move the robot arm (if there is, such as agent youbot) by mouse for lef-right, forward-backward direction, and key "R, F" for up-down.
 Note that some tricks are used to make the operating more friendly. So you are not controlling the raw joints as the algorthim. 
-It's not so easy, for some task you may need some trails to complete it. An example:
+It's not so easy, for some task you may need some trials to complete it. An example:
 
 <img src="media/stack.gif" width="450" height="200" alt="stack"/>
 
