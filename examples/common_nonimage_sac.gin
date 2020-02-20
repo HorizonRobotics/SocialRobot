@@ -48,7 +48,7 @@ TrainerConfig.checkpoint_interval=5000
 TrainerConfig.num_updates_per_train_step=1
 TrainerConfig.summarize_grads_and_vars=0
 TrainerConfig.summaries_flush_secs=10
-TrainerConfig.clear_replay_buffer=False
+TrainerConfig.whole_replay_buffer_training=False
 
 TrainerConfig.trainer=@sync_off_policy_trainer
 TrainerConfig.algorithm_ctor=@SacAlgorithm
