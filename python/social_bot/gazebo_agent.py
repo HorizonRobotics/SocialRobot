@@ -139,8 +139,8 @@ class GazeboAgent():
         self._agent.take_action(controls_dict)
 
     def get_observation(self, teacher, sentence_raw="hello"):
-        """ Get the observation of agent. 
-        
+        """ Get the observation of agent.
+
         Args:
             teacher (social_bot.Teacher): the teacher, used to get the task specific
                 observations from teacher's taskgroups.
@@ -148,14 +148,20 @@ class GazeboAgent():
                 be ignored if with_language is False.
         Returns:
             obs (dict |numpy.array): the return depends on the configurations: with
-                language or not, use image or not, and image_with_internal_states or not.   
+                language or not, use image or not, and image_with_internal_states or not.
                 Possible situations:
                     low-dimensional full states
                     low-dimensional full states with language sentence
-                    image
+                    image from the camera of agent
                     image with internal states
                     image with language sentence
                     image with both internal states and language sentence
+                Note that low-dimensional full states is defined in
+                "Task.task_specific_observation()", which has all the infomation need
+                for the task. While the internal states that used as a supplementary
+                to image is form "Agent.get_internal_states()", which only contains
+                self joint positions and velocities. Joint positions are wrapped with
+                sin() and cos() to avoid the discontinuous point at 0 to 2*pi.
         """
         if self._image_with_internal_states or self._with_language:
             # observation is an OrderedDict
@@ -195,7 +201,7 @@ class GazeboAgent():
             joint_vel.append(joint_state.get_velocities())
         joint_pos = np.array(joint_pos).flatten()
         joint_vel = np.array(joint_vel).flatten()
-        # pos of continous joint could be huge, wrap the range to [-pi, pi)
+        # pos of continous joint could be huge, wrap the range with sin and cos.
         joint_pos_sin = np.sin(joint_pos)
         joint_pos_cos = np.cos(joint_pos)
         internal_states = np.concatenate(
