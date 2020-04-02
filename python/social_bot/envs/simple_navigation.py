@@ -98,7 +98,8 @@ class SimpleNavigation(GazeboEnvBase):
             goal_name="goal",
             fail_distance_thresh=0.5,
             distraction_list=[],
-            random_range=2.0)
+            random_range=2.0,
+            polar_coord=False)
         task_group.add_task(task)
         self._teacher.add_task_group(task_group)
         self._sentence_space = DiscreteSequence(self._teacher.vocab_size,
@@ -152,8 +153,8 @@ class SimpleNavigation(GazeboEnvBase):
 
     def reset(self):
         self._teacher.reset(self._agent, self._world)
-        self._world.step(self.NUM_SIMULATION_STEPS)
         teacher_action = self._teacher.teach("")
+        self._world.step(self.NUM_SIMULATION_STEPS)
         obs = self._agent.get_observation(self._teacher,
                                           teacher_action.sentence)
         return obs
