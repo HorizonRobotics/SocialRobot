@@ -42,7 +42,7 @@ from social_bot.tasks import GoalTask, ICubAuxiliaryTask, KickingBallTask, Reach
 class PlayGround(GazeboEnvBase):
     """
     This envionment support agent type of pr2_noplugin, pioneer2dx_noplugin,
-    turtlebot, icub, and kuka youbot for now. 
+    turtlebot, icub, and kuka youbot for now.
 
     Joints of the agent are controllable by force or pid controller,
 
@@ -90,7 +90,7 @@ class PlayGround(GazeboEnvBase):
                 pioneer2dx_noplugin, turtlebot, youbot_noplugin and icub_with_hands for now
                 note that 'agent_type' should be exactly the same string as the model's
                 name at the beginning of model's sdf file
-            world_name (string): Select the world file, e.g., empty.world, play_ground.world, 
+            world_name (string): Select the world file, e.g., empty.world, play_ground.world,
                 grocery_ground.world
             tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
             with_language (bool): The observation will be a dict with an extra sentence
@@ -101,14 +101,14 @@ class PlayGround(GazeboEnvBase):
             image_with_internal_states (bool): If true, the agent's self internal states
                 i.e., joint position and velocities would be available together with image.
                 Only affect if use_image_observation is true
-            world_time_precision (float|None): this parameter depends on the agent. 
+            world_time_precision (float|None): this parameter depends on the agent.
                 if not none, the default time precision of simulator, i.e., the max_step_size
                 defined in the agent cfg file, will be override. Note that pr2 and iCub
                 requires a max_step_size <= 0.001, otherwise cannot train a successful policy.
             step_time (float): the peroid of one step() function of the environment in simulation.
                 step_time is rounded to multiples of world_time_precision
                 step_time / world_time_precision is how many simulator substeps during one
-                environment step. for the tasks need higher control frequency (such as the 
+                environment step. for the tasks need higher control frequency (such as the
                 tasks need walking by 2 legs), using a smaller step_time like 0.05 is better.
                 experiments show that iCub can not learn how to walk in a 0.1 step_time
             real_time_update_rate (int): max update rate per second. There is no limit if

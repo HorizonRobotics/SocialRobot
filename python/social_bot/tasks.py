@@ -147,7 +147,7 @@ class Task(object):
             target (pyagzebo.Model): the target to move
             random_range (float): the range of the new position
             center_pos (numpy.array): the center coordinates (x, y) of the random range
-            min_distance (float): the new position will not be closer than this distance 
+            min_distance (float): the new position will not be closer than this distance
             height (float): height offset
         Returns:
             np.array, the new position
@@ -180,6 +180,7 @@ class GoalTask(Task):
                  fail_distance_thresh=2.0,
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
+                 random_agent_orientation=False,
                  sparse_reward=True,
                  random_range=5.0,
                  polar_coord=True,
@@ -212,6 +213,8 @@ class GoalTask(Task):
                 to distraction objects (objects that are not the goal itself)
             distraction_penalty (float): positive float of how much to penalize getting too close to
                 distraction objects
+            random_agent_orientation (bool): whether randomize the orientation (yaw) of the agent at the beginning of an
+                episode.
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with normalized distance the agent get closer to goal.
             random_range (float): the goal's random position range
@@ -256,6 +259,7 @@ class GoalTask(Task):
             assert distraction_penalty_distance_thresh < success_distance_thresh
         self._distraction_penalty = distraction_penalty
         self._sparse_reward = sparse_reward
+        self._random_agent_orientation = random_agent_orientation
         self._use_curriculum_training = use_curriculum_training
         self._curriculum_distractions = curriculum_distractions
         self._curriculum_target_angle = curriculum_target_angle
@@ -350,7 +354,12 @@ class GoalTask(Task):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
         self._agent.reset()
-        loc, agent_dir = self._get_agent_loc()
+        if self._random_agent_orientation:
+            loc, agent_dir = self._agent.get_pose()
+            self._agent.set_pose((loc, (agent_dir[0], agent_dir[1],
+                                        2 * math.pi * random.random())))
+        loc, agent_dir = self._agent.get_pose()
+        loc = np.array(loc)
         self._random_move_objects()
         self.pick_goal()
         goal = self._world.get_model(self._goal_name)
@@ -363,7 +372,7 @@ class GoalTask(Task):
             goal_loc, _ = goal.get_pose()
             goal_loc = np.array(goal_loc)
             dist = np.linalg.norm(loc - goal_loc)
-            # dir from get_pose is (roll, pitch, roll)
+            # dir from get_pose is (roll, pitch, yaw)
             dir = np.array([math.cos(agent_dir[2]), math.sin(agent_dir[2])])
             goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
             dot = sum(dir * goal_dir)
@@ -638,7 +647,7 @@ class ICubAuxiliaryTask(Task):
             env (gym.Env): an instance of Environment
             max_steps (int): episode will end in so many steps
             reward_weight (float): the weight of the reward, should be tuned
-                accroding to reward range of other tasks 
+                accroding to reward range of other tasks
             target (string): this is the target icub should face towards, since
                 you may want the agent interact with something
             agent_init_pos (tuple): the expected initial position of the agent
@@ -742,7 +751,7 @@ class ICubAuxiliaryTask(Task):
 
     def _get_angle_to_target(self, aegnt, agent_pos, link_name, offset=0):
         """ Get angle from a icub link, relative to target.
-        
+
         Args:
             agent (GazeboAgent): the agent
             agent_pos (numpay array): the pos of agent
@@ -823,7 +832,7 @@ class KickingBallTask(Task):
             goal_name (string): name of the goal in the world
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             random_range (float): the goal's random position range
-            target_speed (float): the target speed runing to the ball. The agent will receive no more 
+            target_speed (float): the target speed runing to the ball. The agent will receive no more
                 higher reward when its speed is higher than target_speed.
             reward_weight (float): the weight of the reward
         """
@@ -1010,7 +1019,7 @@ class PickAndPlace(Task):
         If object is not being gripped, the reward is the gripper contacts, wether object is off the
             ground, and negative distance between object and gripper
         If being gripped, an extra truncked negative distance from object to goal is added.
-        If suceesfully placed, a reward of 100 is given. 
+        If suceesfully placed, a reward of 100 is given.
     This task is only compatible with Agent youbot_noplugin.
     """
 
@@ -1161,7 +1170,7 @@ class Stack(Task):
     The agent will receive a reward of 1 when success if reward shaping is not
     used. If reward shaping is used, the reward is the stacking number plus:
         if not gripping, negative distance to the closest obj not being stacked
-        if gripping, distance to closet stacking candidate, i.e, (x, y, 
+        if gripping, distance to closet stacking candidate, i.e, (x, y,
             target_height). target_height is (stacked_num + 1) * object_height,
             plus a margin of 0.55 * object_height
     This task is only compatible with Agent youbot_noplugin.
@@ -1191,7 +1200,7 @@ class Stack(Task):
                 the center of the objects' initial position distribution
             objects_num (int): the number of objects to stack.
             objects_range (float): the range of objects around center position.
-            object_half_height (float): Note that model for stacking task 
+            object_half_height (float): Note that model for stacking task
                 should be of no offset inside the model. This means an initial
                 pose of 0 height makes half of the obejct underground. This
                 specifies the initial height of object's center, e.g, half of
