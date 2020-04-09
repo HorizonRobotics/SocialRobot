@@ -98,7 +98,7 @@ class SimpleNavigation(GazeboEnvBase):
             goal_name="goal",
             fail_distance_thresh=0.5,
             distraction_list=[],
-            random_range=2.0,
+            random_range=2.7,
             polar_coord=False)
         task_group.add_task(task)
         self._teacher.add_task_group(task_group)
