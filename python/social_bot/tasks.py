@@ -617,13 +617,19 @@ class GoalTask(Task):
             # adds egocentric velocity input
             vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
             rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, yaw)
-            obs = [rvx, rvy, vz, a1, a2, a3]
+            obs = [rvx, rvy, vz, a1, a2, a3] + list(agent_pose)
             if self._egocentric_perception_range > 0:
-                obj_array.extend([[0, rvx, rvy, vz], [1, a1, a2, a3]])
-                i = 2
+                obj_array.extend(
+                    [[0, rvx, rvy, vz], [1, a1, a2, a3],
+                     [2, agent_pose[0], agent_pose[1], agent_pose[2]],
+                     [3, agent_pose[3], agent_pose[4], agent_pose[5]]])
+                i = 4
             else:
-                obj_array.extend([[0, rvx, rvy], [1, vz, a1], [2, a2, a3]])
-                i = 3
+                obj_array.extend([[0, rvx, rvy], [1, vz, a1], [2, a2, a3],
+                                  [3, agent_pose[0], agent_pose[1]],
+                                  [4, agent_pose[2], agent_pose[3]],
+                                  [5, agent_pose[4], agent_pose[5]]])
+                i = 6
             # adds objects' (goal's as well as distractions') egocentric
             # coordinates to observation
             while len(pose) > 1:
