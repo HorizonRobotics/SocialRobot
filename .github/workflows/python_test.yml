@@ -45,4 +45,4 @@ jobs:
     - name: Test with pytest
       run: |
         cd ./python/social_bot/envs
-        GAZEBO_MODEL_PATH=../models xvfb-run python3 -m unittest discover -p "*_test.py" -v
+        GAZEBO_MODEL_PATH=../models PYTHONPATH=../:$PYTHONPATH xvfb-run python3 -m unittest discover -p "*_test.py" -v

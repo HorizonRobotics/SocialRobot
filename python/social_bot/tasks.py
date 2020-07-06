@@ -89,9 +89,9 @@ class Task(object):
         The extra infomation needed by the task if sparse states are used.
 
         This can be overridden by the sub task. Note that this is only for the
-        case "Agent._use_image_observation" is False. For image case, the 
+        case "Agent._use_image_observation" is False. For image case, the
         image form camera of agent is used. For case of image with internal
-        states, Agent.get_internal_states() is used, which only returns 
+        states, Agent.get_internal_states() is used, which only returns
         self joint positions and velocities.
 
         Args:
@@ -103,7 +103,7 @@ class Task(object):
 
     def set_agent(self, agent):
         """ Set the agent of task.
-        
+
         The agent can be overridden by this function. This might be useful when multi
         agents share the same task or embodied teacher.
         Args:
@@ -388,7 +388,10 @@ class GoalTask(Task):
                 self._push_reward_queue(max(reward, 0))
                 logging.debug("yielding reward: " + str(reward))
                 agent_sentence = yield TeacherAction(
-                    reward=reward, sentence="well done", done=False)
+                    reward=reward, sentence="well done",
+                    done=not (self._move_goal_during_episode
+                              or self._switch_goal_within_episode),
+                    success=True)
                 steps_since_last_reward = 0
                 if self._switch_goal_within_episode:
                     self.pick_goal()
