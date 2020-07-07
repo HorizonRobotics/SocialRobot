@@ -812,8 +812,8 @@ class ICubAuxiliaryTask(Task):
 @gin.configurable
 class KickingBallTask(Task):
     """
-    A simple task to kick a ball to the goal. Simple reward shaping is used to
-    guide the agent run to the ball first:
+    A simple task to kick a ball to the goal. An optional reward shaping can be
+    used to guide the agent run to the ball first:
         Agent will receive 100 when succefully kick the ball into the goal.
         Agent will receive the speed of getting closer to the ball before touching the
             ball within 45 degrees of agent direction. The reward is trunked within
@@ -821,6 +821,8 @@ class KickingBallTask(Task):
         Agent will receive negative normalized distance from ball to goal after
             touching the ball within the direction. An offset of "target_speed + 1" is
             included since touching the goal must be better than not touching.
+
+    If no reward shaping, then the agent will only get -1/0/1 rewards.
     """
 
     def __init__(self,
@@ -830,7 +832,8 @@ class KickingBallTask(Task):
                  success_distance_thresh=0.5,
                  random_range=4.0,
                  target_speed=2.0,
-                 reward_weight=1.0):
+                 reward_weight=1.0,
+                 sparse_reward=False):
         """
         Args:
             env (gym.Env): an instance of Environment
@@ -841,6 +844,7 @@ class KickingBallTask(Task):
             target_speed (float): the target speed runing to the ball. The agent will receive no more
                 higher reward when its speed is higher than target_speed.
             reward_weight (float): the weight of the reward
+            sparse_reward (bool): if True, the agent will only get -1/0/1 rewards.
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
@@ -848,6 +852,7 @@ class KickingBallTask(Task):
         self._random_range = random_range
         self._success_distance_thresh = success_distance_thresh
         self._target_speed = target_speed
+        self._sparse_reward = sparse_reward
         self._env.insert_model(
             model="robocup_3Dsim_goal",
             name="goal",
@@ -871,7 +876,7 @@ class KickingBallTask(Task):
         hitted_ball = False
         while steps < self._max_steps:
             steps += 1
-            if not hitted_ball:
+            if not hitted_ball and not self._sparse_reward:
                 agent_loc, dir = self._agent.get_pose()
                 if self._agent.type.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
@@ -900,11 +905,20 @@ class KickingBallTask(Task):
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
                 if dist < self._success_distance_thresh:
+                    if self._sparse_reward:
+                        reward = 1.
+                    else:
+                        reward = 100.
                     agent_sentence = yield TeacherAction(
-                        reward=100.0, sentence="well done", done=True)
+                        reward=reward, sentence="well done", done=True,
+                        success=True)
                 else:
+                    if self._sparse_reward:
+                        reward = 0.
+                    else:
+                        reward = self._target_speed + 3 - dist / init_goal_dist
                     agent_sentence = yield TeacherAction(
-                        reward=self._target_speed + 3 - dist / init_goal_dist)
+                        reward=reward)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def task_specific_observation(self, agent):
