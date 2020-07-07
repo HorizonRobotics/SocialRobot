@@ -196,6 +196,7 @@ class GoalTask(Task):
                  max_reward_q_length=100,
                  reward_weight=1.0,
                  move_goal_during_episode=True,
+                 end_episode_after_success=False,
                  success_with_angle_requirement=True,
                  additional_observation_list=[],
                  use_egocentric_states=False,
@@ -219,7 +220,7 @@ class GoalTask(Task):
                 with normalized distance the agent get closer to goal.
             random_range (float): the goal's random position range
             polar_coord (bool): use cartesian coordinates in random_range, otherwise, use polar coord.
-            random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
+            random_goal (bool): if True, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
             curriculum_distractions (bool): move distractions according to curriculum as well
             curriculum_target_angle (bool): enlarge angle to target when initializing target according
@@ -236,8 +237,10 @@ class GoalTask(Task):
                 where random_range is the full range instead of the easier ones in the curriculum.
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
-            move_goal_during_episode (bool): if ture, the goal will be moved during episode, when it has been achieved
-            success_with_angle_requirement: if ture then calculate the reward considering the angular requirement
+            move_goal_during_episode (bool): if True, the goal will be moved during episode, when it has been achieved
+            end_episode_after_success (bool): if True, the episode will end once the goal is reached. A True value of this
+                flag will overwrite the effects of flags ``switch_goal_within_episode`` and ``move_goal_during_episode``.
+            success_with_angle_requirement: if True then calculate the reward considering the angular requirement
             additional_observation_list: a list of additonal objects to be added
             use_egocentric_states (bool): For the non-image observation case, use the states transformed to
                 egocentric coordinate, e.g., agent's egocentric distance and direction to goal
@@ -277,6 +280,7 @@ class GoalTask(Task):
             self._object_list.append(goal_name)
         self._goals = self._object_list
         self._move_goal_during_episode = move_goal_during_episode
+        self._end_episode_after_success = end_episode_after_success
         self._success_with_angle_requirement = success_with_angle_requirement
         if not additional_observation_list:
             additional_observation_list = self._object_list
@@ -389,8 +393,7 @@ class GoalTask(Task):
                 logging.debug("yielding reward: " + str(reward))
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done",
-                    done=not (self._move_goal_during_episode
-                              or self._switch_goal_within_episode),
+                    done=self._end_episode_after_success,
                     success=True)
                 steps_since_last_reward = 0
                 if self._switch_goal_within_episode:
@@ -1122,7 +1125,8 @@ class PickAndPlace(Task):
                 logging.debug("object has been successfuly placed")
                 reward = 200.0 if self._reward_shaping else 1.0
                 agent_sentence = yield TeacherAction(
-                    reward=reward, sentence="well done", done=True)
+                    reward=reward, sentence="well done", done=True,
+                    success=True)
             else:
                 shaped_reward = max(
                     2.0 - obj_dist / self._place_to_random_range,
