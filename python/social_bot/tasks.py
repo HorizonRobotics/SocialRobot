@@ -89,9 +89,9 @@ class Task(object):
         The extra infomation needed by the task if sparse states are used.
 
         This can be overridden by the sub task. Note that this is only for the
-        case "Agent._use_image_observation" is False. For image case, the 
+        case "Agent._use_image_observation" is False. For image case, the
         image form camera of agent is used. For case of image with internal
-        states, Agent.get_internal_states() is used, which only returns 
+        states, Agent.get_internal_states() is used, which only returns
         self joint positions and velocities.
 
         Args:
@@ -103,7 +103,7 @@ class Task(object):
 
     def set_agent(self, agent):
         """ Set the agent of task.
-        
+
         The agent can be overridden by this function. This might be useful when multi
         agents share the same task or embodied teacher.
         Args:
@@ -196,6 +196,7 @@ class GoalTask(Task):
                  max_reward_q_length=100,
                  reward_weight=1.0,
                  move_goal_during_episode=True,
+                 end_episode_after_success=False,
                  success_with_angle_requirement=True,
                  additional_observation_list=[],
                  use_egocentric_states=False,
@@ -219,7 +220,7 @@ class GoalTask(Task):
                 with normalized distance the agent get closer to goal.
             random_range (float): the goal's random position range
             polar_coord (bool): use cartesian coordinates in random_range, otherwise, use polar coord.
-            random_goal (bool): if ture, teacher will randomly select goal from the object list each episode
+            random_goal (bool): if True, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
             curriculum_distractions (bool): move distractions according to curriculum as well
             curriculum_target_angle (bool): enlarge angle to target when initializing target according
@@ -236,8 +237,10 @@ class GoalTask(Task):
                 where random_range is the full range instead of the easier ones in the curriculum.
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
-            move_goal_during_episode (bool): if ture, the goal will be moved during episode, when it has been achieved
-            success_with_angle_requirement: if ture then calculate the reward considering the angular requirement
+            move_goal_during_episode (bool): if True, the goal will be moved during episode, when it has been achieved
+            end_episode_after_success (bool): if True, the episode will end once the goal is reached. A True value of this
+                flag will overwrite the effects of flags ``switch_goal_within_episode`` and ``move_goal_during_episode``.
+            success_with_angle_requirement: if True then calculate the reward considering the angular requirement
             additional_observation_list: a list of additonal objects to be added
             use_egocentric_states (bool): For the non-image observation case, use the states transformed to
                 egocentric coordinate, e.g., agent's egocentric distance and direction to goal
@@ -277,6 +280,7 @@ class GoalTask(Task):
             self._object_list.append(goal_name)
         self._goals = self._object_list
         self._move_goal_during_episode = move_goal_during_episode
+        self._end_episode_after_success = end_episode_after_success
         self._success_with_angle_requirement = success_with_angle_requirement
         if not additional_observation_list:
             additional_observation_list = self._object_list
@@ -388,7 +392,9 @@ class GoalTask(Task):
                 self._push_reward_queue(max(reward, 0))
                 logging.debug("yielding reward: " + str(reward))
                 agent_sentence = yield TeacherAction(
-                    reward=reward, sentence="well done", done=False)
+                    reward=reward, sentence="well done",
+                    done=self._end_episode_after_success,
+                    success=True)
                 steps_since_last_reward = 0
                 if self._switch_goal_within_episode:
                     self.pick_goal()
@@ -806,8 +812,8 @@ class ICubAuxiliaryTask(Task):
 @gin.configurable
 class KickingBallTask(Task):
     """
-    A simple task to kick a ball to the goal. Simple reward shaping is used to
-    guide the agent run to the ball first:
+    A simple task to kick a ball to the goal. An optional reward shaping can be
+    used to guide the agent run to the ball first:
         Agent will receive 100 when succefully kick the ball into the goal.
         Agent will receive the speed of getting closer to the ball before touching the
             ball within 45 degrees of agent direction. The reward is trunked within
@@ -815,6 +821,8 @@ class KickingBallTask(Task):
         Agent will receive negative normalized distance from ball to goal after
             touching the ball within the direction. An offset of "target_speed + 1" is
             included since touching the goal must be better than not touching.
+
+    If no reward shaping, then the agent will only get -1/0/1 rewards.
     """
 
     def __init__(self,
@@ -824,7 +832,8 @@ class KickingBallTask(Task):
                  success_distance_thresh=0.5,
                  random_range=4.0,
                  target_speed=2.0,
-                 reward_weight=1.0):
+                 reward_weight=1.0,
+                 sparse_reward=False):
         """
         Args:
             env (gym.Env): an instance of Environment
@@ -835,6 +844,7 @@ class KickingBallTask(Task):
             target_speed (float): the target speed runing to the ball. The agent will receive no more
                 higher reward when its speed is higher than target_speed.
             reward_weight (float): the weight of the reward
+            sparse_reward (bool): if True, the agent will only get -1/0/1 rewards.
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
@@ -842,6 +852,7 @@ class KickingBallTask(Task):
         self._random_range = random_range
         self._success_distance_thresh = success_distance_thresh
         self._target_speed = target_speed
+        self._sparse_reward = sparse_reward
         self._env.insert_model(
             model="robocup_3Dsim_goal",
             name="goal",
@@ -865,7 +876,7 @@ class KickingBallTask(Task):
         hitted_ball = False
         while steps < self._max_steps:
             steps += 1
-            if not hitted_ball:
+            if not hitted_ball and not self._sparse_reward:
                 agent_loc, dir = self._agent.get_pose()
                 if self._agent.type.find('icub') != -1:
                     # For agent icub, we need to use the average pos here
@@ -894,11 +905,20 @@ class KickingBallTask(Task):
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
                 if dist < self._success_distance_thresh:
+                    if self._sparse_reward:
+                        reward = 1.
+                    else:
+                        reward = 100.
                     agent_sentence = yield TeacherAction(
-                        reward=100.0, sentence="well done", done=True)
+                        reward=reward, sentence="well done", done=True,
+                        success=True)
                 else:
+                    if self._sparse_reward:
+                        reward = 0.
+                    else:
+                        reward = self._target_speed + 3 - dist / init_goal_dist
                     agent_sentence = yield TeacherAction(
-                        reward=self._target_speed + 3 - dist / init_goal_dist)
+                        reward=reward)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def task_specific_observation(self, agent):
@@ -1119,7 +1139,8 @@ class PickAndPlace(Task):
                 logging.debug("object has been successfuly placed")
                 reward = 200.0 if self._reward_shaping else 1.0
                 agent_sentence = yield TeacherAction(
-                    reward=reward, sentence="well done", done=True)
+                    reward=reward, sentence="well done", done=True,
+                    success=True)
             else:
                 shaped_reward = max(
                     2.0 - obj_dist / self._place_to_random_range,

@@ -238,7 +238,7 @@ class PlayGround(GazeboEnvBase):
         if teacher_action.done:
             logging.debug("episode ends at cum reward:" +
                           str(self._cum_reward))
-        return obs, reward, teacher_action.done, {}
+        return obs, reward, teacher_action.done, {"is_success": teacher_action.success}
 
     def get_step_time(self):
         """

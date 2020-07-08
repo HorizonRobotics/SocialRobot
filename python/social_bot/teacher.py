@@ -36,15 +36,18 @@ class DiscreteSequence(gym.Space):
 
 
 class TeacherAction(object):
-    def __init__(self, reward=0.0, sentence="", done=False, is_idle=False):
+    def __init__(self, reward=0.0, sentence="", done=False, is_idle=False,
+                 success=False):
         """
         Args:
             done: end of an episode if true
+            success: if the episode is successful or not
         """
         self.reward = reward
         self.sentence = sentence
         self.done = done
         self.is_idle = is_idle
+        self.success = success
 
 
 class TaskGroup(object):
@@ -330,11 +333,14 @@ class Teacher(object):
             final_reward = 0.
             done = False
             active_group_id = -1
+            success = False
             # run all groups in parallel
             for i, g in enumerate(self._task_groups):
                 teacher_action = g.teach(agent_sentence)
                 if teacher_action.done:
                     done = True
+                if teacher_action.success:
+                    success = True
                 weight = g.get_current_reward_weight()
                 final_reward += weight * teacher_action.reward
                 if not final_sentence:
@@ -343,5 +349,6 @@ class Teacher(object):
             if active_group_id != -1:
                 g = self._task_groups.pop(active_group_id)
                 self._task_groups.insert(0, g)
-            return_action = TeacherAction(final_reward, final_sentence, done)
+            return_action = TeacherAction(final_reward, final_sentence, done,
+                                          success=success)
         return return_action
