@@ -62,7 +62,7 @@ We provide OpenAI gym interfaces to easily apply different RL algorithms into th
 Some environments support the teacher-student learning procedure, in which the task is defined by the teacher, and an interaction with the teacher via a sentence is performed during each environment step. You could enable the procedure by using the environment whose name contains "language" or through gin configuration.
 
 ### [Play Ground](python/social_bot/envs/play_ground.py)
-A flexiable environment in which worldfile, tasks and agent are all configurable through gin file. The default configuration for play ground is goal task and pioneer agent. 
+A flexiable environment in which worldfile, tasks and agent are all configurable through gin file. The default configuration for play ground is goal task and pioneer agent.
 You can choose the agent type in the environment by setting the paramenter "agent_type". We support pioneer2dx, pr2, turtlebot, kuka youbot, kuka LWR4 and icub for now. [ICub](http://www.icub.org) is an humanoid robot meant for more complex tasks in the future. You could also choose icub_with_hands, which is a more advanced version of icub equipped with 2 cameras and dexterous hands. The following are images of these 5 robots:
 
 <img src="media/pioneer.jpg" width="160" height="240" alt="pioneer"/> <img src="media/pr2.jpg" width="160" height="240" alt="pr2"/> <img src="media/turtlebot.jpg" width="160" height="240" alt="turtlebot"/> <img src="media/icub.jpg" width="160" height="240" alt="icub"/> <img src="media/youbot.jpg" width="160" height="240" alt="youbot"/>
@@ -75,10 +75,10 @@ Your can configure the type of observation using gin: with_language or not, use_
     image from the camera of agent,
     image with internal states,
     image with language sentence,
-    image with both internal states and language sentence. 
+    image with both internal states and language sentence.
 By default low-dimensional full states is used.
 
-The action specification is defined in the joint list of file [agent_cfg.json](python/social_bot/models/agent_cfg.json). 
+The action specification is defined in the joint list of file [agent_cfg.json](python/social_bot/models/agent_cfg.json).
 
 Tasks are in file [tasks.py](python/social_bot/tasks.py). To implement a new task, you should:
 1. Inherit `tasks.Task`, speficy the compatible agent types in "Task.compatible_agents".
@@ -92,10 +92,10 @@ The tasks we have for now are listed as below:
 
     <img src="media/pioneer.gif" width="320" height="240" alt="pioneer"/> <img src="media/play_ground_icub.gif" width="360" height="240" alt="icub"/>
 
-* [Kicking-ball task](python/social_bot/tasks.py): A task to kick a ball into the goal. Simple reward shaping is used to guide the agent to run to the ball first.
+* [Kicking-ball task](python/social_bot/tasks.py): A task to kick a ball into the goal. Optional reward shaping can be used to guide the agent to run to the ball first.
 
     <img src="media/play_ground_ball.gif" width="320" height="240" alt="ball"/>
-    
+
 * [Reaching3D task](python/social_bot/tasks.py): A task to reach a 3D position with the end effector of a robot arm. This task is only compatible with Agent kuka_lwr_4plus. An optional distance based reward shaping can be used.
 
     <img src="media/reaching.gif" width="320" height="240" alt="reaching"/>
@@ -153,9 +153,9 @@ Try this for a test:
 ```bash
 cd REPO_ROOT/python/social_bot/
 python keybo_control.py
-``` 
+```
 Move the agent around by key "W, A, S, D", open or close gripper by key "E", and move the robot arm (if there is, such as agent youbot) by mouse for lef-right, forward-backward direction, and key "R, F" for up-down.
-Note that some tricks are used to make the operating more friendly. So you are not controlling the raw joints as the algorthim. 
+Note that some tricks are used to make the operating more friendly. So you are not controlling the raw joints as the algorthim.
 It's not so easy, for some task you may need some trials to complete it. An example:
 
 <img src="media/stack.gif" width="450" height="200" alt="stack"/>
