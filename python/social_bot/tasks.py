@@ -247,6 +247,7 @@ class GoalTask(Task):
                 flag will overwrite the effects of flags ``switch_goal_within_episode`` and ``move_goal_during_episode``.
             success_with_angle_requirement: if True then calculate the reward considering the angular requirement
             additional_observation_list: a list of additonal objects to be added
+            use_full_states (bool): For non-image observation, use full states of the world
             use_egocentric_states (bool): For the non-image observation case, use the states transformed to
                 egocentric coordinate, e.g., agent's egocentric distance and direction to goal
             egocentric_perception_range (float): the max range in degree to limit the agent's observation.
@@ -300,6 +301,7 @@ class GoalTask(Task):
                       self._max_play_ground_size)))
         self._pos_list.remove((0, 0))
         self._polar_coord = polar_coord
+        self._use_full_states = use_full_states
         self._use_egocentric_states = use_egocentric_states
         self._egocentric_perception_range = egocentric_perception_range
         self._order_obj_by_view = order_obj_by_view
@@ -320,6 +322,19 @@ class GoalTask(Task):
                 self._reward_thresh_to_increase_range)
         else:
             self._random_range = random_range
+        obs_format = "image"
+        if use_full_states or use_egocentric_states:
+            obs_format = "full_state"
+        obs_relative = "ego"
+        if use_full_states and not use_egocentric_states:
+            obs_relative = "absolute"
+        logging.info("Observations: {}, {}.".format(obs_format, obs_relative))
+        if use_full_states and not use_egocentric_states:
+            if not order_obj_by_view:
+                logging.info(
+                    "Dims: 0-5: agent's velocity and angular " +
+                    "velocity, 6-11: agent's position and pose, 12-13: goal x, y"
+                    + ", all distractions' x, y coordinates.")
         self.task_vocab += self._object_list
         self._env.insert_model_list(self._object_list)
 
@@ -612,11 +627,14 @@ class GoalTask(Task):
 
         obj_array = []
         agent_pose = np.array(agent.get_pose()).flatten()
-        if self._use_egocentric_states:
+        if self._use_full_states or self._use_egocentric_states:
             yaw = agent_pose[5]
             # adds egocentric velocity input
             vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
-            rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, yaw)
+            if self._use_egocentric_states:
+                rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, yaw)
+            else:
+                rvx, rvy = vx, vy
             obs = [rvx, rvy, vz, a1, a2, a3] + list(agent_pose)
             if self._egocentric_perception_range > 0:
                 obj_array.extend(
@@ -633,9 +651,15 @@ class GoalTask(Task):
             # adds objects' (goal's as well as distractions') egocentric
             # coordinates to observation
             while len(pose) > 1:
-                x = pose[0] - agent_pose[0]
-                y = pose[1] - agent_pose[1]
-                rotated_x, rotated_y = agent.get_egocentric_cord_2d(x, y, yaw)
+                x = pose[0]
+                y = pose[1]
+                if self._use_egocentric_states:
+                    x = pose[0] - agent_pose[0]
+                    y = pose[1] - agent_pose[1]
+                    rotated_x, rotated_y = agent.get_egocentric_cord_2d(
+                        x, y, yaw)
+                else:
+                    rotated_x, rotated_y = x, y
                 if self._egocentric_perception_range > 0:
                     dist = math.sqrt(rotated_x * rotated_x +
                                      rotated_y * rotated_y)
@@ -661,6 +685,7 @@ class GoalTask(Task):
                                  axis=0)
 
         if self._order_obj_by_view:
+            # TODO: skip first few dims corresponding to rvx, a1 etc..
             obj_array.sort(key=operator.itemgetter(2))
             obs = np.array(obj_array).flatten()
         return obs
