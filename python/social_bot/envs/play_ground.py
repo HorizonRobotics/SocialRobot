@@ -197,19 +197,18 @@ class PlayGround(GazeboEnvBase):
             # state observation
             goal_space = gym.spaces.Box(
                 low=-np.inf, high=np.inf, shape=(2, ), dtype=np.float32)
-            ag_space = goal_space
             self.observation_space = gym.spaces.Dict(
                 observation=self.observation_space,
                 desired_goal=goal_space,
-                achieved_goal=ag_space)
+                achieved_goal=goal_space)
 
     def _get_observation(self, teacher_sentence):
         obs = self._agent.get_observation(self._teacher, teacher_sentence)
         if self._goal_conditioned:
-            orig = obs
+            flat_obs = obs
             obs = OrderedDict(observation=obs)
-            obs['achieved_goal'] = orig[6:8]
-            obs['desired_goal'] = orig[12:14]
+            obs['achieved_goal'] = flat_obs[6:8]
+            obs['desired_goal'] = flat_obs[12:14]
         return obs
 
     def reset(self):
