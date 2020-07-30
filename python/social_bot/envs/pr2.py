@@ -372,11 +372,11 @@ class Pr2Gripper(GazeboEnvBase):
             reward += -0.01  # if no positive reward, penalize it a bit to speed up
 
         # Sparse reward setting
-        if success and self._sparse_reward:
-            reward = 1.0
-            done = True
+        if self._sparse_reward:
+            reward = 1.0 if success else 0.0
+            done = success
 
-        ctrl_cost = np.sum(np.square(actions)) / actions.shape[0]
+        ctrl_cost = np.sum(np.square(actions/self._action_range)) / actions.shape[0]
         reward -= self._action_cost * ctrl_cost
 
         if self._motion_loss > 0.0:
