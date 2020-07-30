@@ -178,6 +178,7 @@ class GoalTask(Task):
             distraction_list=[
                 'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
             ],
+            goal_conditioned=False,
             end_on_hitting_distraction=False,
             end_episode_after_success=False,
             success_distance_thresh=0.5,
@@ -211,6 +212,8 @@ class GoalTask(Task):
             max_steps (int): episode will end if not reaching gaol in so many steps
             goal_name (string): name of the goal in the world
             distraction_list (list of string): a list of model. the model shoud be in gazebo database
+            end_episode_after_success (bool): if True, the episode will end once the goal is reached. A True value of this
+                flag will overwrite the effects of flags ``switch_goal_within_episode`` and ``move_goal_during_episode``.
             end_on_hitting_distraction (bool): whether to end episode on hitting distraction
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
@@ -243,8 +246,6 @@ class GoalTask(Task):
             max_reward_q_length (int): how many recent rewards to consider when estimating agent accuracy.
             reward_weight (float): the weight of the reward, is used in multi-task case
             move_goal_during_episode (bool): if True, the goal will be moved during episode, when it has been achieved
-            end_episode_after_success (bool): if True, the episode will end once the goal is reached. A True value of this
-                flag will overwrite the effects of flags ``switch_goal_within_episode`` and ``move_goal_during_episode``.
             success_with_angle_requirement: if True then calculate the reward considering the angular requirement
             additional_observation_list: a list of additonal objects to be added
             use_full_states (bool): For non-image observation, use full states of the world
@@ -263,6 +264,7 @@ class GoalTask(Task):
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
+        self._goal_conditioned = goal_conditioned
         self.end_on_hitting_distraction = end_on_hitting_distraction
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
@@ -411,11 +413,15 @@ class GoalTask(Task):
                 self._get_distraction_penalty(loc, dot,
                                               prev_min_dist_to_distraction))
 
+            # TODO(Le): compare achieved goal with desired goal if task is
+            # goal conditioned?
             if dist < self._success_distance_thresh and (
                     not self._success_with_angle_requirement or dot > 0.707):
                 # within 45 degrees of the agent direction
                 reward = 1.0 - distraction_penalty
                 self._push_reward_queue(max(reward, 0))
+                if self._goal_conditioned:
+                    reward -= 1.
                 logging.debug("yielding reward: " + str(reward))
                 agent_sentence = yield TeacherAction(
                     reward=reward, sentence="well done",
@@ -440,6 +446,8 @@ class GoalTask(Task):
             else:
                 if self._sparse_reward:
                     reward = 0
+                    if self._goal_conditioned:
+                        reward = -1
                 else:
                     reward = (self._prev_dist - dist) / self._initial_dist
                 reward = reward - distraction_penalty

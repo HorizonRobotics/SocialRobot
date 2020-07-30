@@ -14,6 +14,7 @@
 """
 A simple enviroment for an agent playing on the ground
 """
+from collections import OrderedDict
 import os
 import time
 import math
@@ -71,6 +72,7 @@ class PlayGround(GazeboEnvBase):
                  agent_type='pioneer2dx_noplugin',
                  world_name="play_ground.world",
                  tasks=[GoalTask],
+                 goal_conditioned=False,
                  with_language=False,
                  with_agent_language=False,
                  use_image_observation=False,
@@ -93,6 +95,7 @@ class PlayGround(GazeboEnvBase):
             world_name (string): Select the world file, e.g., empty.world, play_ground.world,
                 grocery_ground.world
             tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
+            goal_conditioned (bool): Turn on goal conditioned tasks.
             with_language (bool): The observation will be a dict with an extra sentence
             with_agent_language (bool): Include agent sentence in action space.
             use_image_observation (bool): Use image, or use low-dimentional states as
@@ -127,6 +130,7 @@ class PlayGround(GazeboEnvBase):
         """
 
         self._action_cost = action_cost
+        self._goal_conditioned = goal_conditioned
         self._with_language = with_language
         self._seq_length = vocab_sequence_length
         self._with_agent_language = with_language and with_agent_language
@@ -186,6 +190,27 @@ class PlayGround(GazeboEnvBase):
         self.reset()
         self.observation_space = self._agent.get_observation_space(
             self._teacher)
+        if self._goal_conditioned:
+            assert not with_language
+            assert not use_image_observation
+            assert not image_with_internal_states
+            # state observation
+            goal_space = gym.spaces.Box(
+                low=-np.inf, high=np.inf, shape=(2, ), dtype=np.float32)
+            ag_space = goal_space
+            self.observation_space = gym.spaces.Dict(
+                observation=self.observation_space,
+                desired_goal=goal_space,
+                achieved_goal=ag_space)
+
+    def _get_observation(self, teacher_sentence):
+        obs = self._agent.get_observation(self._teacher, teacher_sentence)
+        if self._goal_conditioned:
+            orig = obs
+            obs = OrderedDict(observation=obs)
+            obs['achieved_goal'] = orig[6:8]
+            obs['desired_goal'] = orig[12:14]
+        return obs
 
     def reset(self):
         """
@@ -202,8 +227,7 @@ class PlayGround(GazeboEnvBase):
         # The first call of "teach() after "done" will reset the task
         teacher_action = self._teacher.teach("")
         self._world.step(self._sub_steps)
-        obs = self._agent.get_observation(self._teacher,
-                                          teacher_action.sentence)
+        obs = self._get_observation(teacher_action.sentence)
         return obs
 
     def step(self, action):
@@ -229,8 +253,7 @@ class PlayGround(GazeboEnvBase):
         self._agent.take_action(controls)
         self._world.step(self._sub_steps)
         teacher_action = self._teacher.teach(sentence)
-        obs = self._agent.get_observation(self._teacher,
-                                          teacher_action.sentence)
+        obs = self._get_observation(teacher_action.sentence)
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(controls)) / controls.shape[0]
         reward = teacher_action.reward - self._action_cost * ctrl_cost
