@@ -16,7 +16,7 @@
     "pioneer2dx_noplugin": {
         "control_joints": ["pioneer2dx_noplugin::left_wheel_hinge", "pioneer2dx_noplugin::right_wheel_hinge"], 
         "camera_sensor": "default::pioneer2dx_noplugin::camera_link::camera",
-        "use_pid": true,
+        "use_pid": false,
         "pid_type": [
             "velocity",
             "velocity"],

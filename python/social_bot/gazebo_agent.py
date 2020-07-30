@@ -312,6 +312,8 @@ class GazeboAgent():
         joint_states = list(map(lambda s: agent.get_joint_state(s), joints))
         joints_limits = list(
             map(lambda s: s.get_effort_limits()[0], joint_states))
+        print("JOINT LIMITS: %s" % joints_limits)
+        print("USE PID: %s" % str(agent_cfg['use_pid']))
         if agent_cfg['use_pid']:
             for joint_index in range(len(joints)):
                 agent.set_pid_controller(

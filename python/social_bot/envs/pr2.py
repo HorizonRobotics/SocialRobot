@@ -97,6 +97,8 @@ class Pr2Gripper(GazeboEnvBase):
                  goal_name='beer',
                  max_steps=100,
                  reward_shaping=True,
+                 sparse_reward=False,
+                 action_cost=0.01,
                  motion_loss=0.0000,
                  use_internal_states_only=True,
                  world_config=PR2_WORLD_SETTING,
@@ -106,6 +108,8 @@ class Pr2Gripper(GazeboEnvBase):
             goal_name (string): name of the object to lift off ground
             max_steps (int): episode will end when the agent exceeds the number of steps.
             reward_shaping (boolean): whether it adds distance based reward shaping.
+            sparse_reward (boolean): whether it uses only a sparse reward (overrides reward_shaping)
+            action_cost (float): l2 norm coefficient of action penalty to reward
             motion_loss (float): if not zero, it will add -motion_loss * || V_{all_joints} ||^2 in
                  the reward when episode ends.
             use_internal_states_only (boolean): whether to only use internal states (joint positions
@@ -164,6 +168,8 @@ class Pr2Gripper(GazeboEnvBase):
         self._max_steps = max_steps
         self._steps_in_this_episode = 0
         self._reward_shaping = reward_shaping
+        self._sparse_reward = sparse_reward
+        self._action_cost = action_cost
         self._use_internal_states_only = use_internal_states_only
         self._cum_reward = 0.0
         self._motion_loss = motion_loss
@@ -338,6 +344,7 @@ class Pr2Gripper(GazeboEnvBase):
 
         delta_reward = 0
 
+        success = False
         if self._l_touch:
             logging.debug("l finger touch!")
             delta_reward += 0.5
@@ -355,6 +362,7 @@ class Pr2Gripper(GazeboEnvBase):
             lift = min(max(elevation - 0.01, 0), 0.2)
 
             if lift > 0:
+                success = True
                 logging.debug("beer lift! " + str(lift))
                 delta_reward += (1.0 + 50 * lift)
 
@@ -362,6 +370,14 @@ class Pr2Gripper(GazeboEnvBase):
             reward += delta_reward
         else:
             reward += -0.01  # if no positive reward, penalize it a bit to speed up
+
+        # Sparse reward setting
+        if success and self._sparse_reward:
+            reward = 1.0
+            done = True
+
+        ctrl_cost = np.sum(np.square(actions)) / actions.shape[0]
+        reward -= self._action_cost * ctrl_cost
 
         if self._motion_loss > 0.0:
             v2s = 0.0
@@ -382,7 +398,7 @@ class Pr2Gripper(GazeboEnvBase):
             self._gripper_reward_dir = 1
         self._prev_dist = dist
         self._prev_gripper_pos = gripper_pos
-        return obs, reward, done, {}
+        return obs, reward, done, {'is_success': success}
 
     def run(self, render=True):
         self.reset()
