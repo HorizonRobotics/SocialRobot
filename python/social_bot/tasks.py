@@ -170,42 +170,42 @@ class GoalTask(Task):
     it will get reward -1.
     """
 
-    def __init__(
-            self,
-            env,
-            max_steps,
-            goal_name="ball",
-            distraction_list=[
-                'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
-            ],
-            goal_conditioned=False,
-            end_on_hitting_distraction=False,
-            end_episode_after_success=False,
-            success_distance_thresh=0.5,
-            fail_distance_thresh=2.0,
-            distraction_penalty_distance_thresh=0,
-            distraction_penalty=0.5,
-            random_agent_orientation=False,
-            sparse_reward=True,
-            random_range=5.0,
-            polar_coord=True,
-            random_goal=False,
-            use_curriculum_training=False,
-            curriculum_distractions=True,
-            curriculum_target_angle=False,
-            switch_goal_within_episode=False,
-            start_range=0,
-            increase_range_by_percent=50.,
-            reward_thresh_to_increase_range=0.4,
-            percent_full_range_in_curriculum=0.1,
-            max_reward_q_length=100,
-            reward_weight=1.0,
-            move_goal_during_episode=True,
-            success_with_angle_requirement=True,
-            additional_observation_list=[],
-            use_egocentric_states=False,
-            egocentric_perception_range=0,
-            order_obj_by_view=False):
+    def __init__(self,
+                 env,
+                 max_steps,
+                 goal_name="ball",
+                 distraction_list=[
+                     'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
+                 ],
+                 goal_conditioned=False,
+                 end_on_hitting_distraction=False,
+                 end_episode_after_success=False,
+                 success_distance_thresh=0.5,
+                 fail_distance_thresh=2.0,
+                 distraction_penalty_distance_thresh=0,
+                 distraction_penalty=0.5,
+                 random_agent_orientation=False,
+                 sparse_reward=True,
+                 random_range=5.0,
+                 polar_coord=True,
+                 random_goal=False,
+                 use_curriculum_training=False,
+                 curriculum_distractions=True,
+                 curriculum_target_angle=False,
+                 switch_goal_within_episode=False,
+                 start_range=0,
+                 increase_range_by_percent=50.,
+                 reward_thresh_to_increase_range=0.4,
+                 percent_full_range_in_curriculum=0.1,
+                 max_reward_q_length=100,
+                 reward_weight=1.0,
+                 move_goal_during_episode=True,
+                 success_with_angle_requirement=True,
+                 additional_observation_list=[],
+                 use_full_states=False,
+                 use_egocentric_states=False,
+                 egocentric_perception_range=0,
+                 order_obj_by_view=False):
         """
         Args:
             env (gym.Env): an instance of Environment
@@ -424,7 +424,8 @@ class GoalTask(Task):
                     reward -= 1.
                 logging.debug("yielding reward: " + str(reward))
                 agent_sentence = yield TeacherAction(
-                    reward=reward, sentence="well done",
+                    reward=reward,
+                    sentence="well done",
                     done=self._end_episode_after_success,
                     success=True)
                 steps_since_last_reward = 0
@@ -975,15 +976,16 @@ class KickingBallTask(Task):
                     else:
                         reward = 100.
                     agent_sentence = yield TeacherAction(
-                        reward=reward, sentence="well done", done=True,
+                        reward=reward,
+                        sentence="well done",
+                        done=True,
                         success=True)
                 else:
                     if self._sparse_reward:
                         reward = 0.
                     else:
                         reward = self._target_speed + 3 - dist / init_goal_dist
-                    agent_sentence = yield TeacherAction(
-                        reward=reward)
+                    agent_sentence = yield TeacherAction(reward=reward)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
 
     def task_specific_observation(self, agent):
@@ -1204,7 +1206,9 @@ class PickAndPlace(Task):
                 logging.debug("object has been successfuly placed")
                 reward = 200.0 if self._reward_shaping else 1.0
                 agent_sentence = yield TeacherAction(
-                    reward=reward, sentence="well done", done=True,
+                    reward=reward,
+                    sentence="well done",
+                    done=True,
                     success=True)
             else:
                 shaped_reward = max(
