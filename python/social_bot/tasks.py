@@ -193,7 +193,7 @@ class GoalTask(Task):
                  curriculum_distractions=True,
                  curriculum_target_angle=False,
                  switch_goal_within_episode=False,
-                 start_range=0,
+                 start_range=0.0,
                  increase_range_by_percent=50.,
                  reward_thresh_to_increase_range=0.4,
                  percent_full_range_in_curriculum=0.1,
@@ -423,11 +423,14 @@ class GoalTask(Task):
                 if self._goal_conditioned:
                     reward -= 1.
                 logging.debug("yielding reward: " + str(reward))
+                done = self._end_episode_after_success
+                goal_range = self._random_range if done else 0
                 agent_sentence = yield TeacherAction(
                     reward=reward,
                     sentence="well done",
-                    done=self._end_episode_after_success,
-                    success=True)
+                    done=done,
+                    success=True,
+                    goal_range=goal_range)
                 steps_since_last_reward = 0
                 if self._switch_goal_within_episode:
                     self.pick_goal()
@@ -443,7 +446,10 @@ class GoalTask(Task):
                     "yielding reward: {}, farther than {} from goal".format(
                         str(reward), str(self._fail_distance_thresh)))
                 yield TeacherAction(
-                    reward=reward, sentence="failed", done=True)
+                    reward=reward,
+                    sentence="failed",
+                    done=True,
+                    goal_range=self._random_range)
             else:
                 if self._sparse_reward:
                     reward = 0
@@ -458,8 +464,12 @@ class GoalTask(Task):
                     self._push_reward_queue(0)
                     done = self.end_on_hitting_distraction
                 self._prev_dist = dist
+                goal_range = self._random_range if done else 0
                 agent_sentence = yield TeacherAction(
-                    reward=reward, sentence=self._goal_name, done=done)
+                    reward=reward,
+                    sentence=self._goal_name,
+                    done=done,
+                    goal_range=goal_range)
         reward = -1.0
         logging.debug("yielding reward: {}, took more than {} steps".format(
             str(reward), str(self._max_steps)))
@@ -467,7 +477,11 @@ class GoalTask(Task):
         if self.should_use_curriculum_training():
             logging.debug("reward queue len: {}, sum: {}".format(
                 str(len(self._q)), str(sum(self._q))))
-        yield TeacherAction(reward=reward, sentence="failed", done=True)
+        yield TeacherAction(
+            reward=reward,
+            sentence="failed",
+            done=True,
+            goal_range=self._random_range)
 
     def _get_distraction_penalty(self, agent_loc, dot,
                                  prev_min_dist_to_distraction):

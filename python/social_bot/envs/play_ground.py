@@ -174,7 +174,10 @@ class PlayGround(GazeboEnvBase):
 
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
+        self._has_goal_task = False
         for task in tasks:
+            if task == GoalTask:
+                self._has_goal_task = True
             task_group = TaskGroup()
             task_group.add_task(task(env=self, max_steps=max_steps))
             self._teacher.add_task_group(task_group)
@@ -260,7 +263,10 @@ class PlayGround(GazeboEnvBase):
         if teacher_action.done:
             logging.debug("episode ends at cum reward:" +
                           str(self._cum_reward))
-        return obs, reward, teacher_action.done, {"is_success": teacher_action.success}
+        info = {"is_success": teacher_action.success}
+        if self._has_goal_task:
+            info["goal_range"] = teacher_action.goal_range
+        return obs, reward, teacher_action.done, info
 
     def get_step_time(self):
         """

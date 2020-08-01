@@ -36,8 +36,13 @@ class DiscreteSequence(gym.Space):
 
 
 class TeacherAction(object):
-    def __init__(self, reward=0.0, sentence="", done=False, is_idle=False,
-                 success=False):
+    def __init__(self,
+                 reward=0.0,
+                 sentence="",
+                 done=False,
+                 is_idle=False,
+                 success=False,
+                 goal_range=0.0):
         """
         Args:
             done: end of an episode if true
@@ -48,6 +53,7 @@ class TeacherAction(object):
         self.done = done
         self.is_idle = is_idle
         self.success = success
+        self.goal_range = float(goal_range)
 
 
 class TaskGroup(object):
@@ -86,6 +92,7 @@ class TaskGroup(object):
             TeacherAction
         """
         task = self._get_current_task()
+        teacher_action = None
         try:
             # teacher_action is the value yielded in task
             teacher_action = task.send(agent_sentence)
@@ -98,7 +105,8 @@ class TaskGroup(object):
             task.close()
             self._current_task = None
             self._is_idle = True
-            teacher_action = TeacherAction()
+            teacher_action = TeacherAction(
+                goal_range=teacher_action.goal_range if teacher_action else 0)
 
         return teacher_action
 
@@ -334,6 +342,7 @@ class Teacher(object):
             done = False
             active_group_id = -1
             success = False
+            goal_range = 0
             # run all groups in parallel
             for i, g in enumerate(self._task_groups):
                 teacher_action = g.teach(agent_sentence)
@@ -341,6 +350,8 @@ class Teacher(object):
                     done = True
                 if teacher_action.success:
                     success = True
+                if teacher_action.goal_range > 0:
+                    goal_range = teacher_action.goal_range
                 weight = g.get_current_reward_weight()
                 final_reward += weight * teacher_action.reward
                 if not final_sentence:
@@ -349,6 +360,10 @@ class Teacher(object):
             if active_group_id != -1:
                 g = self._task_groups.pop(active_group_id)
                 self._task_groups.insert(0, g)
-            return_action = TeacherAction(final_reward, final_sentence, done,
-                                          success=success)
+            return_action = TeacherAction(
+                final_reward,
+                final_sentence,
+                done,
+                success=success,
+                goal_range=goal_range)
         return return_action
