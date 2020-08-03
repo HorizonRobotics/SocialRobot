@@ -95,7 +95,12 @@ class PlayGround(GazeboEnvBase):
             world_name (string): Select the world file, e.g., empty.world, play_ground.world,
                 grocery_ground.world
             tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
-            goal_conditioned (bool): Turn on goal conditioned tasks.
+            goal_conditioned (bool): Turn on goal conditioned tasks.  Currently only GoalTask
+                with full state observation has this mode enabled.  The observation will
+                become an OrderedDict including ``achieved_goal``, ``desired_goal`` and
+                ``observation`` fields, instead of a flat np array.  ``achieved_goal`` will
+                contain agent's current 2-d (x, y) position and ``desired_goal`` will be
+                the goal object's 2-d position.  Reward and task termination remain unchanged.
             with_language (bool): The observation will be a dict with an extra sentence
             with_agent_language (bool): Include agent sentence in action space.
             use_image_observation (bool): Use image, or use low-dimentional states as
