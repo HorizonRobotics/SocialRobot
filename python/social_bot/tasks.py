@@ -834,7 +834,8 @@ class KickingBallTask(Task):
                  target_speed=2.0,
                  reward_weight=1.0,
                  distraction_list=[
-                     'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
+                     'coke_can', 'table', 'car_wheel',
+                     #'plastic_cup', 'beer'
                  ],
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,

@@ -374,6 +374,7 @@ class Pr2Gripper(GazeboEnvBase):
         # Sparse reward setting
         if self._sparse_reward:
             reward = 1.0 if success else 0.0
+            reward += dist_reward
             done = success
 
         ctrl_cost = np.sum(np.square(actions/self._action_range)) / actions.shape[0]
