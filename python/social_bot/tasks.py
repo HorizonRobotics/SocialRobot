@@ -812,13 +812,13 @@ class ICubAuxiliaryTask(Task):
 @gin.configurable
 class KickingBallTask(Task):
     """
-    A simple task to kick a ball so that it rolls into the gate. An
+    A simple task to kick a ball so that it rolls into the goal. An
     optional reward shaping can be used to guide the agent run to the ball first:
-        Agent will receive 100 when succefully kick the ball into the gate.
+        Agent will receive 100 when succefully kick the ball into the goal.
         Agent will receive the speed of getting closer to the ball before touching the
             ball within 45 degrees of agent direction. The reward is trunked within
             parameter target_speed.
-        Agent will receive negative normalized distance from ball to gate center
+        Agent will receive negative normalized distance from ball to goal center
             after touching the ball within the direction. An offset of
             "target_speed + 1" is included since touching the ball must be better
             than not touching.
@@ -829,7 +829,7 @@ class KickingBallTask(Task):
     def __init__(self,
                  env,
                  max_steps,
-                 gate_distance=5.0,
+                 goal_distance=5.0,
                  random_range=4.0,
                  target_speed=2.0,
                  reward_weight=1.0,
@@ -839,7 +839,7 @@ class KickingBallTask(Task):
             env (gym.Env): an instance of Environment
             max_steps (int): episode will end if the task is not achieved in so
                 many steps
-            gate_distance (float): the distance from the gate to the ball on
+            goal_distance (float): the distance from the goal to the ball on
                 average. A smaller distance makes the kicking task easier.
             random_range (float): the ball's random position range
             target_speed (float): the target speed runing to the ball. The agent will receive no more
@@ -852,29 +852,29 @@ class KickingBallTask(Task):
         self._random_range = random_range
         self._target_speed = target_speed
         self._sparse_reward = sparse_reward
-        self._gate_distance = gate_distance
+        self._goal_distance = goal_distance
         # By looking up the 'robocup_3Dsim_goal' model file:
-        self._gate_width = 2.1
-        self._gate_post_radius = 0.05
+        self._goal_width = 2.1
+        self._goal_post_radius = 0.05
         self._env.insert_model(
             model="robocup_3Dsim_goal",
-            name="gate",
-            pose="-%s 0 0 0 -0 3.14159265" % gate_distance)
+            name="goal",
+            pose="-%s 0 0 0 -0 3.14159265" % goal_distance)
         self._env.insert_model(model="ball", pose="1.50 1.5 0.2 0 -0 0")
 
     def run(self):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
-        gate = self._world.get_model("gate")
+        goal = self._world.get_model("goal")
         ball = self._world.get_model("ball")
-        gate_loc, dir = gate.get_pose()
+        goal_loc, dir = goal.get_pose()
         self._move_ball(ball)
         agent_loc, dir = self._agent.get_pose()
         ball_loc, _ = ball.get_pose()
         prev_dist = np.linalg.norm(
             np.array(ball_loc)[:2] - np.array(agent_loc)[:2])
-        init_gate_dist = np.linalg.norm(
-            np.array(ball_loc)[:2] - np.array(gate_loc)[:2])
+        init_goal_dist = np.linalg.norm(
+            np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
         steps = 0
         hitted_ball = False
         while steps < self._max_steps:
@@ -895,19 +895,19 @@ class KickingBallTask(Task):
                 prev_dist = dist
                 if dist < 0.3:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
-                    gate_dir = (np.array(ball_loc[0:2]) - np.array(
+                    ball_dir = (np.array(ball_loc[0:2]) - np.array(
                         agent_loc[0:2])) / dist
-                    dot = sum(dir * gate_dir)
+                    dot = sum(dir * ball_dir)
                     if dot > 0.707:
                         # within 45 degrees of the agent direction
                         hitted_ball = True
                 agent_sentence = yield TeacherAction(reward=progress_reward)
             else:
-                gate_loc, _ = gate.get_pose()
+                goal_loc, _ = goal.get_pose()
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(
-                    np.array(ball_loc)[:2] - np.array(gate_loc)[:2])
-                if self._in_the_gate(ball_loc):
+                    np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
+                if self._in_the_goal(ball_loc):
                     if self._sparse_reward:
                         reward = 1.
                     else:
@@ -919,7 +919,7 @@ class KickingBallTask(Task):
                     if self._sparse_reward:
                         reward = 0.
                     else:
-                        reward = self._target_speed + 3 - dist / init_gate_dist
+                        reward = self._target_speed + 3 - dist / init_goal_dist
                     agent_sentence = yield TeacherAction(
                         reward=reward)
         yield TeacherAction(reward=-1.0, sentence="failed", done=True)
@@ -931,7 +931,7 @@ class KickingBallTask(Task):
         Returns:
             np.array, the observations of the task for non-image case
         """
-        obj_poses = self._get_states_of_model_list(['ball', 'gate'])
+        obj_poses = self._get_states_of_model_list(['ball', 'goal'])
         agent_pose = np.array(agent.get_pose()).flatten()
         agent_vel = np.array(agent.get_velocities()).flatten()
         joints_states = agent.get_internal_states()
@@ -939,18 +939,18 @@ class KickingBallTask(Task):
                              axis=0)
         return obs
 
-    def _in_the_gate(self, ball_loc):
-        pass_gate_line = (ball_loc[0] < -self._gate_distance)
-        half_width = self._gate_width / 2 - self._gate_post_radius # =1.0
-        within_gate = (half_width > ball_loc[1] > -half_width)
-        return (pass_gate_line and within_gate)
+    def _in_the_goal(self, ball_loc):
+        pass_goal_line = (ball_loc[0] < -self._goal_distance)
+        half_width = self._goal_width / 2 - self._goal_post_radius # =1.0
+        within_goal = (half_width > ball_loc[1] > -half_width)
+        return (pass_goal_line and within_goal)
 
     def _move_ball(self, ball):
         range = self._random_range
         while True:
             loc = (random.random() * range - range / 2,
                    random.random() * range - range / 2, 0)
-            if not self._in_the_gate(loc):
+            if not self._in_the_goal(loc):
                 break
         ball.set_pose((loc, (0, 0, 0)))
 
