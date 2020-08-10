@@ -345,13 +345,13 @@ class Pr2Gripper(GazeboEnvBase):
         delta_reward = 0
 
         success = False
-        if self._l_touch:
-            logging.debug("l finger touch!")
-            delta_reward += 0.5
+        #if self._l_touch:
+        #    logging.debug("l finger touch!")
+        #    delta_reward += 0.5
 
-        if self._r_touch:
-            logging.debug("r finger touch!")
-            delta_reward += 0.5
+        #if self._r_touch:
+        #    logging.debug("r finger touch!")
+        #    delta_reward += 0.5
 
         if self._l_touch and self._r_touch:
             logging.debug("both touch!")
@@ -374,8 +374,8 @@ class Pr2Gripper(GazeboEnvBase):
         # Sparse reward setting
         if self._sparse_reward:
             reward = 1.0 if success else 0.0
-            reward += dist_reward
-            done = success
+            reward += 1/2 * (dist_reward + pos_reward)
+        done = success
 
         ctrl_cost = np.sum(np.square(actions/self._action_range)) / actions.shape[0]
         reward -= self._action_cost * ctrl_cost
