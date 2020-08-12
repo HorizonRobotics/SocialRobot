@@ -812,15 +812,16 @@ class ICubAuxiliaryTask(Task):
 @gin.configurable
 class KickingBallTask(Task):
     """
-    A simple task to kick a ball to the goal. An optional reward shaping can be
-    used to guide the agent run to the ball first:
+    A simple task to kick a ball so that it rolls into the goal. An
+    optional reward shaping can be used to guide the agent run to the ball first:
         Agent will receive 100 when succefully kick the ball into the goal.
         Agent will receive the speed of getting closer to the ball before touching the
             ball within 45 degrees of agent direction. The reward is trunked within
             parameter target_speed.
-        Agent will receive negative normalized distance from ball to goal after
-            touching the ball within the direction. An offset of "target_speed + 1" is
-            included since touching the goal must be better than not touching.
+        Agent will receive negative normalized distance from ball to goal center
+            after touching the ball within the direction. An offset of
+            "target_speed + 1" is included since touching the ball must be better
+            than not touching.
 
     If no reward shaping, then the agent will only get -1/0/1 rewards.
     """
@@ -828,8 +829,7 @@ class KickingBallTask(Task):
     def __init__(self,
                  env,
                  max_steps,
-                 goal_name="goal",
-                 success_distance_thresh=0.5,
+                 goal_distance=5.0,
                  random_range=4.0,
                  target_speed=2.0,
                  reward_weight=1.0,
@@ -837,10 +837,11 @@ class KickingBallTask(Task):
         """
         Args:
             env (gym.Env): an instance of Environment
-            max_steps (int): episode will end if not reaching goal in so many steps
-            goal_name (string): name of the goal in the world
-            success_distance_thresh (float): the goal is reached if it's within this distance to the agent
-            random_range (float): the goal's random position range
+            max_steps (int): episode will end if the task is not achieved in so
+                many steps
+            goal_distance (float): the distance from the goal to the ball on
+                average. A smaller distance makes the kicking task easier.
+            random_range (float): the ball's random position range
             target_speed (float): the target speed runing to the ball. The agent will receive no more
                 higher reward when its speed is higher than target_speed.
             reward_weight (float): the weight of the reward
@@ -848,24 +849,26 @@ class KickingBallTask(Task):
         """
         super().__init__(
             env=env, max_steps=max_steps, reward_weight=reward_weight)
-        self._goal_name = goal_name
         self._random_range = random_range
-        self._success_distance_thresh = success_distance_thresh
         self._target_speed = target_speed
         self._sparse_reward = sparse_reward
+        self._goal_distance = goal_distance
+        # By looking up the 'robocup_3Dsim_goal' model file:
+        self._goal_width = 2.1
+        self._goal_post_radius = 0.05
         self._env.insert_model(
             model="robocup_3Dsim_goal",
             name="goal",
-            pose="-5.0 0 0 0 -0 3.14159265")
+            pose="-%s 0 0 0 -0 3.14159265" % goal_distance)
         self._env.insert_model(model="ball", pose="1.50 1.5 0.2 0 -0 0")
 
     def run(self):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
-        goal = self._world.get_model(self._goal_name)
-        ball = self._world.get_model('ball')
+        goal = self._world.get_model("goal")
+        ball = self._world.get_model("ball")
         goal_loc, dir = goal.get_pose()
-        self._move_ball(ball, np.array(goal_loc))
+        self._move_ball(ball)
         agent_loc, dir = self._agent.get_pose()
         ball_loc, _ = ball.get_pose()
         prev_dist = np.linalg.norm(
@@ -892,9 +895,9 @@ class KickingBallTask(Task):
                 prev_dist = dist
                 if dist < 0.3:
                     dir = np.array([math.cos(dir[2]), math.sin(dir[2])])
-                    goal_dir = (np.array(ball_loc[0:2]) - np.array(
+                    ball_dir = (np.array(ball_loc[0:2]) - np.array(
                         agent_loc[0:2])) / dist
-                    dot = sum(dir * goal_dir)
+                    dot = sum(dir * ball_dir)
                     if dot > 0.707:
                         # within 45 degrees of the agent direction
                         hitted_ball = True
@@ -904,7 +907,7 @@ class KickingBallTask(Task):
                 ball_loc, _ = ball.get_pose()
                 dist = np.linalg.norm(
                     np.array(ball_loc)[:2] - np.array(goal_loc)[:2])
-                if dist < self._success_distance_thresh:
+                if self._in_the_goal(ball_loc):
                     if self._sparse_reward:
                         reward = 1.
                     else:
@@ -936,12 +939,18 @@ class KickingBallTask(Task):
                              axis=0)
         return obs
 
-    def _move_ball(self, ball, goal_loc):
+    def _in_the_goal(self, ball_loc):
+        pass_goal_line = (ball_loc[0] < -self._goal_distance)
+        half_width = self._goal_width / 2 - self._goal_post_radius # =1.0
+        within_goal = (half_width > ball_loc[1] > -half_width)
+        return (pass_goal_line and within_goal)
+
+    def _move_ball(self, ball):
         range = self._random_range
         while True:
             loc = (random.random() * range - range / 2,
                    random.random() * range - range / 2, 0)
-            if np.linalg.norm(loc - goal_loc) > self._success_distance_thresh:
+            if not self._in_the_goal(loc):
                 break
         ball.set_pose((loc, (0, 0, 0)))
 
