@@ -424,13 +424,12 @@ class GoalTask(Task):
                     reward -= 1.
                 logging.debug("yielding reward: " + str(reward))
                 done = self._end_episode_after_success
-                goal_range = self._random_range if done else 0
                 agent_sentence = yield TeacherAction(
                     reward=reward,
                     sentence="well done",
                     done=done,
                     success=True,
-                    goal_range=goal_range)
+                    goal_range=self._random_range)
                 steps_since_last_reward = 0
                 if self._switch_goal_within_episode:
                     self.pick_goal()
@@ -464,12 +463,11 @@ class GoalTask(Task):
                     self._push_reward_queue(0)
                     done = self.end_on_hitting_distraction
                 self._prev_dist = dist
-                goal_range = self._random_range if done else 0
                 agent_sentence = yield TeacherAction(
                     reward=reward,
                     sentence=self._goal_name,
                     done=done,
-                    goal_range=goal_range)
+                    goal_range=self._random_range)
         reward = -1.0
         logging.debug("yielding reward: {}, took more than {} steps".format(
             str(reward), str(self._max_steps)))
