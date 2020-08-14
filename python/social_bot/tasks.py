@@ -324,6 +324,7 @@ class GoalTask(Task):
                 self._reward_thresh_to_increase_range)
         else:
             self._random_range = random_range
+        self._goal_dist = 0.
         obs_format = "image"
         if use_full_states or use_egocentric_states:
             obs_format = "full_state"
@@ -382,6 +383,19 @@ class GoalTask(Task):
         loc = np.array(loc)
         return loc, agent_dir
 
+    def _prepare_teacher_action(self, reward, sentence, done, success=False):
+        goal_dist = 0.
+        if done:
+            goal_dist = self._goal_dist
+            # clear self._goal_dist so it is only output once
+            self._goal_dist = 0.
+        return TeacherAction(
+            reward=reward,
+            sentence=sentence,
+            done=done,
+            success=success,
+            goal_range=goal_dist)
+
     def run(self):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
@@ -424,12 +438,11 @@ class GoalTask(Task):
                     reward -= 1.
                 logging.debug("yielding reward: " + str(reward))
                 done = self._end_episode_after_success
-                agent_sentence = yield TeacherAction(
+                agent_sentence = yield self._prepare_teacher_action(
                     reward=reward,
                     sentence="well done",
                     done=done,
-                    success=True,
-                    goal_range=self._random_range)
+                    success=True)
                 steps_since_last_reward = 0
                 if self._switch_goal_within_episode:
                     self.pick_goal()
@@ -444,11 +457,8 @@ class GoalTask(Task):
                 logging.debug(
                     "yielding reward: {}, farther than {} from goal".format(
                         str(reward), str(self._fail_distance_thresh)))
-                yield TeacherAction(
-                    reward=reward,
-                    sentence="failed",
-                    done=True,
-                    goal_range=self._random_range)
+                yield self._prepare_teacher_action(
+                    reward=reward, sentence="failed", done=True)
             else:
                 if self._sparse_reward:
                     reward = 0
@@ -463,11 +473,8 @@ class GoalTask(Task):
                     self._push_reward_queue(0)
                     done = self.end_on_hitting_distraction
                 self._prev_dist = dist
-                agent_sentence = yield TeacherAction(
-                    reward=reward,
-                    sentence=self._goal_name,
-                    done=done,
-                    goal_range=self._random_range)
+                agent_sentence = yield self._prepare_teacher_action(
+                    reward=reward, sentence=self._goal_name, done=done)
         reward = -1.0
         logging.debug("yielding reward: {}, took more than {} steps".format(
             str(reward), str(self._max_steps)))
@@ -475,11 +482,8 @@ class GoalTask(Task):
         if self.should_use_curriculum_training():
             logging.debug("reward queue len: {}, sum: {}".format(
                 str(len(self._q)), str(sum(self._q))))
-        yield TeacherAction(
-            reward=reward,
-            sentence="failed",
-            done=True,
-            goal_range=self._random_range)
+        yield self._prepare_teacher_action(
+            reward=reward, sentence="failed", done=True)
 
     def _get_distraction_penalty(self, agent_loc, dot,
                                  prev_min_dist_to_distraction):
@@ -516,12 +520,13 @@ class GoalTask(Task):
         Move goal as well as all distraction objects to a random location.
         """
         avoid_locations = [agent_loc]
-        loc = self._move_obj(
+        loc, dist = self._move_obj(
             obj=goal,
             agent_loc=agent_loc,
             agent_dir=agent_dir,
             is_goal=True,
             avoid_locations=avoid_locations)
+        self._goal_dist += dist
         avoid_locations.append(loc)
         distractions = OrderedDict()
         for item in self._distraction_list:
@@ -530,7 +535,7 @@ class GoalTask(Task):
         if len(distractions) and self._curriculum_distractions:
             for item, _ in distractions.items():
                 distraction = self._world.get_agent(item)
-                loc = self._move_obj(
+                loc, _ = self._move_obj(
                     obj=distraction,
                     agent_loc=agent_loc,
                     agent_dir=agent_dir,
@@ -553,6 +558,7 @@ class GoalTask(Task):
             range = self._random_range
             self._is_full_range_in_curriculum = False
         attempts = 0
+        dist = range
         while True:
             attempts += 1
             dist = random.random() * range
@@ -592,7 +598,7 @@ class GoalTask(Task):
         self._prev_dist = self._initial_dist
         obj.reset()
         obj.set_pose((loc, (0, 0, 0)))
-        return loc
+        return loc, dist
 
     def _random_move_objects(self, random_range=10.0):
         obj_num = len(self._object_list)
