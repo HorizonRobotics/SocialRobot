@@ -100,6 +100,7 @@ class Pr2Gripper(GazeboEnvBase):
                  sparse_reward=False,
                  action_cost=0.01,
                  motion_loss=0.0000,
+                 random_factor=0.01,
                  use_internal_states_only=True,
                  world_config=PR2_WORLD_SETTING,
                  port=None):
@@ -170,6 +171,7 @@ class Pr2Gripper(GazeboEnvBase):
         self._reward_shaping = reward_shaping
         self._sparse_reward = sparse_reward
         self._action_cost = action_cost
+        self._random_factor = random_factor
         self._use_internal_states_only = use_internal_states_only
         self._cum_reward = 0.0
         self._motion_loss = motion_loss
@@ -220,11 +222,12 @@ class Pr2Gripper(GazeboEnvBase):
         self._prev_dist = self._get_finger_tip_distance()
         self._prev_gripper_pos = self._get_gripper_pos()
         self._gripper_reward_dir = 1
+        self._old_goal_pose = self._goal.get_pose()
         return obs
 
     def _move_goal(self):
-        loc = (0.76 + 0.14 * (random.random() - 1),
-               0.1 * (random.random() - 1.0), 0.43)
+        loc = (0.76 + 0.14 * self._random_factor * (random.random() - 1),
+               0.1 * self._random_factor * (random.random() - 1.0), 0.43)
         self._goal.set_pose((loc, (0, 0, 0)))
 
     def _get_observation(self):
@@ -345,13 +348,13 @@ class Pr2Gripper(GazeboEnvBase):
         delta_reward = 0
 
         success = False
-        #if self._l_touch:
-        #    logging.debug("l finger touch!")
-        #    delta_reward += 0.5
+        if self._l_touch:
+            logging.debug("l finger touch!")
+            delta_reward += 0.5
 
-        #if self._r_touch:
-        #    logging.debug("r finger touch!")
-        #    delta_reward += 0.5
+        if self._r_touch:
+            logging.debug("r finger touch!")
+            delta_reward += 0.5
 
         if self._l_touch and self._r_touch:
             logging.debug("both touch!")
@@ -373,12 +376,19 @@ class Pr2Gripper(GazeboEnvBase):
 
         # Sparse reward setting
         if self._sparse_reward:
-            reward = 1.0 if success else 0.0
-            reward += 1/2 * (dist_reward + pos_reward)
+            reward = 5.0 if success else 0.0
+            
+            loc, _ = self._goal_pose
+            old_loc, _ = self._old_goal_pose
+            if not np.array_equal(loc, old_loc):
+                reward += 0.01
+            self._old_goal_pose = self._goal_pose
+            
+            #reward += dist_reward
         done = success
 
-        ctrl_cost = np.sum(np.square(actions/self._action_range)) / actions.shape[0]
-        reward -= self._action_cost * ctrl_cost
+        #ctrl_cost = np.sum(np.square(actions/self._action_range)) / actions.shape[0]
+        #reward -= self._action_cost * ctrl_cost
 
         if self._motion_loss > 0.0:
             v2s = 0.0
