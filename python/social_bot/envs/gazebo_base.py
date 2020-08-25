@@ -134,6 +134,7 @@ class GazeboEnvBase(gym.Env):
     def close(self):
         super().close()
         gazebo.close_without_model_base_fini()
+        self.__del__()
 
     def insert_model(self, model, name=None, pose="0 0 0 0 0 0"):
         """

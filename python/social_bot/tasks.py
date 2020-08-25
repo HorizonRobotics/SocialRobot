@@ -396,6 +396,9 @@ class GoalTask(Task):
             success=success,
             goal_range=goal_dist)
 
+    def _within_angle(self, dot):
+        return (not self._success_with_angle_requirement) or dot > 0.707
+
     def run(self):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
@@ -429,8 +432,8 @@ class GoalTask(Task):
 
             # TODO(Le): compare achieved goal with desired goal if task is
             # goal conditioned?
-            if dist < self._success_distance_thresh and (
-                    not self._success_with_angle_requirement or dot > 0.707):
+            if dist < self._success_distance_thresh and self._within_angle(
+                    dot):
                 # within 45 degrees of the agent direction
                 reward = 1.0 - distraction_penalty
                 self._push_reward_queue(max(reward, 0))
@@ -504,7 +507,7 @@ class GoalTask(Task):
                 if (distraction_dist >=
                         self._distraction_penalty_distance_thresh):
                     continue
-                if obj_name == self._goal_name and dot > 0.707:
+                if obj_name == self._goal_name and self._within_angle(dot):
                     continue  # correctly getting to goal, no penalty
                 if distraction_dist < curr_min_dist:
                     curr_min_dist = distraction_dist
