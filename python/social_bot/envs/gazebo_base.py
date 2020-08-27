@@ -134,7 +134,8 @@ class GazeboEnvBase(gym.Env):
     def close(self):
         super().close()
         gazebo.close_without_model_base_fini()
-        self.__del__()
+        if self._rendering_process is not None:
+            self._rendering_process.terminate()
 
     def insert_model(self, model, name=None, pose="0 0 0 0 0 0"):
         """
@@ -193,10 +194,6 @@ class GazeboEnvBase(gym.Env):
     def seed(self, seed=None):
         """Gym interface for setting random seed."""
         random.seed(seed)
-
-    def __del__(self):
-        if self._rendering_process is not None:
-            self._rendering_process.terminate()
 
 
 def _modify_world_xml(xml, modifications):

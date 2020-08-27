@@ -100,7 +100,9 @@ class PlayGround(GazeboEnvBase):
                 become an OrderedDict including ``achieved_goal``, ``desired_goal`` and
                 ``observation`` fields, instead of a flat np array.  ``achieved_goal`` will
                 contain agent's current 2-d (x, y) position and ``desired_goal`` will be
-                the goal object's 2-d position.  Reward and task termination remain unchanged.
+                the goal object's 2-d position.  Reward becomes 0 for reaching goal, -1 for
+                any other step (assuming no distraction penalty).  Task termination remains
+                unchanged.
             with_language (bool): The observation will be a dict with an extra sentence
             with_agent_language (bool): Include agent sentence in action space.
             use_image_observation (bool): Use image, or use low-dimentional states as
@@ -199,9 +201,11 @@ class PlayGround(GazeboEnvBase):
         self.observation_space = self._agent.get_observation_space(
             self._teacher)
         if self._goal_conditioned:
+            assert agent_type == 'pioneer2dx_noplugin'
             assert not with_language
             assert not use_image_observation
             assert not image_with_internal_states
+            assert len(tasks) == 1 and tasks[0] == GoalTask
             # state observation
             goal_space = gym.spaces.Box(
                 low=-np.inf, high=np.inf, shape=(2, ), dtype=np.float32)

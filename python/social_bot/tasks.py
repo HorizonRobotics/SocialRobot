@@ -204,8 +204,7 @@ class GoalTask(Task):
                  additional_observation_list=[],
                  use_full_states=False,
                  use_egocentric_states=False,
-                 egocentric_perception_range=0,
-                 order_obj_by_view=False):
+                 egocentric_perception_range=0):
         """
         Args:
             env (gym.Env): an instance of Environment
@@ -219,7 +218,8 @@ class GoalTask(Task):
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
             distraction_penalty_distance_thresh (float): if positive, penalize agent getting too close
-                to distraction objects (objects that are not the goal itself)
+                to distraction objects (objects that include the goal itself, as approaching goal without
+                facing it is considered hitting a distraction)
             distraction_penalty (float): positive float of how much to penalize getting too close to
                 distraction objects
             random_agent_orientation (bool): whether randomize the orientation (yaw) of the agent at the beginning of an
@@ -254,8 +254,6 @@ class GoalTask(Task):
             egocentric_perception_range (float): the max range in degree to limit the agent's observation.
                 E.g. 60 means object is only visible when it's within +/-60 degrees in front of the agent's
                 direction (yaw).
-            order_obj_by_view (bool): False to order object coordinates (full states) in object id order;
-                True to order according to y axis value (left to right) together with object id.
         """
         self._max_play_ground_size = 5  # play ground will be (-5, 5) for both x and y axes.
         # TODO: Remove the default grey walls in the play ground world file,
@@ -306,7 +304,6 @@ class GoalTask(Task):
         self._use_full_states = use_full_states
         self._use_egocentric_states = use_egocentric_states
         self._egocentric_perception_range = egocentric_perception_range
-        self._order_obj_by_view = order_obj_by_view
         if self.should_use_curriculum_training():
             self._orig_random_range = random_range
             self._random_range = start_range
@@ -333,11 +330,10 @@ class GoalTask(Task):
             obs_relative = "absolute"
         logging.info("Observations: {}, {}.".format(obs_format, obs_relative))
         if use_full_states and not use_egocentric_states:
-            if not order_obj_by_view:
-                logging.info(
-                    "Dims: 0-5: agent's velocity and angular " +
-                    "velocity, 6-11: agent's position and pose, 12-13: goal x, y"
-                    + ", all distractions' x, y coordinates.")
+            logging.info(
+                "Dims: 0-5: agent's velocity and angular " +
+                "velocity, 6-11: agent's position and pose, 12-13: goal x, y" +
+                ", all distractions' x, y coordinates.")
         self.task_vocab += self._object_list
         self._env.insert_model_list(self._object_list)
 
@@ -655,7 +651,6 @@ class GoalTask(Task):
             else:
                 pose = np.concatenate((pose, obj_pos), axis=0)
 
-        obj_array = []
         agent_pose = np.array(agent.get_pose()).flatten()
         if self._use_full_states or self._use_egocentric_states:
             yaw = agent_pose[5]
@@ -666,18 +661,6 @@ class GoalTask(Task):
             else:
                 rvx, rvy = vx, vy
             obs = [rvx, rvy, vz, a1, a2, a3] + list(agent_pose)
-            if self._egocentric_perception_range > 0:
-                obj_array.extend(
-                    [[0, rvx, rvy, vz], [1, a1, a2, a3],
-                     [2, agent_pose[0], agent_pose[1], agent_pose[2]],
-                     [3, agent_pose[3], agent_pose[4], agent_pose[5]]])
-                i = 4
-            else:
-                obj_array.extend([[0, rvx, rvy], [1, vz, a1], [2, a2, a3],
-                                  [3, agent_pose[0], agent_pose[1]],
-                                  [4, agent_pose[2], agent_pose[3]],
-                                  [5, agent_pose[4], agent_pose[5]]])
-                i = 6
             # adds objects' (goal's as well as distractions') egocentric
             # coordinates to observation
             while len(pose) > 1:
@@ -701,10 +684,8 @@ class GoalTask(Task):
                         rotated_x = 0.
                         rotated_y = 0.
                         magnitude = 0.
-                    obj_array.append([i, rotated_x, rotated_y, magnitude])
                     obs.extend([rotated_x, rotated_y, magnitude])
                 else:
-                    obj_array.append([i, rotated_x, rotated_y])
                     obs.extend([rotated_x, rotated_y])
                 pose = pose[3:]
             obs = np.array(obs)
@@ -714,10 +695,6 @@ class GoalTask(Task):
             obs = np.concatenate((pose, agent_pose, agent_vel, joints_states),
                                  axis=0)
 
-        if self._order_obj_by_view:
-            # TODO: skip first few dims corresponding to rvx, a1 etc..
-            obj_array.sort(key=operator.itemgetter(2))
-            obs = np.array(obj_array).flatten()
         return obs
 
 
