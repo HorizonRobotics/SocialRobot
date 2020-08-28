@@ -218,8 +218,15 @@ class PlayGround(GazeboEnvBase):
         obs = self._agent.get_observation(self._teacher, teacher_sentence)
         if self._goal_conditioned:
             flat_obs = obs
-            obs = OrderedDict(observation=obs)
+            obs = OrderedDict()
+            obs['observation'] = flat_obs  # flat_obs[15:]
             obs['achieved_goal'] = flat_obs[6:8]
+            # We can use this field to relabel future state in goal conditioned
+            # policy on top of the achieved_goal field.
+            # High level needs to fill this in for the desired_goal.
+            # When to use real reward, when to use fake reward?
+            # obs['aux_achieved'] = np.concatenate(
+            #     (flat_obs[:6], flat_obs[8:12]), axis=0)
             obs['desired_goal'] = flat_obs[12:14]
         return obs
 

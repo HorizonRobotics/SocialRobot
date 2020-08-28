@@ -82,6 +82,41 @@ class GazeboEnvBase(gym.Env):
         Args:
             mode (str): 'human' and 'rgb_array' is supported.
         """
+        if self._rendering_camera is None:
+            render_camera_sdf = """
+            <?xml version='1.0'?>
+            <sdf version ='1.6'>
+            <model name ='render_camera'>
+                <static>1</static>
+                <pose>%s</pose>
+                <link name="link">
+                    <sensor name="camera" type="camera">
+                        <camera>
+                        <horizontal_fov>0.95</horizontal_fov>
+                        <image>
+                            <width>640</width>
+                            <height>480</height>
+                        </image>
+                        <clip>
+                            <near>0.1</near>
+                            <far>100</far>
+                        </clip>
+                        </camera>
+                        <always_on>1</always_on>
+                        <update_rate>30</update_rate>
+                        <visualize>true</visualize>
+                    </sensor>
+                </link>
+            </model>
+            </sdf>
+            """
+            render_camera_sdf = render_camera_sdf % self._rendering_cam_pose
+            self._world.insertModelFromSdfString(render_camera_sdf)
+            time.sleep(0.2)
+            self._world.step(20)
+            self._rendering_camera = self._world.get_agent('render_camera')
+        image = self._rendering_camera.get_camera_observation(
+            "default::render_camera::link::camera")
         if mode == 'human':
             if self._rendering_process is None:
                 from subprocess import Popen
@@ -91,41 +126,6 @@ class GazeboEnvBase(gym.Env):
                 self._rendering_process = Popen(['gzclient'])
             return
         if mode == 'rgb_array':
-            if self._rendering_camera is None:
-                render_camera_sdf = """
-                <?xml version='1.0'?>
-                <sdf version ='1.6'>
-                <model name ='render_camera'>
-                    <static>1</static>
-                    <pose>%s</pose>
-                    <link name="link">
-                        <sensor name="camera" type="camera">
-                            <camera>
-                            <horizontal_fov>0.95</horizontal_fov>
-                            <image>
-                                <width>640</width>
-                                <height>480</height>
-                            </image>
-                            <clip>
-                                <near>0.1</near>
-                                <far>100</far>
-                            </clip>
-                            </camera>
-                            <always_on>1</always_on>
-                            <update_rate>30</update_rate>
-                            <visualize>true</visualize>
-                        </sensor>
-                    </link>
-                </model>
-                </sdf>
-                """
-                render_camera_sdf = render_camera_sdf % self._rendering_cam_pose
-                self._world.insertModelFromSdfString(render_camera_sdf)
-                time.sleep(0.2)
-                self._world.step(20)
-                self._rendering_camera = self._world.get_agent('render_camera')
-            image = self._rendering_camera.get_camera_observation(
-                "default::render_camera::link::camera")
             return np.array(image)
 
         raise NotImplementedError("rendering mode: " + mode +
