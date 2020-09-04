@@ -74,6 +74,7 @@ class PlayGround(GazeboEnvBase):
                  tasks=[GoalTask],
                  goal_conditioned=False,
                  use_aux_achieved=False,
+                 xy_only_aux=False,
                  with_language=False,
                  with_agent_language=False,
                  use_image_observation=False,
@@ -106,6 +107,8 @@ class PlayGround(GazeboEnvBase):
                 unchanged.
             use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
                 field: aux_achieved.  Only valid when goal_conditioned is True.
+            xy_only_aux (bool): exclude irrelevant dimensions (z-axis movements) from
+                aux_achieved field.
             with_language (bool): The observation will be a dict with an extra sentence
             with_agent_language (bool): Include agent sentence in action space.
             use_image_observation (bool): Use image, or use low-dimentional states as
@@ -142,6 +145,7 @@ class PlayGround(GazeboEnvBase):
         self._action_cost = action_cost
         self._goal_conditioned = goal_conditioned
         self._use_aux_achieved = use_aux_achieved
+        self._xy_only_aux = xy_only_aux
         self._with_language = with_language
         self._seq_length = vocab_sequence_length
         self._with_agent_language = with_language and with_agent_language
@@ -224,6 +228,8 @@ class PlayGround(GazeboEnvBase):
             if use_aux_achieved:
                 ob_shape = self.observation_space.shape[0]
                 aux_shape = 10
+                if self._xy_only_aux:
+                    aux_shape = 4
                 ob_space = gym.spaces.Box(
                     low=-np.inf,
                     high=np.inf,
@@ -250,6 +256,14 @@ class PlayGround(GazeboEnvBase):
                 obs['observation'] = flat_obs[14:]
                 obs['aux_achieved'] = np.concatenate(
                     (flat_obs[:6], flat_obs[8:12]), axis=0)
+                if self._xy_only_aux:
+                    # 2: z-speed, 3, 4: angular velocity, 5: yaw-vel, 6, 7: x, y, 8: z, 9, 10, 11: pose
+                    obs['observation'] = np.concatenate(
+                        (flat_obs[2:5], flat_obs[8:11], flat_obs[14:]), axis=0)
+                    obs['aux_achieved'] = np.concatenate(
+                        (flat_obs[0:2], np.expand_dims(flat_obs[5], 0),
+                         np.expand_dims(flat_obs[11], 0)),
+                        axis=0)
         return obs
 
     def reset(self):
