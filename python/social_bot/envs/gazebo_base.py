@@ -58,7 +58,9 @@ class GazeboEnvBase(gym.Env):
         if port is None:
             port = 0
         self._port = port
-        # to avoid different parallel simulation has the same randomness
+        # This avoids different parallel simulations having the same randomness.
+        # When calling from alf, alf.environments.utils.create_environment calls
+        # env.seed() afterwards, which is the real seed being used.  Not this one.
         random.seed(port)
         self._rendering_process = None
         self._rendering_camera = None
@@ -115,8 +117,6 @@ class GazeboEnvBase(gym.Env):
             time.sleep(0.2)
             self._world.step(20)
             self._rendering_camera = self._world.get_agent('render_camera')
-        image = self._rendering_camera.get_camera_observation(
-            "default::render_camera::link::camera")
         if mode == 'human':
             if self._rendering_process is None:
                 from subprocess import Popen
@@ -126,6 +126,8 @@ class GazeboEnvBase(gym.Env):
                 self._rendering_process = Popen(['gzclient'])
             return
         if mode == 'rgb_array':
+            image = self._rendering_camera.get_camera_observation(
+                "default::render_camera::link::camera")
             return np.array(image)
 
         raise NotImplementedError("rendering mode: " + mode +

@@ -73,6 +73,7 @@ class PlayGround(GazeboEnvBase):
                  world_name="play_ground.world",
                  tasks=[GoalTask],
                  goal_conditioned=False,
+                 use_aux_achieved=False,
                  with_language=False,
                  with_agent_language=False,
                  use_image_observation=False,
@@ -103,6 +104,8 @@ class PlayGround(GazeboEnvBase):
                 the goal object's 2-d position.  Reward becomes 0 for reaching goal, -1 for
                 any other step (assuming no distraction penalty).  Task termination remains
                 unchanged.
+            use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
+                field: aux_achieved.  Only valid when goal_conditioned is True.
             with_language (bool): The observation will be a dict with an extra sentence
             with_agent_language (bool): Include agent sentence in action space.
             use_image_observation (bool): Use image, or use low-dimentional states as
@@ -138,6 +141,7 @@ class PlayGround(GazeboEnvBase):
 
         self._action_cost = action_cost
         self._goal_conditioned = goal_conditioned
+        self._use_aux_achieved = use_aux_achieved
         self._with_language = with_language
         self._seq_length = vocab_sequence_length
         self._with_agent_language = with_language and with_agent_language
@@ -207,27 +211,45 @@ class PlayGround(GazeboEnvBase):
             assert not image_with_internal_states
             assert len(tasks) == 1 and tasks[0] == GoalTask
             # state observation
+            goal_shape = 2
             goal_space = gym.spaces.Box(
-                low=-np.inf, high=np.inf, shape=(2, ), dtype=np.float32)
-            self.observation_space = gym.spaces.Dict(
+                low=-np.inf,
+                high=np.inf,
+                shape=(goal_shape, ),
+                dtype=np.float32)
+            d = OrderedDict(
                 observation=self.observation_space,
-                desired_goal=goal_space,
-                achieved_goal=goal_space)
+                achieved_goal=goal_space,
+                desired_goal=goal_space)
+            if use_aux_achieved:
+                ob_shape = self.observation_space.shape[0]
+                aux_shape = 10
+                ob_space = gym.spaces.Box(
+                    low=-np.inf,
+                    high=np.inf,
+                    shape=(ob_shape - aux_shape - goal_shape * 2, ),
+                    dtype=np.float32)
+                aux_space = gym.spaces.Box(
+                    low=-np.inf,
+                    high=np.inf,
+                    shape=(aux_shape, ),
+                    dtype=np.float32)
+                d["observation"] = ob_space
+                d["aux_achieved"] = aux_space
+            self.observation_space = gym.spaces.Dict(**d)
 
     def _get_observation(self, teacher_sentence):
         obs = self._agent.get_observation(self._teacher, teacher_sentence)
         if self._goal_conditioned:
             flat_obs = obs
             obs = OrderedDict()
-            obs['observation'] = flat_obs  # flat_obs[15:]
+            obs['observation'] = flat_obs
             obs['achieved_goal'] = flat_obs[6:8]
-            # We can use this field to relabel future state in goal conditioned
-            # policy on top of the achieved_goal field.
-            # High level needs to fill this in for the desired_goal.
-            # When to use real reward, when to use fake reward?
-            # obs['aux_achieved'] = np.concatenate(
-            #     (flat_obs[:6], flat_obs[8:12]), axis=0)
             obs['desired_goal'] = flat_obs[12:14]
+            if self._use_aux_achieved:
+                obs['observation'] = flat_obs[14:]
+                obs['aux_achieved'] = np.concatenate(
+                    (flat_obs[:6], flat_obs[8:12]), axis=0)
         return obs
 
     def reset(self):
