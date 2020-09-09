@@ -318,6 +318,9 @@ class PlayGround(GazeboEnvBase):
         info = {"is_success": teacher_action.success}
         if self._has_goal_task:
             info["goal_range"] = teacher_action.goal_range
+        # Maybe use multi dimensional reward
+        if teacher_action.rewards is not None:
+            reward = teacher_action.rewards
         return obs, reward, teacher_action.done, info
 
     def get_step_time(self):

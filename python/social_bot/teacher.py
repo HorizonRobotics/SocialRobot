@@ -42,11 +42,13 @@ class TeacherAction(object):
                  done=False,
                  is_idle=False,
                  success=False,
-                 goal_range=0.0):
+                 goal_range=0.0,
+                 rewards=None):
         """
         Args:
             done: end of an episode if true
             success: if the episode is successful or not
+            rewards: multi dim reward array
         """
         self.reward = reward
         self.sentence = sentence
@@ -54,6 +56,7 @@ class TeacherAction(object):
         self.is_idle = is_idle
         self.success = success
         self.goal_range = float(goal_range)
+        self.rewards = rewards
 
 
 class TaskGroup(object):
@@ -343,6 +346,7 @@ class Teacher(object):
             active_group_id = -1
             success = False
             goal_range = 0
+            rewards = None
             # run all groups in parallel
             for i, g in enumerate(self._task_groups):
                 teacher_action = g.teach(agent_sentence)
@@ -353,6 +357,11 @@ class Teacher(object):
                 if teacher_action.goal_range > 0:
                     goal_range = teacher_action.goal_range
                 weight = g.get_current_reward_weight()
+                if teacher_action.rewards is not None:
+                    if rewards is None:
+                        rewards = weight * teacher_action.rewards
+                    else:
+                        rewards += weight * teacher_action.rewards
                 final_reward += weight * teacher_action.reward
                 if not final_sentence:
                     final_sentence = teacher_action.sentence
@@ -365,5 +374,6 @@ class Teacher(object):
                 final_sentence,
                 done,
                 success=success,
-                goal_range=goal_range)
+                goal_range=goal_range,
+                rewards=rewards)
         return return_action

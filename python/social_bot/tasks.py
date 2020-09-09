@@ -178,8 +178,10 @@ class GoalTask(Task):
                      'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
                  ],
                  goal_conditioned=False,
+                 multi_dim_reward=False,
                  end_on_hitting_distraction=False,
                  end_episode_after_success=False,
+                 reset_time_limit_on_success=True,
                  success_distance_thresh=0.5,
                  fail_distance_thresh=2.0,
                  distraction_penalty_distance_thresh=0,
@@ -211,9 +213,13 @@ class GoalTask(Task):
             max_steps (int): episode will end if not reaching gaol in so many steps
             goal_name (string): name of the goal in the world
             distraction_list (list of string): a list of model. the model shoud be in gazebo database
+            goal_conditioned (bool): if True, each step has -1 reward, unless at goal state, which gives 0.
+            multi_dim_reward (bool): if True, separate goal reward and distraction penalty into two dimensions.
             end_episode_after_success (bool): if True, the episode will end once the goal is reached. A True value of this
                 flag will overwrite the effects of flags ``switch_goal_within_episode`` and ``move_goal_during_episode``.
             end_on_hitting_distraction (bool): whether to end episode on hitting distraction
+            reset_time_limit_on_success (bool): if not ending after success, if hit success before time limit,
+                reset clock to 0.
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
@@ -263,7 +269,10 @@ class GoalTask(Task):
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
         self._goal_conditioned = goal_conditioned
+        self._multi_dim_reward = multi_dim_reward
         self.end_on_hitting_distraction = end_on_hitting_distraction
+        self._end_episode_after_success = end_episode_after_success
+        self._reset_time_limit_on_success = reset_time_limit_on_success
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._distraction_penalty_distance_thresh = distraction_penalty_distance_thresh
@@ -289,7 +298,6 @@ class GoalTask(Task):
             self._object_list.append(goal_name)
         self._goals = self._object_list
         self._move_goal_during_episode = move_goal_during_episode
-        self._end_episode_after_success = end_episode_after_success
         self._success_with_angle_requirement = success_with_angle_requirement
         if not additional_observation_list:
             additional_observation_list = self._object_list
@@ -379,8 +387,15 @@ class GoalTask(Task):
         loc = np.array(loc)
         return loc, agent_dir
 
-    def _prepare_teacher_action(self, reward, sentence, done, success=False):
+    def _prepare_teacher_action(self,
+                                reward,
+                                sentence,
+                                done,
+                                success=False,
+                                rewards=None):
         goal_dist = 0.
+        if rewards is not None:
+            rewards = rewards.astype(np.float32)
         if done:
             goal_dist = self._goal_dist
             # clear self._goal_dist so it is only output once
@@ -390,10 +405,22 @@ class GoalTask(Task):
             sentence=sentence,
             done=done,
             success=success,
-            goal_range=goal_dist)
+            goal_range=goal_dist,
+            rewards=rewards)
 
     def _within_angle(self, dot):
         return (not self._success_with_angle_requirement) or dot > 0.707
+
+    def _get_goal_dist(self, goal):
+        loc, agent_dir = self._get_agent_loc()
+        goal_loc, _ = goal.get_pose()
+        goal_loc = np.array(goal_loc)
+        dist = np.linalg.norm(loc - goal_loc)
+        # dir from get_pose is (roll, pitch, yaw)
+        dir = np.array([math.cos(agent_dir[2]), math.sin(agent_dir[2])])
+        goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
+        dot = sum(dir * goal_dir)
+        return dist, dot
 
     def run(self):
         """ Start a teaching episode for this task. """
@@ -411,21 +438,13 @@ class GoalTask(Task):
         self._move_goal(goal, loc, agent_dir)
         steps_since_last_reward = 0
         prev_min_dist_to_distraction = 100
+        rewards = None  # reward array in multi_dim_reward case
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
-            loc, agent_dir = self._get_agent_loc()
-            goal_loc, _ = goal.get_pose()
-            goal_loc = np.array(goal_loc)
-            dist = np.linalg.norm(loc - goal_loc)
-            # dir from get_pose is (roll, pitch, yaw)
-            dir = np.array([math.cos(agent_dir[2]), math.sin(agent_dir[2])])
-            goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
-            dot = sum(dir * goal_dir)
-
+            dist, dot = self._get_goal_dist(goal)
             distraction_penalty, prev_min_dist_to_distraction = (
                 self._get_distraction_penalty(loc, dot,
                                               prev_min_dist_to_distraction))
-
             # TODO(Le): compare achieved goal with desired goal if task is
             # goal conditioned?
             if dist < self._success_distance_thresh and self._within_angle(
@@ -435,14 +454,21 @@ class GoalTask(Task):
                 self._push_reward_queue(max(reward, 0))
                 if self._goal_conditioned:
                     reward -= 1.
+                    if self._multi_dim_reward:
+                        rewards = np.array([0, -distraction_penalty])
+                else:
+                    if self._multi_dim_reward:
+                        rewards = np.array([1, -distraction_penalty])
                 logging.debug("yielding reward: " + str(reward))
                 done = self._end_episode_after_success
                 agent_sentence = yield self._prepare_teacher_action(
                     reward=reward,
                     sentence="well done",
                     done=done,
-                    success=True)
-                steps_since_last_reward = 0
+                    success=True,
+                    rewards=rewards)
+                if self._reset_time_limit_on_success:
+                    steps_since_last_reward = 0
                 if self._switch_goal_within_episode:
                     self.pick_goal()
                     goal = self._world.get_agent(self._goal_name)
@@ -456,8 +482,13 @@ class GoalTask(Task):
                 logging.debug(
                     "yielding reward: {}, farther than {} from goal".format(
                         str(reward), str(self._fail_distance_thresh)))
+                if self._multi_dim_reward:
+                    rewards = np.array([-1, -distraction_penalty])
                 yield self._prepare_teacher_action(
-                    reward=reward, sentence="failed", done=True)
+                    reward=reward,
+                    sentence="failed",
+                    done=True,
+                    rewards=rewards)
             else:
                 if self._sparse_reward:
                     reward = 0
@@ -465,6 +496,8 @@ class GoalTask(Task):
                         reward = -1
                 else:
                     reward = (self._prev_dist - dist) / self._initial_dist
+                if self._multi_dim_reward:
+                    rewards = np.array([reward, -distraction_penalty])
                 reward = reward - distraction_penalty
                 done = False
                 if distraction_penalty > 0:
@@ -473,16 +506,43 @@ class GoalTask(Task):
                     done = self.end_on_hitting_distraction
                 self._prev_dist = dist
                 agent_sentence = yield self._prepare_teacher_action(
-                    reward=reward, sentence=self._goal_name, done=done)
+                    reward=reward,
+                    sentence=self._goal_name,
+                    done=done,
+                    rewards=rewards)
         reward = -1.0
-        logging.debug("yielding reward: {}, took more than {} steps".format(
-            str(reward), str(self._max_steps)))
-        self._push_reward_queue(0)
+        dist, dot = self._get_goal_dist(goal)
+        distraction_penalty, prev_min_dist_to_distraction = (
+            self._get_distraction_penalty(loc, dot,
+                                          prev_min_dist_to_distraction))
+        # TODO(Le): compare achieved goal with desired goal if task is
+        # goal conditioned?
+        success = False
+        if dist < self._success_distance_thresh and self._within_angle(dot):
+            success = True
+            reward = 1.0 - distraction_penalty
+            self._push_reward_queue(max(reward, 0))
+            if self._goal_conditioned:
+                reward -= 1.
+                if self._multi_dim_reward:
+                    rewards = np.array([0, -distraction_penalty])
+            else:
+                if self._multi_dim_reward:
+                    rewards = np.array([1, -distraction_penalty])
+        else:
+            self._push_reward_queue(0)
+            logging.debug("took more than {} steps".format(
+                str(self._max_steps)))
+        logging.debug("yielding reward: {}".format(str(reward)))
         if self.should_use_curriculum_training():
             logging.debug("reward queue len: {}, sum: {}".format(
                 str(len(self._q)), str(sum(self._q))))
         yield self._prepare_teacher_action(
-            reward=reward, sentence="failed", done=True)
+            reward=reward,
+            sentence="failed",
+            done=True,
+            success=success,
+            rewards=rewards)
 
     def _get_distraction_penalty(self, agent_loc, dot,
                                  prev_min_dist_to_distraction):
