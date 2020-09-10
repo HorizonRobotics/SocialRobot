@@ -138,6 +138,7 @@ class GazeboEnvBase(gym.Env):
         gazebo.close_without_model_base_fini()
         if self._rendering_process is not None:
             self._rendering_process.terminate()
+            self._rendering_process = None
 
     def insert_model(self, model, name=None, pose="0 0 0 0 0 0"):
         """

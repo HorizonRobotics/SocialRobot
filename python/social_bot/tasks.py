@@ -420,7 +420,7 @@ class GoalTask(Task):
         dir = np.array([math.cos(agent_dir[2]), math.sin(agent_dir[2])])
         goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
         dot = sum(dir * goal_dir)
-        return dist, dot
+        return dist, dot, loc
 
     def run(self):
         """ Start a teaching episode for this task. """
@@ -430,18 +430,17 @@ class GoalTask(Task):
             loc, agent_dir = self._agent.get_pose()
             self._agent.set_pose((loc, (agent_dir[0], agent_dir[1],
                                         2 * math.pi * random.random())))
-        loc, agent_dir = self._agent.get_pose()
-        loc = np.array(loc)
+        a_loc, a_dir = self._get_agent_loc()
         self._random_move_objects()
         self.pick_goal()
         goal = self._world.get_model(self._goal_name)
-        self._move_goal(goal, loc, agent_dir)
+        self._move_goal(goal, a_loc, a_dir)
         steps_since_last_reward = 0
         prev_min_dist_to_distraction = 100
         rewards = None  # reward array in multi_dim_reward case
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
-            dist, dot = self._get_goal_dist(goal)
+            dist, dot, loc = self._get_goal_dist(goal)
             distraction_penalty, prev_min_dist_to_distraction = (
                 self._get_distraction_penalty(loc, dot,
                                               prev_min_dist_to_distraction))
@@ -511,7 +510,7 @@ class GoalTask(Task):
                     done=done,
                     rewards=rewards)
         reward = -1.0
-        dist, dot = self._get_goal_dist(goal)
+        dist, dot, loc = self._get_goal_dist(goal)
         distraction_penalty, prev_min_dist_to_distraction = (
             self._get_distraction_penalty(loc, dot,
                                           prev_min_dist_to_distraction))
