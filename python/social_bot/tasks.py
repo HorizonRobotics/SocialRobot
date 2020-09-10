@@ -732,7 +732,8 @@ class GoalTask(Task):
                         x, y, yaw)
                 else:
                     rotated_x, rotated_y = x, y
-                if self._egocentric_perception_range > 0:
+                if (self._use_egocentric_states
+                        and self._egocentric_perception_range > 0):
                     dist = math.sqrt(rotated_x * rotated_x +
                                      rotated_y * rotated_y)
                     rotated_x /= dist
