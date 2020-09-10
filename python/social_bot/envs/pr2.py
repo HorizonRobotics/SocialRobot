@@ -222,7 +222,7 @@ class Pr2Gripper(GazeboEnvBase):
         self._prev_dist = self._get_finger_tip_distance()
         self._prev_gripper_pos = self._get_gripper_pos()
         self._gripper_reward_dir = 1
-        self._old_goal_pose = self._goal.get_pose()
+        #self._old_goal_pose = self._goal.get_pose()
         return obs
 
     def _move_goal(self):
@@ -376,15 +376,19 @@ class Pr2Gripper(GazeboEnvBase):
 
         # Sparse reward setting
         if self._sparse_reward:
-            reward = 5.0 if success else 0.0
+            reward = 100.0 if success else 0.0
             
-            loc, _ = self._goal_pose
-            old_loc, _ = self._old_goal_pose
-            if not np.array_equal(loc, old_loc):
-                reward += 0.01
-            self._old_goal_pose = self._goal_pose
+            #loc, _ = self._goal_pose
+            #old_loc, _ = self._old_goal_pose
+            #if not np.array_equal(loc, old_loc):
+            #    reward += 0.01
+            #self._old_goal_pose = self._goal_pose
             
-            #reward += dist_reward
+            reward += pos_reward 
+            if delta_reward > 0:
+                reward += delta_reward
+            else:
+                reward += -0.01  # if no positive reward, penalize it a bit to speed up
         done = success
 
         #ctrl_cost = np.sum(np.square(actions/self._action_range)) / actions.shape[0]

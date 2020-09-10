@@ -255,7 +255,7 @@
             "kuka_lwr_4plus::lwr_arm_3_joint",
             "kuka_lwr_4plus::lwr_arm_4_joint"],
         "camera_sensor": "",
-        "use_pid": true,
+        "use_pid": false,
         "pid_type": [
             "position",
             "position",
