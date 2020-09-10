@@ -72,9 +72,6 @@ class PlayGround(GazeboEnvBase):
                  agent_type='pioneer2dx_noplugin',
                  world_name="play_ground.world",
                  tasks=[GoalTask],
-                 goal_conditioned=False,
-                 use_aux_achieved=False,
-                 xy_only_aux=False,
                  with_language=False,
                  with_agent_language=False,
                  use_image_observation=False,
@@ -97,18 +94,6 @@ class PlayGround(GazeboEnvBase):
             world_name (string): Select the world file, e.g., empty.world, play_ground.world,
                 grocery_ground.world
             tasks (list): a list of teacher.Task, e.g., GoalTask, KickingBallTask
-            goal_conditioned (bool): Turn on goal conditioned tasks.  Currently only GoalTask
-                with full state observation has this mode enabled.  The observation will
-                become an OrderedDict including ``achieved_goal``, ``desired_goal`` and
-                ``observation`` fields, instead of a flat np array.  ``achieved_goal`` will
-                contain agent's current 2-d (x, y) position and ``desired_goal`` will be
-                the goal object's 2-d position.  Reward becomes 0 for reaching goal, -1 for
-                any other step (assuming no distraction penalty).  Task termination remains
-                unchanged.
-            use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
-                field: aux_achieved.  Only valid when goal_conditioned is True.
-            xy_only_aux (bool): exclude irrelevant dimensions (z-axis movements) from
-                aux_achieved field.
             with_language (bool): The observation will be a dict with an extra sentence
             with_agent_language (bool): Include agent sentence in action space.
             use_image_observation (bool): Use image, or use low-dimentional states as
@@ -143,9 +128,6 @@ class PlayGround(GazeboEnvBase):
         """
 
         self._action_cost = action_cost
-        self._goal_conditioned = goal_conditioned
-        self._use_aux_achieved = use_aux_achieved
-        self._xy_only_aux = xy_only_aux
         self._with_language = with_language
         self._seq_length = vocab_sequence_length
         self._with_agent_language = with_language and with_agent_language
@@ -208,63 +190,9 @@ class PlayGround(GazeboEnvBase):
         self.reset()
         self.observation_space = self._agent.get_observation_space(
             self._teacher)
-        if self._goal_conditioned:
-            assert agent_type == 'pioneer2dx_noplugin'
-            assert not with_language
-            assert not use_image_observation
-            assert not image_with_internal_states
-            assert len(tasks) == 1 and tasks[0] == GoalTask
-            # state observation
-            goal_shape = 2
-            goal_space = gym.spaces.Box(
-                low=-np.inf,
-                high=np.inf,
-                shape=(goal_shape, ),
-                dtype=np.float32)
-            d = OrderedDict(
-                observation=self.observation_space,
-                achieved_goal=goal_space,
-                desired_goal=goal_space)
-            if use_aux_achieved:
-                ob_shape = self.observation_space.shape[0]
-                aux_shape = 10
-                if self._xy_only_aux:
-                    aux_shape = 4
-                ob_space = gym.spaces.Box(
-                    low=-np.inf,
-                    high=np.inf,
-                    shape=(ob_shape - aux_shape - goal_shape * 2, ),
-                    dtype=np.float32)
-                aux_space = gym.spaces.Box(
-                    low=-np.inf,
-                    high=np.inf,
-                    shape=(aux_shape, ),
-                    dtype=np.float32)
-                d["observation"] = ob_space
-                d["aux_achieved"] = aux_space
-            self.observation_space = gym.spaces.Dict(**d)
 
     def _get_observation(self, teacher_sentence):
-        obs = self._agent.get_observation(self._teacher, teacher_sentence)
-        if self._goal_conditioned:
-            flat_obs = obs
-            obs = OrderedDict()
-            obs['observation'] = flat_obs
-            obs['achieved_goal'] = flat_obs[6:8]
-            obs['desired_goal'] = flat_obs[12:14]
-            if self._use_aux_achieved:
-                obs['observation'] = flat_obs[14:]
-                obs['aux_achieved'] = np.concatenate(
-                    (flat_obs[:6], flat_obs[8:12]), axis=0)
-                if self._xy_only_aux:
-                    # 2: z-speed, 3, 4: angular velocity, 5: yaw-vel, 6, 7: x, y, 8: z, 9, 10, 11: pose
-                    obs['observation'] = np.concatenate(
-                        (flat_obs[2:5], flat_obs[8:11], flat_obs[14:]), axis=0)
-                    obs['aux_achieved'] = np.concatenate(
-                        (flat_obs[0:2], np.expand_dims(flat_obs[5], 0),
-                         np.expand_dims(flat_obs[11], 0)),
-                        axis=0)
-        return obs
+        return self._agent.get_observation(self._teacher, teacher_sentence)
 
     def reset(self):
         """

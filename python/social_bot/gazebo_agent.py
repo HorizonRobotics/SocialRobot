@@ -25,6 +25,7 @@ import gym
 from absl import logging
 import social_bot
 import social_bot.pygazebo as gazebo
+from social_bot.tasks import GoalTask
 
 
 @gin.configurable
@@ -43,6 +44,9 @@ class GazeboAgent():
                  with_language=False,
                  with_agent_language=False,
                  vocab_sequence_length=20,
+                 goal_conditioned=False,
+                 use_aux_achieved=False,
+                 xy_only_aux=False,
                  action_wrapper=None):
         """
         Args:
@@ -65,6 +69,19 @@ class GazeboAgent():
             with_language (bool): The observation will be a dict with an extra sentence
             with_agent_language (bool): Include language in agent's action space
             vocab_sequence_length (int): the length of encoded sequence if with_language
+            goal_conditioned (bool): Turn on goal conditioned tasks.  Currently only GoalTask
+                with full state observation has this mode enabled.  It makes the flat observation
+                array an OrderedDict including ``achieved_goal``, ``desired_goal`` and
+                ``observation`` fields.
+                ``achieved_goal`` will contain agent's current 2-d (x, y) position and
+                ``desired_goal`` will be the goal object's 2-d position.
+                Additionally, the flag with the same name in GoalTask makes reward 0 for
+                reaching goal and -1 for any other step (assuming no distraction penalty).
+                Task termination remains unchanged.
+            use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
+                field: aux_achieved.  Only valid when goal_conditioned is True.
+            xy_only_aux (bool): exclude irrelevant dimensions (z-axis movements) from
+                aux_achieved field.
             action_wrapper (None|class): Some times primitive joints is not wanted, e.g., has
                 redundant dimensions or offset. If not None, this is used to transform the agent
                 actions. See ActionWrapper of gazebo_agent.py for example.
@@ -78,6 +95,9 @@ class GazeboAgent():
         self._with_agent_language = with_agent_language
         self._vocab_sequence_length = vocab_sequence_length
         self._sentence_space = None
+        self._goal_conditioned = goal_conditioned
+        self._use_aux_achieved = use_aux_achieved
+        self._xy_only_aux = xy_only_aux
 
         if config == None:
             # Load agent configurations
@@ -170,6 +190,25 @@ class GazeboAgent():
             obs = self.get_camera_observation()
         else:  # observation is pure low-dimentional states
             obs = teacher.get_task_specific_observation(self)
+            if self._goal_conditioned:
+                flat_obs = obs
+                obs = OrderedDict()
+                obs['observation'] = flat_obs
+                obs['achieved_goal'] = flat_obs[6:8]
+                obs['desired_goal'] = flat_obs[12:14]
+                if self._use_aux_achieved:
+                    obs['observation'] = flat_obs[14:]
+                    obs['aux_achieved'] = np.concatenate(
+                        (flat_obs[:6], flat_obs[8:12]), axis=0)
+                    if self._xy_only_aux:
+                        # 2: z-speed, 3, 4: angular velocity, 5: yaw-vel, 6, 7: x, y, 8: z, 9, 10, 11: pose
+                        obs['observation'] = np.concatenate(
+                            (flat_obs[2:5], flat_obs[8:11], flat_obs[14:]),
+                            axis=0)
+                        obs['aux_achieved'] = np.concatenate(
+                            (flat_obs[0:2], np.expand_dims(flat_obs[5], 0),
+                             np.expand_dims(flat_obs[11], 0)),
+                            axis=0)
         return obs
 
     def get_camera_observation(self):
@@ -233,7 +272,10 @@ class GazeboAgent():
                 observations from teacher's taskgroups as a sample.
         """
         obs_sample = self.get_observation(teacher)
-        if self._with_language or self._image_with_internal_states:
+        if self._goal_conditioned:
+            observation_space = self._construct_goal_condi_space(
+                obs_sample, teacher)
+        elif self._with_language or self._image_with_internal_states:
             # observation is a dictionary
             observation_space = self._construct_dict_space(obs_sample)
         elif self._use_image_observation:
@@ -300,6 +342,48 @@ class GazeboAgent():
             ob_space_dict['sentence'] = self._sentence_space
         ob_space = gym.spaces.Dict(ob_space_dict)
         return ob_space
+
+    def _construct_goal_condi_space(self, obs_sample, teacher):
+        assert self.type == 'pioneer2dx_noplugin'
+        assert not self._with_language
+        assert not self._use_image_observation
+        assert not self._image_with_internal_states
+        tgs = teacher.get_task_groups()
+        assert len(tgs) == 1
+        tasks = tgs[0].get_tasks()
+        assert len(tasks) == 1 and isinstance(tasks[0], GoalTask), str(tasks)
+        # state observation
+        goal_shape = 2
+        goal_space = gym.spaces.Box(
+            low=-np.inf, high=np.inf, shape=(goal_shape, ), dtype=np.float32)
+        observation_space = gym.spaces.Box(
+            low=-np.inf,
+            high=np.inf,
+            shape=obs_sample['observation'].shape,
+            dtype=np.float32)
+        d = OrderedDict(
+            observation=observation_space,
+            achieved_goal=goal_space,
+            desired_goal=goal_space)
+        if self._use_aux_achieved:
+            ob_shape = observation_space.shape[0]
+            aux_shape = 10
+            if self._xy_only_aux:
+                aux_shape = 4
+            ob_space = gym.spaces.Box(
+                low=-np.inf,
+                high=np.inf,
+                shape=(ob_shape - aux_shape - goal_shape * 2, ),
+                dtype=np.float32)
+            aux_space = gym.spaces.Box(
+                low=-np.inf,
+                high=np.inf,
+                shape=(aux_shape, ),
+                dtype=np.float32)
+            d["observation"] = ob_space
+            d["aux_achieved"] = aux_space
+        observation_space = gym.spaces.Dict(**d)
+        return observation_space
 
     def setup_joints(self, agent, joints, agent_cfg):
         """  Setup the joints acrroding to agent configuration.
