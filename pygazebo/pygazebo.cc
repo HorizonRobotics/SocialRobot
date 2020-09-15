@@ -507,19 +507,6 @@ void CloseWithoutModelbaseFini() {
   gazebo_sensor_initialized = false;
 }
 
-void CloseWithoutFini() {
-  // this causes segmentation fault when run.
-  gazebo::physics::stop_worlds();
-  gazebo::sensors::stop();
-  gazebo::util::LogRecord::Instance()->Stop();
-  gazebo::transport::stop();
-
-  gazebo::transport::fini();
-
-  gazebo_initialized = false;
-  gazebo_sensor_initialized = false;
-}
-
 void Close() {
   gazebo::shutdown();
   gazebo_initialized = false;

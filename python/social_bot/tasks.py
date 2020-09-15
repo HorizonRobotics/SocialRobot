@@ -178,6 +178,8 @@ class GoalTask(Task):
                      'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
                  ],
                  goal_conditioned=False,
+                 use_aux_achieved=False,
+                 xy_only_aux=False,
                  multi_dim_reward=False,
                  end_on_hitting_distraction=False,
                  end_episode_after_success=False,
@@ -214,6 +216,10 @@ class GoalTask(Task):
             goal_name (string): name of the goal in the world
             distraction_list (list of string): a list of model. the model shoud be in gazebo database
             goal_conditioned (bool): if True, each step has -1 reward, unless at goal state, which gives 0.
+            use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
+                field: aux_achieved.  Only valid when goal_conditioned is True.
+            xy_only_aux (bool): exclude irrelevant dimensions (z-axis movements) from
+                aux_achieved field.
             multi_dim_reward (bool): if True, separate goal reward and distraction penalty into two dimensions.
             end_episode_after_success (bool): if True, the episode will end once the goal is reached. A True value of this
                 flag will overwrite the effects of flags ``switch_goal_within_episode`` and ``move_goal_during_episode``.
@@ -269,6 +275,8 @@ class GoalTask(Task):
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
         self._goal_conditioned = goal_conditioned
+        self._use_aux_achieved = use_aux_achieved
+        self._xy_only_aux = xy_only_aux
         self._multi_dim_reward = multi_dim_reward
         self.end_on_hitting_distraction = end_on_hitting_distraction
         self._end_episode_after_success = end_episode_after_success
@@ -685,6 +693,26 @@ class GoalTask(Task):
         """
         logging.debug('Setting Goal to %s', goal_name)
         self._goal_name = goal_name
+
+    def generate_goal_conditioned_obs(self, agent):
+        flat_obs = self.task_specific_observation(agent)
+        obs = OrderedDict()
+        obs['observation'] = flat_obs
+        obs['achieved_goal'] = flat_obs[6:8]
+        obs['desired_goal'] = flat_obs[12:14]
+        if self._use_aux_achieved:
+            obs['observation'] = flat_obs[14:]
+            obs['aux_achieved'] = np.concatenate(
+                (flat_obs[:6], flat_obs[8:12]), axis=0)
+            if self._xy_only_aux:
+                # 2: z-speed, 3, 4: angular velocity, 5: yaw-vel, 6, 7: x, y, 8: z, 9, 10, 11: pose
+                obs['observation'] = np.concatenate(
+                    (flat_obs[2:5], flat_obs[8:11], flat_obs[14:]), axis=0)
+                obs['aux_achieved'] = np.concatenate(
+                    (flat_obs[0:2], np.expand_dims(flat_obs[5], 0),
+                     np.expand_dims(flat_obs[11], 0)),
+                    axis=0)
+        return obs
 
     def task_specific_observation(self, agent):
         """
