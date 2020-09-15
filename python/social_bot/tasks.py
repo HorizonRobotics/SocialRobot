@@ -697,20 +697,26 @@ class GoalTask(Task):
     def generate_goal_conditioned_obs(self, agent):
         flat_obs = self.task_specific_observation(agent)
         obs = OrderedDict()
+        agent_pose = np.array(agent.get_pose()).flatten()
+        agent_vel = np.array(agent.get_velocities()).flatten()
+        goal = self._world.get_model(self._goal_name)
+        goal_pose = np.array(goal.get_pose()[0]).flatten()
         obs['observation'] = flat_obs
-        obs['achieved_goal'] = flat_obs[6:8]
-        obs['desired_goal'] = flat_obs[12:14]
+        obs['achieved_goal'] = agent_pose[0:2]
+        obs['desired_goal'] = goal_pose[0:2]
         if self._use_aux_achieved:
+            # distraction objects' x, y coordinates
             obs['observation'] = flat_obs[14:]
-            obs['aux_achieved'] = np.concatenate(
-                (flat_obs[:6], flat_obs[8:12]), axis=0)
+            obs['aux_achieved'] = np.concatenate((agent_vel, agent_pose[2:]),
+                                                 axis=0)
             if self._xy_only_aux:
-                # 2: z-speed, 3, 4: angular velocity, 5: yaw-vel, 6, 7: x, y, 8: z, 9, 10, 11: pose
+                # agent speed: 2: z-speed; 3, 4: angular velocities; 5: yaw-vel,
+                # agent pose: 2: z; 3, 4, 5: roll pitch yaw.
                 obs['observation'] = np.concatenate(
-                    (flat_obs[2:5], flat_obs[8:11], flat_obs[14:]), axis=0)
+                    (agent_vel[2:5], agent_pose[2:5], flat_obs[14:]), axis=0)
                 obs['aux_achieved'] = np.concatenate(
-                    (flat_obs[0:2], np.expand_dims(flat_obs[5], 0),
-                     np.expand_dims(flat_obs[11], 0)),
+                    (agent_vel[0:2], np.expand_dims(agent_vel[5], 0),
+                     np.expand_dims(agent_pose[5], 0)),
                     axis=0)
         return obs
 
