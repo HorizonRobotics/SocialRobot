@@ -745,49 +745,41 @@ class GoalTask(Task):
                 pose = np.concatenate((pose, obj_pos), axis=0)
 
         agent_pose = np.array(agent.get_pose()).flatten()
-        if self._use_full_states or self._use_egocentric_states:
-            yaw = agent_pose[5]
-            # adds egocentric velocity input
-            vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
-            if self._use_egocentric_states:
-                rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, yaw)
-            else:
-                rvx, rvy = vx, vy
-            obs = [rvx, rvy, vz, a1, a2, a3] + list(agent_pose)
-            # adds objects' (goal's as well as distractions') egocentric
-            # coordinates to observation
-            while len(pose) > 1:
-                x = pose[0]
-                y = pose[1]
-                if self._use_egocentric_states:
-                    x = pose[0] - agent_pose[0]
-                    y = pose[1] - agent_pose[1]
-                    rotated_x, rotated_y = agent.get_egocentric_cord_2d(
-                        x, y, yaw)
-                else:
-                    rotated_x, rotated_y = x, y
-                if (self._use_egocentric_states
-                        and self._egocentric_perception_range > 0):
-                    dist = math.sqrt(rotated_x * rotated_x +
-                                     rotated_y * rotated_y)
-                    rotated_x /= dist
-                    rotated_y /= dist
-                    magnitude = 1. / dist
-                    if rotated_x < np.cos(
-                            self._egocentric_perception_range / 180. * np.pi):
-                        rotated_x = 0.
-                        rotated_y = 0.
-                        magnitude = 0.
-                    obs.extend([rotated_x, rotated_y, magnitude])
-                else:
-                    obs.extend([rotated_x, rotated_y])
-                pose = pose[3:]
-            obs = np.array(obs)
+        yaw = agent_pose[5]
+        # adds egocentric velocity input
+        vx, vy, vz, a1, a2, a3 = np.array(agent.get_velocities()).flatten()
+        if self._use_egocentric_states:
+            rvx, rvy = agent.get_egocentric_cord_2d(vx, vy, yaw)
         else:
-            agent_vel = np.array(agent.get_velocities()).flatten()
-            joints_states = agent.get_internal_states()
-            obs = np.concatenate((pose, agent_pose, agent_vel, joints_states),
-                                 axis=0)
+            rvx, rvy = vx, vy
+        obs = [rvx, rvy, vz, a1, a2, a3] + list(agent_pose)
+        # adds objects' (goal's as well as distractions') egocentric
+        # coordinates to observation
+        while len(pose) > 1:
+            x = pose[0]
+            y = pose[1]
+            if self._use_egocentric_states:
+                x = pose[0] - agent_pose[0]
+                y = pose[1] - agent_pose[1]
+                rotated_x, rotated_y = agent.get_egocentric_cord_2d(x, y, yaw)
+            else:
+                rotated_x, rotated_y = x, y
+            if (self._use_egocentric_states
+                    and self._egocentric_perception_range > 0):
+                dist = math.sqrt(rotated_x * rotated_x + rotated_y * rotated_y)
+                rotated_x /= dist
+                rotated_y /= dist
+                magnitude = 1. / dist
+                if rotated_x < np.cos(
+                        self._egocentric_perception_range / 180. * np.pi):
+                    rotated_x = 0.
+                    rotated_y = 0.
+                    magnitude = 0.
+                obs.extend([rotated_x, rotated_y, magnitude])
+            else:
+                obs.extend([rotated_x, rotated_y])
+            pose = pose[3:]
+        obs = np.array(obs)
 
         return obs
 

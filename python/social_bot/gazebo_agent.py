@@ -253,6 +253,7 @@ class GazeboAgent():
         """
         obs_sample = self.get_observation(teacher)
         if self._goal_conditioned:
+            self._assert_goal_conditioned(teacher)
             observation_space = self._construct_goal_condi_space(
                 obs_sample, teacher)
         elif self._with_language or self._image_with_internal_states:
@@ -334,7 +335,6 @@ class GazeboAgent():
         assert len(tasks) == 1 and isinstance(tasks[0], GoalTask), str(tasks)
 
     def _construct_goal_condi_space(self, obs_sample, teacher):
-        self._assert_goal_conditioned(teacher)
         d = OrderedDict()
         for k, v in obs_sample.items():
             d[k] = gym.spaces.Box(
