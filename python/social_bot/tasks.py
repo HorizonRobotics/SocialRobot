@@ -206,7 +206,6 @@ class GoalTask(Task):
                  move_goal_during_episode=True,
                  success_with_angle_requirement=True,
                  additional_observation_list=[],
-                 use_full_states=False,
                  use_egocentric_states=False,
                  egocentric_perception_range=0):
         """
@@ -260,7 +259,6 @@ class GoalTask(Task):
             move_goal_during_episode (bool): if True, the goal will be moved during episode, when it has been achieved
             success_with_angle_requirement: if True then calculate the reward considering the angular requirement
             additional_observation_list: a list of additonal objects to be added
-            use_full_states (bool): For non-image observation, use full states of the world
             use_egocentric_states (bool): For the non-image observation case, use the states transformed to
                 egocentric coordinate, e.g., agent's egocentric distance and direction to goal
             egocentric_perception_range (float): the max range in degree to limit the agent's observation.
@@ -317,7 +315,6 @@ class GoalTask(Task):
                       self._max_play_ground_size)))
         self._pos_list.remove((0, 0))
         self._polar_coord = polar_coord
-        self._use_full_states = use_full_states
         self._use_egocentric_states = use_egocentric_states
         self._egocentric_perception_range = egocentric_perception_range
         if self.should_use_curriculum_training():
@@ -339,13 +336,13 @@ class GoalTask(Task):
             self._random_range = random_range
         self._goal_dist = 0.
         obs_format = "image"
-        if use_full_states or use_egocentric_states:
-            obs_format = "full_state"
         obs_relative = "ego"
-        if use_full_states and not use_egocentric_states:
+        if use_egocentric_states:
+            obs_format = "full_state"
+        else:
             obs_relative = "absolute"
         logging.info("Observations: {}, {}.".format(obs_format, obs_relative))
-        if use_full_states and not use_egocentric_states:
+        if not use_egocentric_states:
             logging.info(
                 "Dims: 0-5: agent's velocity and angular " +
                 "velocity, 6-11: agent's position and pose, 12-13: goal x, y" +
