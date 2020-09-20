@@ -14,6 +14,7 @@
 """
 A simple enviroment for an agent playing on the ground
 """
+from collections import OrderedDict
 import os
 import time
 import math
@@ -170,7 +171,10 @@ class PlayGround(GazeboEnvBase):
 
         # Setup teacher and tasks
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
+        self._has_goal_task = False
         for task in tasks:
+            if task == GoalTask:
+                self._has_goal_task = True
             task_group = TaskGroup()
             task_group.add_task(task(env=self, max_steps=max_steps))
             self._teacher.add_task_group(task_group)
@@ -187,6 +191,9 @@ class PlayGround(GazeboEnvBase):
         self.observation_space = self._agent.get_observation_space(
             self._teacher)
 
+    def _get_observation(self, teacher_sentence):
+        return self._agent.get_observation(self._teacher, teacher_sentence)
+
     def reset(self):
         """
         Args:
@@ -202,8 +209,7 @@ class PlayGround(GazeboEnvBase):
         # The first call of "teach() after "done" will reset the task
         teacher_action = self._teacher.teach("")
         self._world.step(self._sub_steps)
-        obs = self._agent.get_observation(self._teacher,
-                                          teacher_action.sentence)
+        obs = self._get_observation(teacher_action.sentence)
         return obs
 
     def step(self, action):
@@ -229,8 +235,7 @@ class PlayGround(GazeboEnvBase):
         self._agent.take_action(controls)
         self._world.step(self._sub_steps)
         teacher_action = self._teacher.teach(sentence)
-        obs = self._agent.get_observation(self._teacher,
-                                          teacher_action.sentence)
+        obs = self._get_observation(teacher_action.sentence)
         self._steps_in_this_episode += 1
         ctrl_cost = np.sum(np.square(controls)) / controls.shape[0]
         reward = teacher_action.reward - self._action_cost * ctrl_cost
@@ -238,7 +243,13 @@ class PlayGround(GazeboEnvBase):
         if teacher_action.done:
             logging.debug("episode ends at cum reward:" +
                           str(self._cum_reward))
-        return obs, reward, teacher_action.done, {"is_success": teacher_action.success}
+        info = {"is_success": teacher_action.success}
+        if self._has_goal_task:
+            info["goal_range"] = teacher_action.goal_range
+        # Maybe use multi dimensional reward
+        if teacher_action.rewards is not None:
+            reward = teacher_action.rewards
+        return obs, reward, teacher_action.done, info
 
     def get_step_time(self):
         """

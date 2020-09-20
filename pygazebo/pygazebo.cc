@@ -573,7 +573,7 @@ PYBIND11_MODULE(pygazebo, m) {
 
   m.def("close_without_model_base_fini",
         &CloseWithoutModelbaseFini,
-        "A customized close function without execute ModelbaseFini"
+        "A customized close function without execute ModelbaseFini. "
         "For some unknwon reason, ModelbaseFini() in the gazebo.shutdown() "
         "makes the"
         "process fail to exit when the environment is wrapped with process");
