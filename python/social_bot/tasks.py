@@ -188,6 +188,7 @@ class GoalTask(Task):
                  fail_distance_thresh=2.0,
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
+                 random_agent_position=False,
                  random_agent_orientation=False,
                  sparse_reward=True,
                  random_range=5.0,
@@ -233,6 +234,7 @@ class GoalTask(Task):
                 facing it is considered hitting a distraction)
             distraction_penalty (float): positive float of how much to penalize getting too close to
                 distraction objects
+            random_agent_position (bool): whether randomize the position of the agent at beginning of episode.
             random_agent_orientation (bool): whether randomize the orientation (yaw) of the agent at the beginning of an
                 episode.
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
@@ -286,6 +288,7 @@ class GoalTask(Task):
             assert distraction_penalty_distance_thresh < success_distance_thresh
         self._distraction_penalty = distraction_penalty
         self._sparse_reward = sparse_reward
+        self._random_agent_position = random_agent_position
         self._random_agent_orientation = random_agent_orientation
         self._use_curriculum_training = use_curriculum_training
         self._curriculum_distractions = curriculum_distractions
@@ -431,10 +434,16 @@ class GoalTask(Task):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
         self._agent.reset()
-        if self._random_agent_orientation:
+        if self._random_agent_orientation or self._random_agent_position:
             loc, agent_dir = self._agent.get_pose()
-            self._agent.set_pose((loc, (agent_dir[0], agent_dir[1],
-                                        2 * math.pi * random.random())))
+            if self._random_agent_position:
+                loc = (self._max_play_ground_size * (1 - 2 * random.random()),
+                       self._max_play_ground_size * (1 - 2 * random.random()),
+                       loc[2])
+            if self._random_agent_orientation:
+                agent_dir = (agent_dir[0], agent_dir[1],
+                             2 * math.pi * random.random())
+            self._agent.set_pose((loc, agent_dir))
         a_loc, a_dir = self._get_agent_loc()
         self._random_move_objects()
         self.pick_goal()
@@ -639,7 +648,8 @@ class GoalTask(Task):
                 loc = np.asarray((random.random() * range - range / 2,
                                   random.random() * range - range / 2, 0))
 
-            self._initial_dist = np.linalg.norm(loc - agent_loc)
+            if is_goal:
+                self._initial_dist = np.linalg.norm(loc - agent_loc)
             satisfied = True
             if (abs(loc[0]) > self._max_play_ground_size or abs(loc[1]) >
                     self._max_play_ground_size):  # not within walls
@@ -658,7 +668,8 @@ class GoalTask(Task):
                             str(agent_loc), str(range),
                             str(self._max_play_ground_size)))
                 break
-        self._prev_dist = self._initial_dist
+        if is_goal:
+            self._prev_dist = self._initial_dist
         obj.reset()
         obj.set_pose((loc, (0, 0, 0)))
         return loc, dist
@@ -704,6 +715,7 @@ class GoalTask(Task):
         if self._use_aux_achieved:
             # distraction objects' x, y coordinates
             obs['observation'] = flat_obs[14:]
+            # 0, 1, 2: vel; 3, 4, 5: angular vel; 6: z position; 7, 8, 9: roll pitch yaw
             obs['aux_achieved'] = np.concatenate((agent_vel, agent_pose[2:]),
                                                  axis=0)
             if self._xy_only_aux:
