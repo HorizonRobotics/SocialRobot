@@ -428,7 +428,7 @@ class GoalTask(Task):
         dir = np.array([math.cos(agent_dir[2]), math.sin(agent_dir[2])])
         goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
         dot = sum(dir * goal_dir)
-        return dist, dot, loc
+        return dist, dot, loc, agent_dir
 
     def run(self):
         """ Start a teaching episode for this task. """
@@ -454,7 +454,7 @@ class GoalTask(Task):
         rewards = None  # reward array in multi_dim_reward case
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
-            dist, dot, loc = self._get_goal_dist(goal)
+            dist, dot, loc, agent_dir = self._get_goal_dist(goal)
             distraction_penalty, prev_min_dist_to_distraction = (
                 self._get_distraction_penalty(loc, dot,
                                               prev_min_dist_to_distraction))
@@ -524,7 +524,7 @@ class GoalTask(Task):
                     done=done,
                     rewards=rewards)
         reward = -1.0
-        dist, dot, loc = self._get_goal_dist(goal)
+        dist, dot, loc, agent_dir = self._get_goal_dist(goal)
         distraction_penalty, prev_min_dist_to_distraction = (
             self._get_distraction_penalty(loc, dot,
                                           prev_min_dist_to_distraction))
@@ -546,7 +546,16 @@ class GoalTask(Task):
             self._push_reward_queue(0)
             logging.debug("took more than {} steps".format(
                 str(self._max_steps)))
-        logging.debug("yielding reward: {}".format(str(reward)))
+        agent_vel = np.array(self._agent.get_velocities()).flatten()
+
+        def _str(arr):
+            res = ["["]
+            res.extend(["{:.2f}".format(e) for e in arr])
+            res.append("]")
+            return " ".join(res)
+
+        logging.debug("yielding reward: %s at\nloc %s pose %s vel %s",
+                      str(reward), _str(loc), _str(agent_dir), _str(agent_vel))
         if self.should_use_curriculum_training():
             logging.debug("reward queue len: {}, sum: {}".format(
                 str(len(self._q)), str(sum(self._q))))
