@@ -184,6 +184,7 @@ class GoalTask(Task):
                  end_on_hitting_distraction=False,
                  end_episode_after_success=False,
                  reset_time_limit_on_success=True,
+                 chain_task_rate=0,
                  success_distance_thresh=0.5,
                  fail_distance_thresh=2.0,
                  distraction_penalty_distance_thresh=0,
@@ -226,6 +227,10 @@ class GoalTask(Task):
             end_on_hitting_distraction (bool): whether to end episode on hitting distraction
             reset_time_limit_on_success (bool): if not ending after success, if hit success before time limit,
                 reset clock to 0.
+            chain_task_rate (float): if positive, with this much probability, the current task will be chained together
+                with the next task: after one tasks finishes, episode doesn't end, but keeps onto the second goal/task.
+                If the first task isn't achieved within max_steps, episode ends.  When the first task is achieved,
+                step_type is MID and no goal reward is given.  Reward is given only after achieving all chained tasks.
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
@@ -281,6 +286,7 @@ class GoalTask(Task):
         self.end_on_hitting_distraction = end_on_hitting_distraction
         self._end_episode_after_success = end_episode_after_success
         self._reset_time_limit_on_success = reset_time_limit_on_success
+        self._chain_task_rate = chain_task_rate
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._distraction_penalty_distance_thresh = distraction_penalty_distance_thresh
@@ -444,11 +450,24 @@ class GoalTask(Task):
                 agent_dir = (agent_dir[0], agent_dir[1],
                              2 * math.pi * random.random())
             self._agent.set_pose((loc, agent_dir))
-        a_loc, a_dir = self._get_agent_loc()
         self._random_move_objects()
         self.pick_goal()
         goal = self._world.get_model(self._goal_name)
-        self._move_goal(goal, a_loc, a_dir)
+        done = False
+        gen = self._run_one_goal(goal)
+        while not done:
+            action = next(gen)
+            if (action.done and self._chain_task_rate > 0
+                    and random.random() < self._chain_task_rate):
+                action.done = False
+                gen = self._run_one_goal(goal, move_distractions=False)
+            done = action.done
+            yield action
+
+    def _run_one_goal(self, goal, move_distractions=True):
+        """Generator function of task feedback."""
+        a_loc, a_dir = self._get_agent_loc()
+        self._move_goal(goal, a_loc, a_dir, move_distractions)
         steps_since_last_reward = 0
         prev_min_dist_to_distraction = 100
         rewards = None  # reward array in multi_dim_reward case
@@ -596,11 +615,18 @@ class GoalTask(Task):
             prev_min_dist_to_distraction = curr_min_dist
         return distraction_penalty, prev_min_dist_to_distraction
 
-    def _move_goal(self, goal, agent_loc, agent_dir):
+    def _move_goal(self, goal, agent_loc, agent_dir, move_distractions=True):
         """
         Move goal as well as all distraction objects to a random location.
         """
         avoid_locations = [agent_loc]
+        if not move_distractions:
+            for item in self._distraction_list:
+                if item is not self._goal_name:
+                    obj = self._world.get_model(item)
+                    if obj:
+                        distraction_loc = obj.get_pose()[0]
+                        avoid_locations.append(distraction_loc)
         loc, dist = self._move_obj(
             obj=goal,
             agent_loc=agent_loc,
@@ -610,19 +636,20 @@ class GoalTask(Task):
         self._goal_dist += dist
         avoid_locations.append(loc)
         distractions = OrderedDict()
-        for item in self._distraction_list:
-            if item is not self._goal_name:
-                distractions[item] = 1
-        if len(distractions) and self._curriculum_distractions:
-            for item, _ in distractions.items():
-                distraction = self._world.get_agent(item)
-                loc, _ = self._move_obj(
-                    obj=distraction,
-                    agent_loc=agent_loc,
-                    agent_dir=agent_dir,
-                    is_goal=False,
-                    avoid_locations=avoid_locations)
-                avoid_locations.append(loc)
+        if move_distractions:
+            for item in self._distraction_list:
+                if item is not self._goal_name:
+                    distractions[item] = 1
+            if len(distractions) and self._curriculum_distractions:
+                for item, _ in distractions.items():
+                    distraction = self._world.get_agent(item)
+                    loc, _ = self._move_obj(
+                        obj=distraction,
+                        agent_loc=agent_loc,
+                        agent_dir=agent_dir,
+                        is_goal=False,
+                        avoid_locations=avoid_locations)
+                    avoid_locations.append(loc)
 
     def _move_obj(self,
                   obj,
