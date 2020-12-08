@@ -40,6 +40,19 @@ class KeyboardControl(PyKeyboardEvent):
         self._wheel_step = 0.5
         self._speed_decay = 0.9
         self._turning_decay = 0.6
+        self._done = False
+        logging.info("Control:" + """
+        W       : increase forward speed
+        S       : increase backward speed
+        A       : turn left
+        D       : turn right
+        E       : open/close gripper (if there is one)
+        R/F     : move robot arm joint (if there is one)
+        +       : increase the step size for W/S/A/D
+        -       + decrease the step size for W/S/A/D
+        Q       : quit
+        mouse   : gripper position (if there is one)
+        """)
         self.start()
 
     def reset(self):
@@ -96,6 +109,11 @@ class KeyboardControl(PyKeyboardEvent):
             self._wheel_step *= 1.5
         elif character == "-":
             self._wheel_step *= 0.7
+        elif character == "q":
+            self._done = True
+
+    def is_done(self):
+        return self._done
 
     def _get_mouse_pos(self):
         """ Get the mouse position and normalize to (-1, 1).
@@ -164,6 +182,13 @@ def main():
     from social_bot.envs.play_ground import PlayGround
     from social_bot.tasks import GoalTask, KickingBallTask, ICubAuxiliaryTask, Reaching3D, PickAndPlace, Stack
     from social_bot.gazebo_agent import YoubotActionWrapper
+
+    # Avoid the conflict between the keyboard control of the robot and the shortcut
+    # key of pyplot
+    plt.rcParams['keymap.save'].remove('s')
+    plt.rcParams['keymap.fullscreen'].remove('f')
+    plt.rcParams['keymap.quit'].remove('q')
+
     use_image_obs = True
     fig = None
     agent_type = 'youbot_noplugin'
@@ -182,6 +207,8 @@ def main():
     keybo = KeyboardControl()
     while True:
         actions = np.array(keybo.get_agent_actions(agent_type))
+        if keybo.is_done():
+            break
         obs, _, done, _ = env.step(actions)
         if use_image_obs:
             if fig is None:
@@ -192,6 +219,8 @@ def main():
         if done:
             env.reset()
             keybo.reset()
+
+    env.close()
 
 
 if __name__ == "__main__":
