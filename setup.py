@@ -12,9 +12,10 @@ setup(
     name='social_bot',
     version='0.0.1',
     install_requires=[
-        'gin-config == 0.1.3', 'gym == 0.12.5', 'numpy >= 1.13.3',
-        'matplotlib', 'psutil', 'lxml >= 3.5.0', 'Pillow', 'absl-py', 'pytest',
-        'PyUserInput', 'python-xlib'
+        'gin-config@git+https://github.com/HorizonRobotics/gin-config.git',
+        'gym == 0.12.5', 'numpy >= 1.13.3', 'matplotlib', 'psutil',
+        'lxml >= 3.5.0', 'Pillow', 'absl-py', 'pytest', 'PyUserInput',
+        'python-xlib'
     ],
     package_dir={'': 'python'},
     packages=find_packages('python'),

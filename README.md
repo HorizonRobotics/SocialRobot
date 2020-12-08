@@ -104,7 +104,7 @@ The tasks we have for now are listed as below:
 
     <img src="media/pick_and_palce.gif" width="320" height="200" alt="pick_and_palce"/>
 
-* [Stack task](python/social_bot/tasks.py): A task to stack several objects (wood cubes). The agent need to grasp the cube and stack it one by one, until all of them are stacked together. The number of cubes can be configured by "objects_num". An optional reward shaping can be enabled to guide the agent to grasp the cube and place to another cube. This task is only compatible with Agent youbot_noplugin. We haven't solve this problem yet, the video below is a human-controlled demonstration.
+* [Stack task](python/social_bot/tasks.py): A task to stack several objects (wood cubes). The agent need to grasp the cube and stack it one by one, until all of them are stacked together. The number of cubes can be configured by "objects_num". An optional reward shaping can be enabled to guide the agent to grasp the cube and place to another cube. This task is only compatible with Agent youbot_noplugin. We haven't solve this problem yet, the video below is a human-controlled demonstration. You can run the human-controlled demonstration by running `python -m social_bot.keybo_control`
 
     <img src="media/stack.gif" width="450" height="200" alt="stack"/>
 

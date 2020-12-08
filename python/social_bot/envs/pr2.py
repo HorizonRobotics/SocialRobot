@@ -258,14 +258,14 @@ class Pr2Gripper(GazeboEnvBase):
                  np.array(l_finger_tip_loc_a), np.array(r_finger_tip_loc),
                  np.array(r_finger_tip_loc_a), np.array([l_dist, r_dist]),
                  np.array([self._l_touch, self._r_touch]).astype(np.float32)),
-                0)
+                0).astype(np.float32)
         else:
             states = np.concatenate(
                 (np.array(joint_positions), np.array(joint_velocities),
                  np.array(l_finger_tip_loc), np.array(l_finger_tip_loc_a),
                  np.array(r_finger_tip_loc), np.array(r_finger_tip_loc_a),
                  np.array([self._l_touch, self._r_touch]).astype(np.float32)),
-                0)
+                0).astype(np.float32)
 
             img = get_camera_observation(
                 "default::pr2::pr2_noplugin::head_tilt_link::wide_stereo_gazebo_l_stereo_camera_sensor"
