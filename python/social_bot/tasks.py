@@ -193,6 +193,7 @@ class GoalTask(Task):
                  random_agent_orientation=False,
                  sparse_reward=True,
                  random_range=5.0,
+                 min_distance=0,
                  polar_coord=True,
                  random_goal=False,
                  use_curriculum_training=False,
@@ -245,6 +246,8 @@ class GoalTask(Task):
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with normalized distance the agent get closer to goal.
             random_range (float): the goal's random position range
+            min_distance (float): the goal must be this minimum distance away from avoided locations.  If this is smaller
+                than the success_distance_thresh, then success_distance_thresh is used instead.
             polar_coord (bool): use cartesian coordinates in random_range, otherwise, use polar coord.
             random_goal (bool): if True, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
@@ -343,6 +346,9 @@ class GoalTask(Task):
                 self._reward_thresh_to_increase_range)
         else:
             self._random_range = random_range
+        if min_distance < self._success_distance_thresh:
+            min_distance = self._success_distance_thresh
+        self._min_distance = min_distance
         self._goal_dist = 0.
         obs_format = "image"
         obs_relative = "ego"
@@ -457,7 +463,7 @@ class GoalTask(Task):
         gen = self._run_one_goal(goal)
         while not done:
             action = next(gen)
-            if (action.done and self._chain_task_rate > 0
+            if (action.done and action.success and self._chain_task_rate > 0
                     and random.random() < self._chain_task_rate):
                 action.done = False
                 gen = self._run_one_goal(goal, move_distractions=False)
@@ -692,7 +698,7 @@ class GoalTask(Task):
                 satisfied = False
             for avoid_loc in avoid_locations:
                 dist = np.linalg.norm(loc - avoid_loc)
-                if dist < self._success_distance_thresh:
+                if dist < self._min_distance:
                     satisfied = False
                     break
             if satisfied or attempts > 10000:
