@@ -178,6 +178,7 @@ class GoalTask(Task):
                      'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
                  ],
                  goal_conditioned=False,
+                 speed_goal=False,
                  use_aux_achieved=False,
                  xy_only_aux=False,
                  multi_dim_reward=False,
@@ -218,6 +219,7 @@ class GoalTask(Task):
             goal_name (string): name of the goal in the world
             distraction_list (list of string): a list of model. the model shoud be in gazebo database
             goal_conditioned (bool): if True, each step has -1 reward, unless at goal state, which gives 0.
+            speed_goal (bool): if True, use speed pose etc. together with position as part of goal.
             use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
                 field: aux_achieved.  Only valid when goal_conditioned is True.
             xy_only_aux (bool): exclude irrelevant dimensions (z-axis movements) from
@@ -283,6 +285,7 @@ class GoalTask(Task):
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
         self._goal_conditioned = goal_conditioned
+        self._speed_goal = speed_goal
         self._use_aux_achieved = use_aux_achieved
         self._xy_only_aux = xy_only_aux
         self._multi_dim_reward = multi_dim_reward
@@ -639,6 +642,15 @@ class GoalTask(Task):
             agent_dir=agent_dir,
             is_goal=True,
             avoid_locations=avoid_locations)
+        if self._speed_goal:
+            MAX_SPEED = 4 * 0.8  # -2 to 2
+            xspeed = (0.5 - random.random()) * MAX_SPEED
+            yspeed = (0.5 - random.random()) * MAX_SPEED
+            yawspeed = (0.5 - random.random()) * MAX_SPEED
+            yaw = np.arctan2(yspeed, xspeed)
+            # 0, 1, 2: vel; 3, 4, 5: angular vel; 6: z position; 7, 8, 9: roll pitch yaw
+            self._aux_desired = np.array(
+                [xspeed, yspeed, 0, 0, 0, yawspeed, 0, 0, 0, yaw])
         self._goal_dist += dist
         avoid_locations.append(loc)
         distractions = OrderedDict()
@@ -760,15 +772,21 @@ class GoalTask(Task):
             # 0, 1, 2: vel; 3, 4, 5: angular vel; 6: z position; 7, 8, 9: roll pitch yaw
             obs['aux_achieved'] = np.concatenate((agent_vel, agent_pose[2:]),
                                                  axis=0)
-            if self._xy_only_aux:
-                # agent speed: 2: z-speed; 3, 4: angular velocities; 5: yaw-vel,
-                # agent pose: 2: z; 3, 4, 5: roll pitch yaw.
-                obs['observation'] = np.concatenate(
-                    (agent_vel[2:5], agent_pose[2:5], flat_obs[14:]), axis=0)
-                obs['aux_achieved'] = np.concatenate(
-                    (agent_vel[0:2], np.expand_dims(agent_vel[5], 0),
-                     np.expand_dims(agent_pose[5], 0)),
-                    axis=0)
+            if self._speed_goal:
+                obs['achieved_goal'] = np.concatenate(
+                    (obs['achieved_goal'], obs['aux_achieved']), axis=0)
+                del obs['aux_achieved']
+                obs['desired_goal'] = np.concatenate(
+                    (obs['desired_goal'], self._aux_desired), axis=0)
+            # if self._xy_only_aux:
+            #     # agent speed: 2: z-speed; 3, 4: angular velocities; 5: yaw-vel,
+            #     # agent pose: 2: z; 3, 4, 5: roll pitch yaw.
+            #     obs['observation'] = np.concatenate(
+            #         (agent_vel[2:5], agent_pose[2:5], flat_obs[14:]), axis=0)
+            #     obs['aux_achieved'] = np.concatenate(
+            #         (agent_vel[0:2], np.expand_dims(agent_vel[5], 0),
+            #          np.expand_dims(agent_pose[5], 0)),
+            #         axis=0)
         return obs
 
     def task_specific_observation(self, agent):
