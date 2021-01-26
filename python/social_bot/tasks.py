@@ -179,6 +179,7 @@ class GoalTask(Task):
                  ],
                  goal_conditioned=False,
                  speed_goal=False,
+                 speed_goal_limit=1.6,
                  use_aux_achieved=False,
                  xy_only_aux=False,
                  multi_dim_reward=False,
@@ -220,6 +221,7 @@ class GoalTask(Task):
             distraction_list (list of string): a list of model. the model shoud be in gazebo database
             goal_conditioned (bool): if True, each step has -1 reward, unless at goal state, which gives 0.
             speed_goal (bool): if True, use speed pose etc. together with position as part of goal.
+            speed_goal_limit (float): randomly sample speed goal in the range: -limit to +limit.
             use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
                 field: aux_achieved.  Only valid when goal_conditioned is True.
             xy_only_aux (bool): exclude irrelevant dimensions (z-axis movements) from
@@ -286,6 +288,7 @@ class GoalTask(Task):
         self._goal_name = goal_name
         self._goal_conditioned = goal_conditioned
         self._speed_goal = speed_goal
+        self._speed_goal_limit = speed_goal_limit
         self._use_aux_achieved = use_aux_achieved
         self._xy_only_aux = xy_only_aux
         self._multi_dim_reward = multi_dim_reward
@@ -434,11 +437,26 @@ class GoalTask(Task):
     def _within_angle(self, dot):
         return (not self._success_with_angle_requirement) or dot > 0.707
 
+    def _get_agent_aux_dims(self, agent_pose=None, agent_vel=None):
+        if agent_pose is None:
+            agent_pose = np.array(self._agent.get_pose()).flatten()
+        if agent_vel is None:
+            agent_vel = np.array(self._agent.get_velocities()).flatten()
+        # 0, 1, 2: vel; 3, 4, 5: angular vel; 6: z position; 7, 8, 9: roll pitch yaw
+        return np.concatenate((agent_vel, agent_pose[2:]), axis=0)
+
     def _get_goal_dist(self, goal):
         loc, agent_dir = self._get_agent_loc()
         goal_loc, _ = goal.get_pose()
         goal_loc = np.array(goal_loc)
-        dist = np.linalg.norm(loc - goal_loc)
+        _goal_loc = goal_loc.copy()
+        _loc = np.array(loc).copy()
+        if self._speed_goal:
+            _goal_loc = np.concatenate((_goal_loc, self._aux_desired), axis=0)
+            aux = self._get_agent_aux_dims()
+            _loc = np.concatenate((_loc, aux), axis=0)
+
+        dist = np.linalg.norm(_loc - _goal_loc)
         # dir from get_pose is (roll, pitch, yaw)
         dir = np.array([math.cos(agent_dir[2]), math.sin(agent_dir[2])])
         goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
@@ -643,11 +661,12 @@ class GoalTask(Task):
             is_goal=True,
             avoid_locations=avoid_locations)
         if self._speed_goal:
-            MAX_SPEED = 4 * 0.8  # -2 to 2
+            MAX_SPEED = self._speed_goal_limit * 2
             xspeed = (0.5 - random.random()) * MAX_SPEED
             yspeed = (0.5 - random.random()) * MAX_SPEED
             yawspeed = (0.5 - random.random()) * MAX_SPEED
-            yaw = np.arctan2(yspeed, xspeed)
+            yaw = np.arctan2(
+                yspeed, xspeed)  # numpy.arctan2 is defined as arctan(x0/x1)
             # 0, 1, 2: vel; 3, 4, 5: angular vel; 6: z position; 7, 8, 9: roll pitch yaw
             self._aux_desired = np.array(
                 [xspeed, yspeed, 0, 0, 0, yawspeed, 0, 0, 0, yaw])
@@ -766,18 +785,16 @@ class GoalTask(Task):
         obs['observation'] = flat_obs
         obs['achieved_goal'] = agent_pose[0:2]
         obs['desired_goal'] = goal_pose[0:2]
-        if self._use_aux_achieved:
+        aux = self._get_agent_aux_dims(agent_pose, agent_vel)
+        if self._speed_goal:
+            obs['achieved_goal'] = np.concatenate((obs['achieved_goal'], aux),
+                                                  axis=0)
+            obs['desired_goal'] = np.concatenate(
+                (obs['desired_goal'], self._aux_desired), axis=0)
+        elif self._use_aux_achieved:
             # distraction objects' x, y coordinates
             obs['observation'] = flat_obs[14:]
-            # 0, 1, 2: vel; 3, 4, 5: angular vel; 6: z position; 7, 8, 9: roll pitch yaw
-            obs['aux_achieved'] = np.concatenate((agent_vel, agent_pose[2:]),
-                                                 axis=0)
-            if self._speed_goal:
-                obs['achieved_goal'] = np.concatenate(
-                    (obs['achieved_goal'], obs['aux_achieved']), axis=0)
-                del obs['aux_achieved']
-                obs['desired_goal'] = np.concatenate(
-                    (obs['desired_goal'], self._aux_desired), axis=0)
+            obs['aux_achieved'] = aux
             # if self._xy_only_aux:
             #     # agent speed: 2: z-speed; 3, 4: angular velocities; 5: yaw-vel,
             #     # agent pose: 2: z; 3, 4, 5: roll pitch yaw.
