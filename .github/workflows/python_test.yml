@@ -10,10 +10,6 @@ jobs:
       image: horizonrobotics/alf:0.0.3-pytorch
     steps:
     - uses: actions/checkout@v1
-    - name: Set up Python 3.6
-      uses: actions/setup-python@v1
-      with:
-        python-version: 3.6
     - name: Install dependencies
       run: |
         git submodule update --init --recursive
