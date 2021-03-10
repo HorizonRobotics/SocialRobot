@@ -32,9 +32,8 @@ jobs:
         flake8 ./python --count --exit-zero --max-complexity=12 --ignore=E501 --statistics
     - name: Check code style
       run: |
-        pip3 install pre-commit
-        apt install clang-format-5.0
         pre-commit install
+        clang-format --version
         if ! pre-commit run -a ; then
           git diff
           exit 0
