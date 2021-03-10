@@ -6,7 +6,6 @@ jobs:
   build:
 
     runs-on: ubuntu-18.04
-
     steps:
     - uses: actions/checkout@v1
     - name: Set up Python 3.7
@@ -17,7 +16,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip3 install -e .
-        echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list
+        sudo echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list
         apt install -y wget
         wget http://packages.osrfoundation.org/gazebo.key -O - |  apt-key add -
         apt update && apt install -y ffmpeg
