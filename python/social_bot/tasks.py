@@ -1089,7 +1089,7 @@ class KickingBallTask(Task):
 
     def _in_the_goal(self, ball_loc):
         pass_goal_line = (ball_loc[0] < -self._goal_distance)
-        half_width = self._goal_width / 2 - self._goal_post_radius # =1.0
+        half_width = self._goal_width / 2 - self._goal_post_radius  # =1.0
         within_goal = (half_width > ball_loc[1] > -half_width)
         return (pass_goal_line and within_goal)
 
