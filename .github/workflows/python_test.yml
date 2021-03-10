@@ -25,7 +25,7 @@ jobs:
         pip3 install -e .
     - name: Static python syntax checking
       run: |
-        pip install flake8
+        pip3 install flake8
         # static python syntax checking
         flake8 ./python --count --select=E9,F63,F7,F82 --show-source --statistics
         # report warnings, ignore E501 line too long
