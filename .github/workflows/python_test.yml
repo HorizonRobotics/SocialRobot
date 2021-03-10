@@ -33,7 +33,7 @@ jobs:
     - name: Check code style
       run: |
         pip3 install pre-commit
-        sudo apt install clang-format-5.0
+        apt install clang-format-5.0
         pre-commit install
         if ! pre-commit run -a ; then
           git diff
