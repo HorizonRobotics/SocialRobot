@@ -49,7 +49,7 @@ class ReParser(object):
         parser.add_rule("an? <OBJ:OBJ_LEFT> is on the left of an? <OBJ:OBJ_RIGHT>", "OBJ_POS")
 
         result = parser.parse("a peach is on the right of an apple")
-        assert result.rule_name == "OBJ_POS")
+        assert result.rule_name == "OBJ_POS"
         assert result.slot_values == {"OBJ_RIGHT": "peach", "OBJ_LEFT": "apple"}
 
     """
