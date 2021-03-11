@@ -25,6 +25,8 @@ from play_ground import PlayGround
 from embodied_teacher import EmbodiedTeacher
 from social_bot.tasks import GoalTask, KickingBallTask
 
+logging.set_verbosity(logging.INFO)
+
 
 class TestEmbodiedTeacher(unittest.TestCase):
     def test_embodied_teacher(self):
@@ -66,5 +68,4 @@ class TestEmbodiedTeacher(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    logging.set_verbosity(logging.INFO)
     unittest.main()

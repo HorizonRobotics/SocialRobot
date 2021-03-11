@@ -6,43 +6,38 @@ jobs:
   build:
 
     runs-on: ubuntu-18.04
-
+    container:
+      image: horizonrobotics/alf:0.0.3-pytorch
     steps:
     - uses: actions/checkout@v1
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v1
-      with:
-        python-version: 3.7
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip3 install -e .
-        sudo curl -sSL http://get.gazebosim.org | sh
-        sudo apt update && sudo apt install python3-tk xvfb
         git submodule update --init --recursive
         mkdir build
         cd build
         cmake ..
         make -j
         cd ..
+        # remove the SocialRobot installation in the docker image as it's not up-to-date
+        rm -rf /opt/local/SocialRobot
         pip3 install -e .
     - name: Static python syntax checking
       run: |
-        pip install flake8
+        pip3 install flake8
         # static python syntax checking
         flake8 ./python --count --select=E9,F63,F7,F82 --show-source --statistics
         # report warnings, ignore E501 line too long
         flake8 ./python --count --exit-zero --max-complexity=12 --ignore=E501 --statistics
     - name: Check code style
       run: |
-        pip3 install pre-commit
-        sudo apt install clang-format-5.0
         pre-commit install
+        clang-format --version
         if ! pre-commit run -a ; then
           git diff
-          exit 0
+          exit 1
         fi
     - name: Test with pytest
       run: |
         cd ./python/social_bot/envs
-        GAZEBO_MODEL_PATH=../models xvfb-run python3 -m unittest discover -p "*_test.py" -v
+        # not clear why social_bot cannot be found. So we have to add it to PYTHONPATH
+        PYTHONPATH=`pwd`/../.. GAZEBO_MODEL_PATH=../models xvfb-run python3 -m unittest discover -p "*_test.py" -v
