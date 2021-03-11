@@ -19,6 +19,8 @@ from absl import logging
 from pr2 import Pr2Gripper
 from pr2 import PR2_WORLD_SETTING
 
+logging.set_verbosity(logging.INFO)
+
 
 class TestPr2(unittest.TestCase):
     def test_pr2(self):
@@ -37,5 +39,4 @@ class TestPr2(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    logging.set_verbosity(logging.INFO)
     unittest.main()
