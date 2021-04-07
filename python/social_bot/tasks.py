@@ -519,6 +519,8 @@ class GoalTask(Task):
                     if self._multi_dim_reward:
                         rewards = np.array([1, -distraction_penalty])
                 logging.debug("yielding reward: " + str(reward))
+                logging.debug("at location: %s, aux: %s", a_loc.astype('|S5'),
+                              self._get_agent_aux_dims().astype('|S5'))
                 done = self._end_episode_after_success
                 agent_sentence = yield self._prepare_teacher_action(
                     reward=reward,
@@ -659,7 +661,8 @@ class GoalTask(Task):
             agent_loc=agent_loc,
             agent_dir=agent_dir,
             is_goal=True,
-            avoid_locations=avoid_locations)
+            avoid_locations=avoid_locations,
+            name="goal")
         if self._speed_goal:
             MAX_SPEED = self._speed_goal_limit * 2
             xspeed = (0.5 - random.random()) * MAX_SPEED
@@ -685,7 +688,8 @@ class GoalTask(Task):
                         agent_loc=agent_loc,
                         agent_dir=agent_dir,
                         is_goal=False,
-                        avoid_locations=avoid_locations)
+                        avoid_locations=avoid_locations,
+                        name=item)
                     avoid_locations.append(loc)
 
     def _move_obj(self,
@@ -693,7 +697,8 @@ class GoalTask(Task):
                   agent_loc,
                   agent_dir,
                   is_goal=True,
-                  avoid_locations=[]):
+                  avoid_locations=[],
+                  name="Unspecified"):
         if (self.should_use_curriculum_training()
                 and self._percent_full_range_in_curriculum > 0
                 and random.random() < self._percent_full_range_in_curriculum):
@@ -704,6 +709,7 @@ class GoalTask(Task):
             self._is_full_range_in_curriculum = False
         attempts = 0
         dist = range
+        _min_distance = self._min_distance
         while True:
             attempts += 1
             dist = random.random() * range
@@ -729,17 +735,26 @@ class GoalTask(Task):
                 satisfied = False
             for avoid_loc in avoid_locations:
                 dist = np.linalg.norm(loc - avoid_loc)
-                if dist < self._min_distance:
+                if dist < _min_distance:
                     satisfied = False
                     break
-            if satisfied or attempts > 10000:
+            if satisfied or attempts % 10000 == 0 or attempts > 30000:
                 if not satisfied:
-                    logging.warning(
-                        "Took forever to find satisfying " +
-                        "object location. " +
-                        "agent_loc: {}, range: {}, max_size: {}.".format(
-                            str(agent_loc), str(range),
-                            str(self._max_play_ground_size)))
+                    if attempts <= 30000:
+                        _min_distance /= 2.
+                        logging.warning(
+                            "Took {} times to find satisfying {} "
+                            "location. reducing _min_dist to {}".format(
+                                str(attempts), name, str(_min_distance)))
+                        continue
+                    else:
+                        logging.warning(
+                            "Took forever to find satisfying " +
+                            "{} location. " +
+                            "agent_loc: {}, range: {}, _min_dist: {}, max_size"
+                            ": {}.".format(name, str(agent_loc), str(range),
+                                           str(_min_distance),
+                                           str(self._max_play_ground_size)))
                 break
         if is_goal:
             self._prev_dist = self._initial_dist
@@ -787,6 +802,7 @@ class GoalTask(Task):
         obs['desired_goal'] = goal_pose[0:2]
         aux = self._get_agent_aux_dims(agent_pose, agent_vel)
         if self._speed_goal:
+            obs['observation'] = flat_obs[14:]
             obs['achieved_goal'] = np.concatenate((obs['achieved_goal'], aux),
                                                   axis=0)
             obs['desired_goal'] = np.concatenate(
