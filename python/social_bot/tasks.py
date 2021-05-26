@@ -358,7 +358,7 @@ class GoalTask(Task):
             min_distance = self._success_distance_thresh
         self._min_distance = min_distance
         self._goal_dist = 0.
-        obs_format = "image"
+        obs_format = "image or full_state"
         obs_relative = "ego"
         if use_egocentric_states:
             obs_format = "full_state"
@@ -424,7 +424,9 @@ class GoalTask(Task):
         goal_dist = 0.
         if rewards is not None:
             rewards = rewards.astype(np.float32)
-        if self._goal_dist > 0:
+        # only output when episode done, otherwise, reward accumulator in tensorboard
+        # may miss it.
+        if done:
             goal_dist = self._goal_dist
             # clear self._goal_dist so it is only output once
             self._goal_dist = 0.
@@ -730,8 +732,6 @@ class GoalTask(Task):
                 loc = np.asarray((random.random() * range - range / 2,
                                   random.random() * range - range / 2, 0))
 
-            if is_goal:
-                self._initial_dist = np.linalg.norm(loc - agent_loc)
             satisfied = True
             if (abs(loc[0]) > self._max_play_ground_size or abs(loc[1]) >
                     self._max_play_ground_size):  # not within walls
@@ -758,6 +758,8 @@ class GoalTask(Task):
                             ": {}.".format(name, str(agent_loc), str(range),
                                            str(_min_distance),
                                            str(self._max_play_ground_size)))
+                if is_goal:
+                    self._initial_dist = np.linalg.norm(loc - agent_loc)
                 break
         if is_goal:
             self._prev_dist = self._initial_dist
@@ -964,8 +966,9 @@ class PushReachTask(GoalTask):
         for obj_name in obj_names:
             obj = self._world.get_agent(obj_name)
             obj_pos, obj_dir = obj.get_pose()
+            # vel = np.array(obj.get_velocities()).flatten()
             res_pos = np.concatenate((res_pos, obj_pos[0:2]))
-            res_aux = np.concatenate((res_aux, obj_pos[2:], obj_dir))
+            res_aux = np.concatenate((res_aux, obj_pos[2:], obj_dir))  # , vel
         return res_pos, res_aux
 
     def _get_achieved(self):
