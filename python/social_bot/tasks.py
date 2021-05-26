@@ -178,19 +178,24 @@ class GoalTask(Task):
                      'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
                  ],
                  goal_conditioned=False,
+                 speed_goal=False,
+                 speed_goal_limit=1.6,
                  use_aux_achieved=False,
                  xy_only_aux=False,
                  multi_dim_reward=False,
                  end_on_hitting_distraction=False,
                  end_episode_after_success=False,
                  reset_time_limit_on_success=True,
+                 chain_task_rate=0,
                  success_distance_thresh=0.5,
                  fail_distance_thresh=2.0,
                  distraction_penalty_distance_thresh=0,
                  distraction_penalty=0.5,
+                 random_agent_position=False,
                  random_agent_orientation=False,
                  sparse_reward=True,
                  random_range=5.0,
+                 min_distance=0,
                  polar_coord=True,
                  random_goal=False,
                  use_curriculum_training=False,
@@ -215,6 +220,8 @@ class GoalTask(Task):
             goal_name (string): name of the goal in the world
             distraction_list (list of string): a list of model. the model shoud be in gazebo database
             goal_conditioned (bool): if True, each step has -1 reward, unless at goal state, which gives 0.
+            speed_goal (bool): if True, use speed pose etc. together with position as part of goal.
+            speed_goal_limit (float): randomly sample speed goal in the range: -limit to +limit.
             use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
                 field: aux_achieved.  Only valid when goal_conditioned is True.
             xy_only_aux (bool): exclude irrelevant dimensions (z-axis movements) from
@@ -225,6 +232,10 @@ class GoalTask(Task):
             end_on_hitting_distraction (bool): whether to end episode on hitting distraction
             reset_time_limit_on_success (bool): if not ending after success, if hit success before time limit,
                 reset clock to 0.
+            chain_task_rate (float): if positive, with this much probability, the current task will be chained together
+                with the next task: after one tasks finishes, episode doesn't end, but keeps onto the second goal/task.
+                If the first task isn't achieved within max_steps, episode ends.  When the first task is achieved,
+                step_type is MID and no goal reward is given.  Reward is given only after achieving all chained tasks.
             success_distance_thresh (float): the goal is reached if it's within this distance to the agent
             fail_distance_thresh (float): if the agent moves away from the goal more than this distance,
                 it's considered a failure and is given reward -1
@@ -233,11 +244,14 @@ class GoalTask(Task):
                 facing it is considered hitting a distraction)
             distraction_penalty (float): positive float of how much to penalize getting too close to
                 distraction objects
+            random_agent_position (bool): whether randomize the position of the agent at beginning of episode.
             random_agent_orientation (bool): whether randomize the orientation (yaw) of the agent at the beginning of an
                 episode.
             sparse_reward (bool): if true, the reward is -1/0/1, otherwise the 0 case will be replaced
                 with normalized distance the agent get closer to goal.
             random_range (float): the goal's random position range
+            min_distance (float): the goal must be this minimum distance away from avoided locations.  If this is smaller
+                than the success_distance_thresh, then success_distance_thresh is used instead.
             polar_coord (bool): use cartesian coordinates in random_range, otherwise, use polar coord.
             random_goal (bool): if True, teacher will randomly select goal from the object list each episode
             use_curriculum_training (bool): when true, use curriculum in goal task training
@@ -273,12 +287,15 @@ class GoalTask(Task):
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
         self._goal_conditioned = goal_conditioned
+        self._speed_goal = speed_goal
+        self._speed_goal_limit = speed_goal_limit
         self._use_aux_achieved = use_aux_achieved
         self._xy_only_aux = xy_only_aux
         self._multi_dim_reward = multi_dim_reward
         self.end_on_hitting_distraction = end_on_hitting_distraction
         self._end_episode_after_success = end_episode_after_success
         self._reset_time_limit_on_success = reset_time_limit_on_success
+        self._chain_task_rate = chain_task_rate
         self._success_distance_thresh = success_distance_thresh
         self._fail_distance_thresh = fail_distance_thresh
         self._distraction_penalty_distance_thresh = distraction_penalty_distance_thresh
@@ -286,6 +303,7 @@ class GoalTask(Task):
             assert distraction_penalty_distance_thresh < success_distance_thresh
         self._distraction_penalty = distraction_penalty
         self._sparse_reward = sparse_reward
+        self._random_agent_position = random_agent_position
         self._random_agent_orientation = random_agent_orientation
         self._use_curriculum_training = use_curriculum_training
         self._curriculum_distractions = curriculum_distractions
@@ -299,14 +317,16 @@ class GoalTask(Task):
         if random_goal and goal_name not in distraction_list:
             distraction_list.append(goal_name)
         self._distraction_list = distraction_list
-        self._object_list = distraction_list
-        if goal_name and goal_name not in distraction_list:
+        self._object_list = distraction_list.copy()
+        if goal_name and goal_name not in self._object_list:
             self._object_list.append(goal_name)
         self._goals = self._object_list
         self._move_goal_during_episode = move_goal_during_episode
         self._success_with_angle_requirement = success_with_angle_requirement
         if not additional_observation_list:
             additional_observation_list = self._object_list
+        else:
+            self._object_list.extend(additional_observation_list)
         self._additional_observation_list = additional_observation_list
         self._pos_list = list(
             itertools.product(
@@ -334,8 +354,11 @@ class GoalTask(Task):
                 self._reward_thresh_to_increase_range)
         else:
             self._random_range = random_range
+        if min_distance < self._success_distance_thresh:
+            min_distance = self._success_distance_thresh
+        self._min_distance = min_distance
         self._goal_dist = 0.
-        obs_format = "image"
+        obs_format = "image or full_state"
         obs_relative = "ego"
         if use_egocentric_states:
             obs_format = "full_state"
@@ -401,6 +424,8 @@ class GoalTask(Task):
         goal_dist = 0.
         if rewards is not None:
             rewards = rewards.astype(np.float32)
+        # only output when episode done, otherwise, reward accumulator in tensorboard
+        # may miss it.
         if done:
             goal_dist = self._goal_dist
             # clear self._goal_dist so it is only output once
@@ -416,36 +441,70 @@ class GoalTask(Task):
     def _within_angle(self, dot):
         return (not self._success_with_angle_requirement) or dot > 0.707
 
+    def _get_agent_aux_dims(self, agent_pose=None, agent_vel=None):
+        if agent_pose is None:
+            agent_pose = np.array(self._agent.get_pose()).flatten()
+        if agent_vel is None:
+            agent_vel = np.array(self._agent.get_velocities()).flatten()
+        # 0, 1, 2: vel; 3, 4, 5: angular vel; 6: z position; 7, 8, 9: roll pitch yaw
+        return np.concatenate((agent_vel, agent_pose[2:]), axis=0)
+
     def _get_goal_dist(self, goal):
         loc, agent_dir = self._get_agent_loc()
         goal_loc, _ = goal.get_pose()
         goal_loc = np.array(goal_loc)
-        dist = np.linalg.norm(loc - goal_loc)
+        _goal_loc = goal_loc.copy()
+        _loc = np.array(loc).copy()
+        if self._speed_goal:
+            _goal_loc = np.concatenate((_goal_loc, self._aux_desired), axis=0)
+            aux = self._get_agent_aux_dims()
+            _loc = np.concatenate((_loc, aux), axis=0)
+
+        dist = np.linalg.norm(_loc - _goal_loc)
         # dir from get_pose is (roll, pitch, yaw)
         dir = np.array([math.cos(agent_dir[2]), math.sin(agent_dir[2])])
         goal_dir = (goal_loc[0:2] - loc[0:2]) / dist
         dot = sum(dir * goal_dir)
-        return dist, dot, loc
+        return dist, dot, loc, agent_dir
 
     def run(self):
         """ Start a teaching episode for this task. """
         agent_sentence = yield
         self._agent.reset()
-        if self._random_agent_orientation:
+        if self._random_agent_orientation or self._random_agent_position:
             loc, agent_dir = self._agent.get_pose()
-            self._agent.set_pose((loc, (agent_dir[0], agent_dir[1],
-                                        2 * math.pi * random.random())))
-        a_loc, a_dir = self._get_agent_loc()
+            if self._random_agent_position:
+                loc = (self._max_play_ground_size * (1 - 2 * random.random()),
+                       self._max_play_ground_size * (1 - 2 * random.random()),
+                       loc[2])
+            if self._random_agent_orientation:
+                agent_dir = (agent_dir[0], agent_dir[1],
+                             2 * math.pi * random.random())
+            self._agent.set_pose((loc, agent_dir))
         self._random_move_objects()
         self.pick_goal()
         goal = self._world.get_model(self._goal_name)
-        self._move_goal(goal, a_loc, a_dir)
+        done = False
+        gen = self._run_one_goal(goal)
+        while not done:
+            action = next(gen)
+            if (action.done and action.success and self._chain_task_rate > 0
+                    and random.random() < self._chain_task_rate):
+                action.done = False
+                gen = self._run_one_goal(goal, move_distractions=False)
+            done = action.done
+            yield action
+
+    def _run_one_goal(self, goal, move_distractions=True):
+        """Generator function of task feedback."""
+        a_loc, a_dir = self._get_agent_loc()
+        self._move_goal(goal, a_loc, a_dir, move_distractions)
         steps_since_last_reward = 0
         prev_min_dist_to_distraction = 100
         rewards = None  # reward array in multi_dim_reward case
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
-            dist, dot, loc = self._get_goal_dist(goal)
+            dist, dot, loc, agent_dir = self._get_goal_dist(goal)
             distraction_penalty, prev_min_dist_to_distraction = (
                 self._get_distraction_penalty(loc, dot,
                                               prev_min_dist_to_distraction))
@@ -464,6 +523,8 @@ class GoalTask(Task):
                     if self._multi_dim_reward:
                         rewards = np.array([1, -distraction_penalty])
                 logging.debug("yielding reward: " + str(reward))
+                logging.debug("at location: %s, aux: %s", a_loc.astype('|S5'),
+                              self._get_agent_aux_dims().astype('|S5'))
                 done = self._end_episode_after_success
                 agent_sentence = yield self._prepare_teacher_action(
                     reward=reward,
@@ -515,7 +576,7 @@ class GoalTask(Task):
                     done=done,
                     rewards=rewards)
         reward = -1.0
-        dist, dot, loc = self._get_goal_dist(goal)
+        dist, dot, loc, agent_dir = self._get_goal_dist(goal)
         distraction_penalty, prev_min_dist_to_distraction = (
             self._get_distraction_penalty(loc, dot,
                                           prev_min_dist_to_distraction))
@@ -537,7 +598,16 @@ class GoalTask(Task):
             self._push_reward_queue(0)
             logging.debug("took more than {} steps".format(
                 str(self._max_steps)))
-        logging.debug("yielding reward: {}".format(str(reward)))
+        agent_vel = np.array(self._agent.get_velocities()).flatten()
+
+        def _str(arr):
+            res = ["["]
+            res.extend(["{:.2f}".format(e) for e in arr])
+            res.append("]")
+            return " ".join(res)
+
+        logging.debug("yielding reward: %s at\nloc %s pose %s vel %s",
+                      str(reward), _str(loc), _str(agent_dir), _str(agent_vel))
         if self.should_use_curriculum_training():
             logging.debug("reward queue len: {}, sum: {}".format(
                 str(len(self._q)), str(sum(self._q))))
@@ -578,40 +648,61 @@ class GoalTask(Task):
             prev_min_dist_to_distraction = curr_min_dist
         return distraction_penalty, prev_min_dist_to_distraction
 
-    def _move_goal(self, goal, agent_loc, agent_dir):
+    def _move_goal(self, goal, agent_loc, agent_dir, move_distractions=True):
         """
         Move goal as well as all distraction objects to a random location.
         """
         avoid_locations = [agent_loc]
+        if not move_distractions:
+            for item in self._distraction_list:
+                if item is not self._goal_name:
+                    obj = self._world.get_model(item)
+                    if obj:
+                        distraction_loc = obj.get_pose()[0]
+                        avoid_locations.append(distraction_loc)
         loc, dist = self._move_obj(
             obj=goal,
             agent_loc=agent_loc,
             agent_dir=agent_dir,
             is_goal=True,
-            avoid_locations=avoid_locations)
+            avoid_locations=avoid_locations,
+            name="goal")
+        if self._speed_goal:
+            MAX_SPEED = self._speed_goal_limit * 2
+            xspeed = (0.5 - random.random()) * MAX_SPEED
+            yspeed = (0.5 - random.random()) * MAX_SPEED
+            yawspeed = (0.5 - random.random()) * MAX_SPEED
+            yaw = np.arctan2(
+                yspeed, xspeed)  # numpy.arctan2 is defined as arctan(x0/x1)
+            # 0, 1, 2: vel; 3, 4, 5: angular vel; 6: z position; 7, 8, 9: roll pitch yaw
+            self._aux_desired = np.array(
+                [xspeed, yspeed, 0, 0, 0, yawspeed, 0, 0, 0, yaw])
         self._goal_dist += dist
         avoid_locations.append(loc)
         distractions = OrderedDict()
-        for item in self._distraction_list:
-            if item is not self._goal_name:
-                distractions[item] = 1
-        if len(distractions) and self._curriculum_distractions:
-            for item, _ in distractions.items():
-                distraction = self._world.get_agent(item)
-                loc, _ = self._move_obj(
-                    obj=distraction,
-                    agent_loc=agent_loc,
-                    agent_dir=agent_dir,
-                    is_goal=False,
-                    avoid_locations=avoid_locations)
-                avoid_locations.append(loc)
+        if move_distractions:
+            for item in self._distraction_list:
+                if item is not self._goal_name:
+                    distractions[item] = 1
+            if len(distractions) and self._curriculum_distractions:
+                for item, _ in distractions.items():
+                    distraction = self._world.get_agent(item)
+                    loc, _ = self._move_obj(
+                        obj=distraction,
+                        agent_loc=agent_loc,
+                        agent_dir=agent_dir,
+                        is_goal=False,
+                        avoid_locations=avoid_locations,
+                        name=item)
+                    avoid_locations.append(loc)
 
     def _move_obj(self,
                   obj,
                   agent_loc,
                   agent_dir,
                   is_goal=True,
-                  avoid_locations=[]):
+                  avoid_locations=[],
+                  name="Unspecified"):
         if (self.should_use_curriculum_training()
                 and self._percent_full_range_in_curriculum > 0
                 and random.random() < self._percent_full_range_in_curriculum):
@@ -622,9 +713,11 @@ class GoalTask(Task):
             self._is_full_range_in_curriculum = False
         attempts = 0
         dist = range
+        _min_distance = self._min_distance
         while True:
             attempts += 1
-            dist = random.random() * range
+            dist = random.random() * (range - self._success_distance_thresh
+                                      ) + self._success_distance_thresh
             if self._curriculum_target_angle:
                 angle_range = self._random_angle
             else:
@@ -639,26 +732,37 @@ class GoalTask(Task):
                 loc = np.asarray((random.random() * range - range / 2,
                                   random.random() * range - range / 2, 0))
 
-            self._initial_dist = np.linalg.norm(loc - agent_loc)
             satisfied = True
             if (abs(loc[0]) > self._max_play_ground_size or abs(loc[1]) >
                     self._max_play_ground_size):  # not within walls
                 satisfied = False
             for avoid_loc in avoid_locations:
-                dist = np.linalg.norm(loc - avoid_loc)
-                if dist < self._success_distance_thresh:
+                ddist = np.linalg.norm(loc - avoid_loc)
+                if ddist < _min_distance:
                     satisfied = False
                     break
-            if satisfied or attempts > 10000:
+            if satisfied or attempts % 100 == 0 or attempts > 300:
                 if not satisfied:
-                    logging.warning(
-                        "Took forever to find satisfying " +
-                        "object location. " +
-                        "agent_loc: {}, range: {}, max_size: {}.".format(
-                            str(agent_loc), str(range),
-                            str(self._max_play_ground_size)))
+                    if attempts <= 300:
+                        _min_distance /= 2.
+                        logging.warning(
+                            "Took {} times to find satisfying {} "
+                            "location. reducing _min_dist to {}".format(
+                                str(attempts), name, str(_min_distance)))
+                        continue
+                    else:
+                        logging.warning(
+                            "Took forever to find satisfying " +
+                            "{} location. " +
+                            "agent_loc: {}, range: {}, _min_dist: {}, max_size"
+                            ": {}.".format(name, str(agent_loc), str(range),
+                                           str(_min_distance),
+                                           str(self._max_play_ground_size)))
+                if is_goal:
+                    self._initial_dist = np.linalg.norm(loc - agent_loc)
                 break
-        self._prev_dist = self._initial_dist
+        if is_goal:
+            self._prev_dist = self._initial_dist
         obj.reset()
         obj.set_pose((loc, (0, 0, 0)))
         return loc, dist
@@ -701,20 +805,26 @@ class GoalTask(Task):
         obs['observation'] = flat_obs
         obs['achieved_goal'] = agent_pose[0:2]
         obs['desired_goal'] = goal_pose[0:2]
-        if self._use_aux_achieved:
+        aux = self._get_agent_aux_dims(agent_pose, agent_vel)
+        if self._speed_goal:
+            obs['observation'] = flat_obs[14:]
+            obs['achieved_goal'] = np.concatenate((obs['achieved_goal'], aux),
+                                                  axis=0)
+            obs['desired_goal'] = np.concatenate(
+                (obs['desired_goal'], self._aux_desired), axis=0)
+        elif self._use_aux_achieved:
             # distraction objects' x, y coordinates
             obs['observation'] = flat_obs[14:]
-            obs['aux_achieved'] = np.concatenate((agent_vel, agent_pose[2:]),
-                                                 axis=0)
-            if self._xy_only_aux:
-                # agent speed: 2: z-speed; 3, 4: angular velocities; 5: yaw-vel,
-                # agent pose: 2: z; 3, 4, 5: roll pitch yaw.
-                obs['observation'] = np.concatenate(
-                    (agent_vel[2:5], agent_pose[2:5], flat_obs[14:]), axis=0)
-                obs['aux_achieved'] = np.concatenate(
-                    (agent_vel[0:2], np.expand_dims(agent_vel[5], 0),
-                     np.expand_dims(agent_pose[5], 0)),
-                    axis=0)
+            obs['aux_achieved'] = aux
+            # if self._xy_only_aux:
+            #     # agent speed: 2: z-speed; 3, 4: angular velocities; 5: yaw-vel,
+            #     # agent pose: 2: z; 3, 4, 5: roll pitch yaw.
+            #     obs['observation'] = np.concatenate(
+            #         (agent_vel[2:5], agent_pose[2:5], flat_obs[14:]), axis=0)
+            #     obs['aux_achieved'] = np.concatenate(
+            #         (agent_vel[0:2], np.expand_dims(agent_vel[5], 0),
+            #          np.expand_dims(agent_pose[5], 0)),
+            #         axis=0)
         return obs
 
     def task_specific_observation(self, agent):
@@ -779,6 +889,163 @@ class GoalTask(Task):
         obs = np.array(obs)
 
         return obs
+
+
+@gin.configurable
+class PushReachTask(GoalTask):
+    def __init__(self,
+                 env,
+                 max_steps,
+                 push_only=True,
+                 obj_names=['wood_cube_30cm_without_offset'],
+                 goal_names=['goal_indicator'],
+                 distraction_list=['car_wheel']):
+        """A Push or Push and Reach task.
+
+        We utilize some of the curriculum, distraction obj handling logic in GoalTask.
+
+        Args:
+            push_only (bool): if True, goal positions are for objects to achieve; otherwise,
+                the first goal position is for the agent to achieve.
+            obj_names (list of string): when not empty, it's the names of the objects to be moved.
+            goal_names (list of string): when not empty, these goal objects indicate the goal locations for
+                the objects in obj_names.
+        """
+        self._push_only = push_only
+        self._obj_names = obj_names
+        self._goal_names = goal_names
+        if push_only:
+            assert len(obj_names) == len(goal_names)
+        else:
+            assert len(obj_names) == len(goal_names) - 1
+        super().__init__(
+            env,
+            max_steps,
+            goal_conditioned=True,
+            use_aux_achieved=True,
+            multi_dim_reward=True,
+            end_episode_after_success=True,
+            goal_name=goal_names[0],
+            distraction_list=distraction_list,
+            additional_observation_list=obj_names + goal_names[1:])
+
+    def _random_move_objects(self, random_range=10.0):
+        pass
+
+    def _move_objs(self, obj_names, ap, ad, avoids=[], record_goal_dist=False):
+        """Move objects according to agent location."""
+        obj_positions = avoids
+        if record_goal_dist:
+            self._goal_dist = 0
+            n = 0
+        for obj_name in obj_names:
+            obj = self._world.get_agent(obj_name)
+            p, dist = self._move_obj(
+                obj, ap, ad, avoid_locations=obj_positions, name=obj_name)
+            if record_goal_dist:
+                self._goal_dist += dist
+                n += 1
+            obj_positions.append(p)
+        if record_goal_dist:
+            self._goal_dist /= n
+        return obj_positions
+
+    def _move_goals(self, ap, ad, obj_locs=[]):
+        """Move goal locations according to object locations."""
+        # TODO(lezhao): copy obj_locs into avoids and put ap in avoids,
+        # then find goal location based on each obj location.
+        return self._move_objs(
+            self._goal_names, ap, ad, obj_locs, record_goal_dist=True)
+
+    def _move_distractions(self, ap, ad, avoids=[]):
+        return self._move_objs(self._distraction_list, ap, ad, avoids)
+
+    def _get_obj_loc_pose(self, obj_names):
+        res_pos = np.array([])
+        res_aux = np.array([])
+        for obj_name in obj_names:
+            obj = self._world.get_agent(obj_name)
+            obj_pos, obj_dir = obj.get_pose()
+            # vel = np.array(obj.get_velocities()).flatten()
+            res_pos = np.concatenate((res_pos, obj_pos[0:2]))
+            res_aux = np.concatenate((res_aux, obj_pos[2:], obj_dir))  # , vel
+        return res_pos, res_aux
+
+    def _get_achieved(self):
+        achieved_loc = np.array([])
+        aux_achieved = np.array(self._agent.get_velocities()).flatten()
+        ap, ad = self._get_agent_loc()
+        if self._push_only:
+            aux_achieved = np.concatenate((aux_achieved, ap, ad))
+        else:
+            achieved_loc = np.concatenate((achieved_loc, ap[0:2]))
+            aux_achieved = np.concatenate((aux_achieved, ap[2:], ad))
+        ach_poss, aux_achs = self._get_obj_loc_pose(self._obj_names)
+        achieved_loc = np.concatenate((achieved_loc, ach_poss))
+        # Ignore object aux dimensions for now
+        # aux_achieved = np.concatenate((aux_achieved, aux_achs))
+        return achieved_loc, aux_achieved
+
+    def _get_desired_goal(self):
+        return self._get_obj_loc_pose(self._goal_names)[0]
+
+    def generate_goal_conditioned_obs(self, agent):
+        ach, aux_ach = self._get_achieved()
+        obs = OrderedDict()
+        obs['observation'] = self._get_obj_loc_pose(self._distraction_list)[0]
+        obs['achieved_goal'] = ach
+        obs['desired_goal'] = self._get_desired_goal()
+        obs['aux_achieved'] = aux_ach
+        return obs
+
+    def _compute_reward(self):
+        def l2_dist_close_reward_fn(achieved_goal, goal):
+            return 0 if np.linalg.norm(
+                achieved_goal - goal) < self._success_distance_thresh else -1
+
+        return l2_dist_close_reward_fn(self._get_achieved()[0],
+                                       self._get_desired_goal())
+
+    def _produce_rewards(self, prev_min_dist_to_distraction):
+        ap, ad = self._get_agent_loc()
+        distraction_penalty, prev_min_dist_to_distraction = (
+            self._get_distraction_penalty(ap, 1.,
+                                          prev_min_dist_to_distraction))
+        reward = self._compute_reward()
+        done = reward >= 0
+        if done:
+            distraction_penalty = 0
+            logging.debug("yielding reward: " + str(reward))
+            logging.debug("at location: %s, aux: %s", ap.astype('|S5'),
+                          np.array(ad).astype('|S5'))
+        reward += distraction_penalty
+        rewards = np.array([reward, -distraction_penalty])
+        return self._prepare_teacher_action(
+            reward=reward,
+            sentence="well done",
+            done=done,
+            success=done,
+            rewards=rewards), prev_min_dist_to_distraction
+
+    def _run_one_goal(self, goal=None, move_distractions=None):
+        # The two params are not used here.
+        ap, ad = self._get_agent_loc()
+        obj_positions = self._move_objs(self._obj_names, ap, ad)
+        avoids = self._move_goals(ap, ad, obj_positions)
+        avoids = self._move_distractions(ap, ad, avoids)
+        avoids.clear()
+        steps_since_last_reward = 0
+        prev_min_dist_to_distraction = 100
+        rewards = None  # reward array in multi_dim_reward case
+        while steps_since_last_reward < self._max_steps:
+            steps_since_last_reward += 1
+            (agent_sentence, prev_min_dist_to_distraction
+             ) = self._produce_rewards(prev_min_dist_to_distraction)
+            yield agent_sentence
+        (agent_sentence, prev_min_dist_to_distraction
+         ) = self._produce_rewards(prev_min_dist_to_distraction)
+        agent_sentence.done = True
+        yield agent_sentence
 
 
 @gin.configurable
