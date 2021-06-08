@@ -702,6 +702,7 @@ class GoalTask(Task):
                   agent_dir,
                   is_goal=True,
                   avoid_locations=[],
+                  close_to_agent=False,
                   name="Unspecified"):
         if (self.should_use_curriculum_training()
                 and self._percent_full_range_in_curriculum > 0
@@ -714,10 +715,13 @@ class GoalTask(Task):
         attempts = 0
         dist = range
         _min_distance = self._min_distance
+        _succ_thd = self._success_distance_thresh
+        if close_to_agent:
+            _min_distance = 0.1
+            _succ_thd = 0.1
         while True:
             attempts += 1
-            dist = random.random() * (range - self._success_distance_thresh
-                                      ) + self._success_distance_thresh
+            dist = random.random() * (range - _succ_thd) + _succ_thd
             if self._curriculum_target_angle:
                 angle_range = self._random_angle
             else:
@@ -899,7 +903,8 @@ class PushReachTask(GoalTask):
                  push_only=True,
                  obj_names=['wood_cube_30cm_without_offset'],
                  goal_names=['goal_indicator'],
-                 distraction_list=['car_wheel']):
+                 distraction_list=['car_wheel'],
+                 close_to_agent=False):
         """A Push or Push and Reach task.
 
         We utilize some of the curriculum, distraction obj handling logic in GoalTask.
@@ -910,10 +915,12 @@ class PushReachTask(GoalTask):
             obj_names (list of string): when not empty, it's the names of the objects to be moved.
             goal_names (list of string): when not empty, these goal objects indicate the goal locations for
                 the objects in obj_names.
+            close_to_agent (bool): whether to initialize object to be pushed closer to the agent.
         """
         self._push_only = push_only
         self._obj_names = obj_names
         self._goal_names = goal_names
+        self._close_to_agent = close_to_agent
         if push_only:
             assert len(obj_names) == len(goal_names)
         else:
@@ -932,7 +939,13 @@ class PushReachTask(GoalTask):
     def _random_move_objects(self, random_range=10.0):
         pass
 
-    def _move_objs(self, obj_names, ap, ad, avoids=[], record_goal_dist=False):
+    def _move_objs(self,
+                   obj_names,
+                   ap,
+                   ad,
+                   avoids=[],
+                   record_goal_dist=False,
+                   close_to_agent=False):
         """Move objects according to agent location."""
         obj_positions = avoids
         if record_goal_dist:
@@ -941,7 +954,12 @@ class PushReachTask(GoalTask):
         for obj_name in obj_names:
             obj = self._world.get_agent(obj_name)
             p, dist = self._move_obj(
-                obj, ap, ad, avoid_locations=obj_positions, name=obj_name)
+                obj,
+                ap,
+                ad,
+                avoid_locations=obj_positions,
+                name=obj_name,
+                close_to_agent=close_to_agent)
             if record_goal_dist:
                 self._goal_dist += dist
                 n += 1
@@ -1030,7 +1048,8 @@ class PushReachTask(GoalTask):
     def _run_one_goal(self, goal=None, move_distractions=None):
         # The two params are not used here.
         ap, ad = self._get_agent_loc()
-        obj_positions = self._move_objs(self._obj_names, ap, ad)
+        obj_positions = self._move_objs(
+            self._obj_names, ap, ad, close_to_agent=self._close_to_agent)
         avoids = self._move_goals(ap, ad, obj_positions)
         avoids = self._move_distractions(ap, ad, avoids)
         avoids.clear()
