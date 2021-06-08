@@ -19,6 +19,11 @@ You also need to install the following packages:
 apt install python3-tk
 ```
 
+## Download
+```bash
+git clone --recursive https://github.com/HorizonRobotics/SocialRobot
+```
+
 ## To compile
 ```bash
 cd REPO_ROOT
@@ -27,7 +32,7 @@ mkdir build
 cd build
 cmake ..
 make -j
-cd REPO_ROOT
+cd ..  # REPO_ROOT
 pip3 install -e .
 ```
 if cmake .. complains about cannot find configuration file provided by "gazebo", run
@@ -164,6 +169,22 @@ It's not so easy, for some task you may need some trials to complete it. An exam
 
 ### python
 You need to make sure the python you use matches the python found by cmake. You can check this by looking at REPO_ROOT/build/CMakeCache.txt
+
+### Python config cmake errors
+```
+CMake Error at pybind11/tools/FindPythonLibsNew.cmake:95 (message):
+  Python config failure:
+
+Call Stack (most recent call first):
+  pybind11/tools/pybind11Tools.cmake:16 (find_package)
+  pybind11/CMakeLists.txt:33 (include)
+```
+
+Remove the makefiles and build again:
+```bash
+cd REPO_ROOT
+rm -rf build
+```
 
 ### display
 
