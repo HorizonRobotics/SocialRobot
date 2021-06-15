@@ -717,8 +717,8 @@ class GoalTask(Task):
         _min_distance = self._min_distance
         _succ_thd = self._success_distance_thresh
         if close_to_agent:
-            _min_distance = 0.1
-            _succ_thd = 0.1
+            _min_distance = 0.3
+            _succ_thd = _min_distance
         while True:
             attempts += 1
             dist = random.random() * (range - _succ_thd) + _succ_thd
@@ -904,7 +904,8 @@ class PushReachTask(GoalTask):
                  obj_names=['wood_cube_30cm_without_offset'],
                  goal_names=['goal_indicator'],
                  distraction_list=['car_wheel'],
-                 close_to_agent=False):
+                 close_to_agent=False,
+                 use_obj_pose=False):
         """A Push or Push and Reach task.
 
         We utilize some of the curriculum, distraction obj handling logic in GoalTask.
@@ -916,11 +917,13 @@ class PushReachTask(GoalTask):
             goal_names (list of string): when not empty, these goal objects indicate the goal locations for
                 the objects in obj_names.
             close_to_agent (bool): whether to initialize object to be pushed closer to the agent.
+            use_obj_pose (bool): include object auxiliary dimensions as input.
         """
         self._push_only = push_only
         self._obj_names = obj_names
         self._goal_names = goal_names
         self._close_to_agent = close_to_agent
+        self._use_obj_pose = use_obj_pose
         if push_only:
             assert len(obj_names) == len(goal_names)
         else:
@@ -1000,8 +1003,8 @@ class PushReachTask(GoalTask):
             aux_achieved = np.concatenate((aux_achieved, ap[2:], ad))
         ach_poss, aux_achs = self._get_obj_loc_pose(self._obj_names)
         achieved_loc = np.concatenate((achieved_loc, ach_poss))
-        # Ignore object aux dimensions for now
-        # aux_achieved = np.concatenate((aux_achieved, aux_achs))
+        if self._use_obj_pose:
+            aux_achieved = np.concatenate((aux_achieved, aux_achs))
         return achieved_loc, aux_achieved
 
     def _get_desired_goal(self):
