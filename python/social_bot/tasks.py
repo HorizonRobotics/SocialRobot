@@ -905,6 +905,7 @@ class PushReachTask(GoalTask):
                  goal_names=['goal_indicator'],
                  distraction_list=['car_wheel'],
                  close_to_agent=False,
+                 target_relative_to_obj=False,
                  use_obj_pose=False):
         """A Push or Push and Reach task.
 
@@ -917,11 +918,13 @@ class PushReachTask(GoalTask):
             goal_names (list of string): when not empty, these goal objects indicate the goal locations for
                 the objects in obj_names.
             close_to_agent (bool): whether to initialize object to be pushed closer to the agent.
+            target_relative_to_obj (bool): initialize target position relative to object vs agent location.
             use_obj_pose (bool): include object auxiliary dimensions as input.
         """
         self._push_only = push_only
         self._obj_names = obj_names
         self._goal_names = goal_names
+        self._target_relative_to_obj = target_relative_to_obj
         self._close_to_agent = close_to_agent
         self._use_obj_pose = use_obj_pose
         if push_only:
@@ -948,24 +951,34 @@ class PushReachTask(GoalTask):
                    ad,
                    avoids=[],
                    record_goal_dist=False,
-                   close_to_agent=False):
+                   close_to_agent=False,
+                   target_relative_to_obj=False):
         """Move objects according to agent location."""
         obj_positions = avoids
+        if target_relative_to_obj:
+            assert len(avoids) == len(obj_names), "num objects != num targets"
+            orig_obj_pos = avoids.copy()
+
         if record_goal_dist:
             self._goal_dist = 0
-            n = 0
+        n = 0
         for obj_name in obj_names:
             obj = self._world.get_agent(obj_name)
+            start_pos = ap
+            _avoids = obj_positions
+            if target_relative_to_obj:
+                start_pos = orig_obj_pos[n]
+                _avoids = _avoids + [ap]
             p, dist = self._move_obj(
                 obj,
-                ap,
+                start_pos,
                 ad,
                 avoid_locations=obj_positions,
                 name=obj_name,
                 close_to_agent=close_to_agent)
             if record_goal_dist:
                 self._goal_dist += dist
-                n += 1
+            n += 1
             obj_positions.append(p)
         if record_goal_dist:
             self._goal_dist /= n
@@ -976,7 +989,12 @@ class PushReachTask(GoalTask):
         # TODO(lezhao): copy obj_locs into avoids and put ap in avoids,
         # then find goal location based on each obj location.
         return self._move_objs(
-            self._goal_names, ap, ad, obj_locs, record_goal_dist=True)
+            self._goal_names,
+            ap,
+            ad,
+            obj_locs,
+            record_goal_dist=True,
+            target_relative_to_obj=self._target_relative_to_obj)
 
     def _move_distractions(self, ap, ad, avoids=[]):
         return self._move_objs(self._distraction_list, ap, ad, avoids)
