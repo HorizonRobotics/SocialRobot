@@ -904,6 +904,7 @@ class PushReachTask(GoalTask):
                  obj_names=['wood_cube_30cm_without_offset'],
                  goal_names=['goal_indicator'],
                  distraction_list=['car_wheel'],
+                 multi_dim_reward=True,
                  close_to_agent=False,
                  target_relative_to_obj=False,
                  use_obj_pose=False):
@@ -924,6 +925,7 @@ class PushReachTask(GoalTask):
         self._push_only = push_only
         self._obj_names = obj_names
         self._goal_names = goal_names
+        self._multi_dim_reward = multi_dim_reward
         self._target_relative_to_obj = target_relative_to_obj
         self._close_to_agent = close_to_agent
         self._use_obj_pose = use_obj_pose
@@ -936,7 +938,7 @@ class PushReachTask(GoalTask):
             max_steps,
             goal_conditioned=True,
             use_aux_achieved=True,
-            multi_dim_reward=True,
+            multi_dim_reward=multi_dim_reward,
             end_episode_after_success=True,
             goal_name=goal_names[0],
             distraction_list=distraction_list,
@@ -1054,11 +1056,15 @@ class PushReachTask(GoalTask):
         done = reward >= 0
         if done:
             distraction_penalty = 0
+            av = np.array(self._agent.get_velocities()).flatten()
             logging.debug("yielding reward: " + str(reward))
-            logging.debug("at location: %s, aux: %s", ap.astype('|S5'),
-                          np.array(ad).astype('|S5'))
+            logging.debug("at location: %s, aux: %s, vel: %s",
+                          ap.astype('|S5'),
+                          np.array(ad).astype('|S5'), av.astype('|S5'))
         reward += distraction_penalty
-        rewards = np.array([reward, -distraction_penalty])
+        rewards = None
+        if self._multi_dim_reward:
+            rewards = np.array([reward, -distraction_penalty])
         return self._prepare_teacher_action(
             reward=reward,
             sentence="well done",
@@ -1076,7 +1082,6 @@ class PushReachTask(GoalTask):
         avoids.clear()
         steps_since_last_reward = 0
         prev_min_dist_to_distraction = 100
-        rewards = None  # reward array in multi_dim_reward case
         while steps_since_last_reward < self._max_steps:
             steps_since_last_reward += 1
             (agent_sentence, prev_min_dist_to_distraction
