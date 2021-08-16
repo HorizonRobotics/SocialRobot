@@ -22,6 +22,7 @@
 #include <gazebo/sensors/SensorManager.hh>
 #include <gazebo/sensors/SensorsIface.hh>
 #include <gazebo/util/LogRecord.hh>
+#include <ignition/math/Rand.hh>
 #include <mutex>  // NOLINT
 #include <sstream>
 
@@ -469,6 +470,7 @@ class World {
 
 void Initialize(const std::vector<std::string>& args,
                 int port = 0,
+                int seed = -1,
                 bool quiet = false) {
   if (port != 0) {
     std::string uri = "localhost:" + std::to_string(port);
@@ -477,6 +479,9 @@ void Initialize(const std::vector<std::string>& args,
   if (!gazebo_initialized) {
     gazebo::common::Console::SetQuiet(quiet);
     gazebo::setupServer(args);
+    if (seed >= 0) {
+      ignition::math::Rand::Seed((unsigned int)seed);
+    }
     // gazebo::runWorld uses World::RunLoop(). RunLoop() starts LogWorker()
     // every time. LogWorker will always store something in the buffer when
     // it is started. But we don't have a running LogRecord to collect all
@@ -568,6 +573,7 @@ PYBIND11_MODULE(pygazebo, m) {
         "Initialize",
         py::arg("args") = std::vector<std::string>(),
         py::arg("port") = 0,
+        py::arg("seed") = -1,
         py::arg("quiet") = false);
 
   m.def("close", &Close, "Shutdown everything of gazebo");
