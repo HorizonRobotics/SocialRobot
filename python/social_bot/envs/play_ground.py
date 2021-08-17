@@ -141,7 +141,7 @@ class PlayGround(GazeboEnvBase):
             agent_cfgs = json.load(cfg_file)
         agent_cfg = agent_cfgs[agent_type]
         wd_path = os.path.join(social_bot.get_world_dir(), world_name)
-        with open(wd_path, 'r+') as world_file:
+        with open(wd_path, 'r') as world_file:
             world_string = self._insert_agent_to_world_file(
                 world_file, agent_type)
         if world_time_precision is None:
