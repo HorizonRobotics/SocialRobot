@@ -20,7 +20,9 @@ jobs:
         cd ..
         # remove the SocialRobot installation in the docker image as it's not up-to-date
         rm -rf /opt/local/SocialRobot
-        pip3 install -e .
+        pip3 install -e . -v
+        ls /usr/lib/python3.6/site-packages/gym
+        cat /usr/lib/python3.6/site-packages/social-bot.egg-link
     - name: Static python syntax checking
       run: |
         pip3 install flake8
@@ -40,4 +42,4 @@ jobs:
       run: |
         cd ./python/social_bot/envs
         # not clear why social_bot cannot be found. So we have to add it to PYTHONPATH
-        PYTHONPATH=`pwd`/../.. GAZEBO_MODEL_PATH=../models xvfb-run python3 -m unittest discover -p "*_test.py" -v
+        PYTHONPATH="$(pwd)/../..:/usr/lib/python3.6/site-packages:$PYTHONPATH" GAZEBO_MODEL_PATH=../models xvfb-run python3 -m unittest discover -p "*_test.py" -v
