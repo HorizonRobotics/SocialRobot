@@ -13,7 +13,7 @@ setup(
     version='0.0.1',
     install_requires=[
         'gin-config@git+https://github.com/HorizonRobotics/gin-config.git',
-        'gym == 0.12.5', 'numpy >= 1.13.3', 'matplotlib', 'psutil',
+        'gym == 0.15.3', 'numpy >= 1.13.3', 'matplotlib', 'psutil',
         'lxml >= 3.5.0', 'Pillow', 'absl-py', 'pytest', 'PyUserInput',
         'python-xlib'
     ],
