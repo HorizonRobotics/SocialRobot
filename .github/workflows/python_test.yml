@@ -20,9 +20,7 @@ jobs:
         cd ..
         # remove the SocialRobot installation in the docker image as it's not up-to-date
         rm -rf /opt/local/SocialRobot
-        pip3 install -e . -v
-        ls /usr/lib/python3.6/site-packages/gym
-        cat /usr/lib/python3.6/site-packages/social-bot.egg-link
+        pip3 install -e .
     - name: Static python syntax checking
       run: |
         pip3 install flake8
