@@ -900,7 +900,7 @@ class PushReachTask(GoalTask):
     def __init__(self,
                  env,
                  max_steps,
-                 push_only=True,
+                 push_reach=False,
                  obj_names=['wood_cube_30cm_without_offset'],
                  goal_names=['goal_indicator'],
                  distraction_list=['car_wheel'],
@@ -913,7 +913,7 @@ class PushReachTask(GoalTask):
         We utilize some of the curriculum, distraction obj handling logic in GoalTask.
 
         Args:
-            push_only (bool): if True, goal positions are for objects to achieve; otherwise,
+            push_reach (bool): if False, push only, goal positions are for objects to achieve; otherwise,
                 the first goal position is for the agent to achieve.
             obj_names (list of string): when not empty, it's the names of the objects to be moved.
             goal_names (list of string): when not empty, these goal objects indicate the goal locations for
@@ -922,14 +922,16 @@ class PushReachTask(GoalTask):
             target_relative_to_obj (bool): initialize target position relative to object vs agent location.
             use_obj_pose (bool): include object auxiliary dimensions as input.
         """
-        self._push_only = push_only
+        self._push_reach = push_reach
+        if push_reach:
+            goal_names.append('target_ball')
         self._obj_names = obj_names
         self._goal_names = goal_names
         self._multi_dim_reward = multi_dim_reward
         self._target_relative_to_obj = target_relative_to_obj
         self._close_to_agent = close_to_agent
         self._use_obj_pose = use_obj_pose
-        if push_only:
+        if not push_reach:
             assert len(obj_names) == len(goal_names)
         else:
             assert len(obj_names) == len(goal_names) - 1
@@ -1015,8 +1017,10 @@ class PushReachTask(GoalTask):
     def _get_achieved(self):
         achieved_loc = np.array([])
         aux_achieved = np.array(self._agent.get_velocities()).flatten()
+        # print("gazebo port: ", self._env._port)
+        # print("gazebo aux_ach: ", aux_achieved, flush=True)
         ap, ad = self._get_agent_loc()
-        if self._push_only:
+        if not self._push_reach:
             aux_achieved = np.concatenate((aux_achieved, ap, ad))
         else:
             achieved_loc = np.concatenate((achieved_loc, ap[0:2]))
