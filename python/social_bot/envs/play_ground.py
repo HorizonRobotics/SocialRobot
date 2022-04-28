@@ -22,7 +22,6 @@ import numpy as np
 import random
 import json
 import PIL
-import gin
 import gym
 from gym import spaces
 from absl import logging
@@ -38,8 +37,10 @@ from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
 from social_bot.tasks import GoalTask, PushReachTask, ICubAuxiliaryTask, KickingBallTask, Reaching3D
 
+import alf
 
-@gin.configurable
+
+@alf.configurable
 class PlayGround(GazeboEnvBase):
     """
     This envionment support agent type of pr2_noplugin, pioneer2dx_noplugin,
