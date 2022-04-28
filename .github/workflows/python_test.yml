@@ -40,4 +40,4 @@ jobs:
       run: |
         cd ./python/social_bot/envs
         # not clear why social_bot cannot be found. So we have to add it to PYTHONPATH
-        PYTHONPATH="$(pwd)/../..:/usr/lib/python3.6/site-packages:$PYTHONPATH" GAZEBO_MODEL_PATH=../models xvfb-run python3 -m unittest discover -p "*_test.py" -v
+        PYTHONPATH="$(pwd)/../..:/usr/lib/python3.7/site-packages:$PYTHONPATH" GAZEBO_MODEL_PATH=../models xvfb-run python3 -m unittest discover -p "*_test.py" -v
