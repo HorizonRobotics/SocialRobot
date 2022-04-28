@@ -22,7 +22,6 @@ import numpy as np
 import random
 import json
 import PIL
-import gin
 import gym
 from gym import spaces
 from absl import logging
@@ -36,10 +35,12 @@ from social_bot import tasks
 from social_bot.envs.gazebo_base import GazeboEnvBase
 from social_bot.teacher import TaskGroup
 from social_bot.teacher import TeacherAction
-from social_bot.tasks import GoalTask, ICubAuxiliaryTask, KickingBallTask, Reaching3D
+from social_bot.tasks import GoalTask, PushReachTask, ICubAuxiliaryTask, KickingBallTask, Reaching3D
+
+import alf
 
 
-@gin.configurable
+@alf.configurable
 class PlayGround(GazeboEnvBase):
     """
     This envionment support agent type of pr2_noplugin, pioneer2dx_noplugin,
@@ -173,7 +174,7 @@ class PlayGround(GazeboEnvBase):
         self._teacher = teacher.Teacher(task_groups_exclusive=False)
         self._has_goal_task = False
         for task in tasks:
-            if task == GoalTask:
+            if task in (GoalTask, PushReachTask):
                 self._has_goal_task = True
             task_group = TaskGroup()
             task_group.add_task(task(env=self, max_steps=max_steps))

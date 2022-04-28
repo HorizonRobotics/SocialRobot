@@ -17,7 +17,6 @@ import os
 import time
 import random
 import json
-import gin
 import numpy as np
 import PIL.Image
 from collections import OrderedDict
@@ -27,8 +26,10 @@ import social_bot
 import social_bot.pygazebo as gazebo
 from social_bot.tasks import GoalTask
 
+import alf
 
-@gin.configurable
+
+@alf.configurable
 class GazeboAgent():
     """ Class for the agent of gazebo-based SocialRobot enviroments
     """
@@ -429,7 +430,7 @@ class ActionWrapper():
         raise NotImplementedError("wrap_actions not implemented!")
 
 
-@gin.configurable
+@alf.configurable
 class YoubotActionWrapper(ActionWrapper):
     """ This action wrapper transform a new actions to primitive actions.
 

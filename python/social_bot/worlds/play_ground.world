@@ -40,12 +40,26 @@
       </include>
       <pose frame=''>-2 5.7 0 0 -0 0</pose>
     </model>
+    <model name='grey_wall_left2'>
+      <static>1</static>
+      <include>
+        <uri>model://grey_wall</uri>
+      </include>
+      <pose frame=''>2 5.7 0 0 -0 0</pose>
+    </model>
     <model name='grey_wall_right'>
       <static>1</static>
       <include>
         <uri>model://grey_wall</uri>
       </include>
       <pose frame=''>-2 -5.7 0 0 -0 0</pose>
+    </model>
+    <model name='grey_wall_right2'>
+      <static>1</static>
+      <include>
+        <uri>model://grey_wall</uri>
+      </include>
+      <pose frame=''>2 -5.7 0 0 -0 0</pose>
     </model>
     <model name='grey_wall_behind0'>
       <static>1</static>
@@ -60,6 +74,23 @@
         <uri>model://grey_wall</uri>
       </include>
       <pose frame=''>-5.7 -2 0 0 -0 1.5708</pose>
+    </model>
+    <model name="east_wall">
+      <static>1</static>
+      <pose>5.7 0 0.1 0 0 0</pose>
+      <link name ="link">
+        <pose>0 0 0 0 0 0</pose>
+        <collision name ="collision">
+          <geometry>
+            <box><size>0.2 11.4 0.2</size></box>
+          </geometry>
+        </collision>
+        <visual name ='visual'>
+          <geometry>
+            <box><size>0.2 11.4 0.2</size></box>
+          </geometry>
+        </visual>
+      </link>
     </model>
   </world>
 </sdf>
