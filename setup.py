@@ -12,7 +12,7 @@ setup(
     name='social_bot',
     version='0.0.1',
     install_requires=[
-        'alf@git+https://github.com/HorizonRobotics/alf.git@0.0.6#egg=alf',
+        'alf@git+https://github.com/HorizonRobotics/alf.git@v0.0.6#egg=alf',
         'gin-config@git+https://github.com/HorizonRobotics/gin-config.git',
         'gym == 0.15.4',
         'numpy >= 1.13.3',
