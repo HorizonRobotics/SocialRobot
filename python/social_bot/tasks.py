@@ -19,6 +19,7 @@ import math
 import numpy as np
 import operator
 import os
+import gin
 import itertools
 import random
 import json
@@ -27,8 +28,6 @@ from abc import abstractmethod
 from absl import logging
 import social_bot
 from social_bot.teacher import TeacherAction
-
-import alf
 
 
 class Task(object):
@@ -162,7 +161,7 @@ class Task(object):
         return np.array(loc)
 
 
-@alf.configurable
+@gin.configurable
 class GoalTask(Task):
     """
     A simple teacher task to find a goal.
@@ -896,7 +895,7 @@ class GoalTask(Task):
         return obs
 
 
-@alf.configurable
+@gin.configurable
 class PushReachTask(GoalTask):
     def __init__(self,
                  env,
@@ -1098,7 +1097,7 @@ class PushReachTask(GoalTask):
         yield agent_sentence
 
 
-@alf.configurable
+@gin.configurable
 class ICubAuxiliaryTask(Task):
     """
     An auxiliary task spicified for iCub, to keep the agent from falling down
@@ -1273,7 +1272,7 @@ class ICubAuxiliaryTask(Task):
             return icub_extra_obs
 
 
-@alf.configurable
+@gin.configurable
 class KickingBallTask(Task):
     """
     A simple task to kick a ball so that it rolls into the goal. An
@@ -1420,7 +1419,7 @@ class KickingBallTask(Task):
         ball.set_pose((loc, (0, 0, 0)))
 
 
-@alf.configurable
+@gin.configurable
 class Reaching3D(Task):
     """
     A task to reach a random 3D position with the end effector of a robot arm.
@@ -1505,7 +1504,7 @@ class Reaching3D(Task):
         return obs
 
 
-@alf.configurable
+@gin.configurable
 class PickAndPlace(Task):
     """
     A task to grip an object (a wood cube), move and then place it to the target position.
@@ -1654,7 +1653,7 @@ class PickAndPlace(Task):
             (obs, finger_contacts, agent_pose, joints_states), axis=0)
 
 
-@alf.configurable
+@gin.configurable
 class Stack(Task):
     """
     A task to stack several wood cubes. The agent need to grasp the cube and
