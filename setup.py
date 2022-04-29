@@ -23,6 +23,7 @@ setup(
         'pytest',
         'PyUserInput',
         'python-xlib',
+        'alf@git+https://github.com/HorizonRobotics/alf.git',
     ],
     package_dir={'': 'python'},
     packages=find_packages('python'),
