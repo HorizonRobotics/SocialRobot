@@ -180,6 +180,7 @@ class GoalTask(Task):
                  goal_conditioned=False,
                  speed_goal=False,
                  speed_goal_limit=1.6,
+                 pose_goal=False,
                  use_aux_achieved=False,
                  xy_only_aux=False,
                  multi_dim_reward=False,
@@ -222,6 +223,8 @@ class GoalTask(Task):
             goal_conditioned (bool): if True, each step has -1 reward, unless at goal state, which gives 0.
             speed_goal (bool): if True, use speed pose etc. together with position as part of goal.
             speed_goal_limit (float): randomly sample speed goal in the range: -limit to +limit.
+            pose_goal (bool): When speed_goal is True, if pose_goal is True, speed and everything else is put
+                into observations, instead of aux_achieved, so only pose is in aux_achieved.
             use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
                 field: aux_achieved.  Only valid when goal_conditioned is True.
             xy_only_aux (bool): exclude irrelevant dimensions (z-axis movements) from
@@ -289,6 +292,7 @@ class GoalTask(Task):
         self._goal_conditioned = goal_conditioned
         self._speed_goal = speed_goal
         self._speed_goal_limit = speed_goal_limit
+        self._pose_goal = pose_goal
         self._use_aux_achieved = use_aux_achieved
         self._xy_only_aux = xy_only_aux
         self._multi_dim_reward = multi_dim_reward
@@ -458,6 +462,8 @@ class GoalTask(Task):
         if self._speed_goal:
             _goal_loc = np.concatenate((_goal_loc, self._aux_desired), axis=0)
             aux = self._get_agent_aux_dims()
+            if self._pose_goal:
+                aux = aux[-1:]  # yaw
             _loc = np.concatenate((_loc, aux), axis=0)
 
         dist = np.linalg.norm(_loc - _goal_loc)
@@ -677,6 +683,8 @@ class GoalTask(Task):
             # 0, 1, 2: vel; 3, 4, 5: angular vel; 6: z position; 7, 8, 9: roll pitch yaw
             self._aux_desired = np.array(
                 [xspeed, yspeed, 0, 0, 0, yawspeed, 0, 0, 0, yaw])
+            if self._pose_goal:
+                self._aux_desired = np.array([yaw])
         self._goal_dist += dist
         avoid_locations.append(loc)
         distractions = OrderedDict()
@@ -812,6 +820,10 @@ class GoalTask(Task):
         aux = self._get_agent_aux_dims(agent_pose, agent_vel)
         if self._speed_goal:
             obs['observation'] = flat_obs[14:]
+            if self._pose_goal:
+                obs['observation'] = np.concatenate(
+                    (obs['observation'], aux[:-1]), axis=0)
+                aux = aux[-1:]  # yaw
             obs['achieved_goal'] = np.concatenate((obs['achieved_goal'], aux),
                                                   axis=0)
             obs['desired_goal'] = np.concatenate(
