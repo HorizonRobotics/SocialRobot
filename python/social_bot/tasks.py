@@ -173,7 +173,7 @@ class GoalTask(Task):
     def __init__(self,
                  env,
                  max_steps,
-                 goal_name="ball",
+                 goal_name="pioneer2dx_noplugin_ghost",
                  distraction_list=[
                      'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
                  ],
@@ -666,13 +666,6 @@ class GoalTask(Task):
                     if obj:
                         distraction_loc = obj.get_pose()[0]
                         avoid_locations.append(distraction_loc)
-        loc, dist = self._move_obj(
-            obj=goal,
-            agent_loc=agent_loc,
-            agent_dir=agent_dir,
-            is_goal=True,
-            avoid_locations=avoid_locations,
-            name="goal")
         if self._speed_goal:
             MAX_SPEED = self._speed_goal_limit * 2
             xspeed = (0.5 - random.random()) * MAX_SPEED
@@ -685,6 +678,13 @@ class GoalTask(Task):
                 [xspeed, yspeed, 0, 0, 0, yawspeed, 0, 0, 0, yaw])
             if self._pose_goal:
                 self._aux_desired = np.array([yaw])
+        loc, dist = self._move_obj(
+            obj=goal,
+            agent_loc=agent_loc,
+            agent_dir=agent_dir,
+            is_goal=True,
+            avoid_locations=avoid_locations,
+            name="goal")
         self._goal_dist += dist
         avoid_locations.append(loc)
         distractions = OrderedDict()
@@ -776,7 +776,10 @@ class GoalTask(Task):
         if is_goal:
             self._prev_dist = self._initial_dist
         obj.reset()
-        obj.set_pose((loc, (0, 0, 0)))
+        yaw = 0
+        if is_goal and self._speed_goal:
+            yaw = self._aux_desired[-1]
+        obj.set_pose((loc, (0, 0, yaw)))
         return loc, dist
 
     def _random_move_objects(self, random_range=10.0):

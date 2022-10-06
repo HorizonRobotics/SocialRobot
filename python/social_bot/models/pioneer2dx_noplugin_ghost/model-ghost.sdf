@@ -1,0 +1,102 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <model name="pioneer2dx_noplugin_ghost">
+    <static>true</static>
+    <link name="chassis">
+      <pose>0 0 0.16 0 0 0</pose>
+      <inertial>
+        <mass>5.67</mass>
+        <inertia>
+          <ixx>0.07</ixx>
+          <iyy>0.08</iyy>
+          <izz>0.10</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="visual">
+        <pose>0 0 0.04 0 0 0</pose>
+        <geometry>
+          <mesh>
+            <uri>model://pioneer2dx/meshes/chassis.dae</uri>
+          </mesh>
+        </geometry>
+        <transparency>0.7</transparency>
+      </visual>
+      <visual name="castor_visual">
+        <transparency>0.7</transparency>
+        <pose>-0.200 0 -0.12 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.04</radius>
+          </sphere>
+        </geometry>
+        <material>
+          <script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/FlatBlack</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+    <link name="right_wheel">
+      <pose>0.1 -.17 0.11 0 1.5707 1.5707</pose>
+      <inertial>
+        <mass>1.5</mass>
+        <inertia>
+          <ixx>0.0051</ixx>
+          <iyy>0.0051</iyy>
+          <izz>0.0090</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="visual">
+        <transparency>0.7</transparency>
+        <geometry>
+          <cylinder>
+            <radius>0.11</radius>
+            <length>0.05</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/FlatBlack</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+    <link name="left_wheel">
+      <pose>0.1 .17 0.11 0 1.5707 1.5707</pose>
+      <inertial>
+        <mass>1.5</mass>
+        <inertia>
+          <ixx>0.0051</ixx>
+          <iyy>0.0051</iyy>
+          <izz>0.0090</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="visual">
+        <transparency>0.7</transparency>
+        <geometry>
+          <cylinder>
+            <radius>0.11</radius>
+            <length>0.05</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <script>
+            <uri>file://media/materials/scripts/gazebo.material</uri>
+            <name>Gazebo/FlatBlack</name>
+          </script>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>
