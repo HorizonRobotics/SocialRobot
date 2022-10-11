@@ -178,6 +178,7 @@ class GoalTask(Task):
                      'coke_can', 'table', 'car_wheel', 'plastic_cup', 'beer'
                  ],
                  goal_conditioned=False,
+                 goal_reward=1.,
                  speed_goal=False,
                  speed_goal_limit=1.6,
                  pose_goal=False,
@@ -222,6 +223,7 @@ class GoalTask(Task):
             goal_name (string): name of the goal in the world
             distraction_list (list of string): a list of model. the model shoud be in gazebo database
             goal_conditioned (bool): if True, each step has -1 reward, unless at goal state, which gives 0.
+            goal_reward (float): magnitude of the reward for reaching goal during dense reward setting.
             speed_goal (bool): if True, use speed pose etc. together with position as part of goal.
             speed_goal_limit (float): randomly sample speed goal in the range: -limit to +limit.
             pose_goal (bool): When speed_goal is True, if pose_goal is True, speed and everything else is put
@@ -293,6 +295,7 @@ class GoalTask(Task):
             env=env, max_steps=max_steps, reward_weight=reward_weight)
         self._goal_name = goal_name
         self._goal_conditioned = goal_conditioned
+        self._goal_reward = goal_reward
         self._speed_goal = speed_goal
         self._speed_goal_limit = speed_goal_limit
         self._pose_goal = pose_goal
@@ -525,15 +528,21 @@ class GoalTask(Task):
             if dist < self._success_distance_thresh and self._within_angle(
                     dot):
                 # within 45 degrees of the agent direction
-                reward = 1.0 - distraction_penalty
+                reward = 0
                 self._push_reward_queue(max(reward, 0))
                 if self._goal_conditioned:
-                    reward -= 1.
+                    if not self._sparse_reward:
+                        dense_reward = (
+                            self._prev_dist - dist) / self._initial_dist
+                        reward = self._goal_reward + dense_reward
                     if self._multi_dim_reward:
-                        rewards = np.array([0, -distraction_penalty])
+                        rewards = np.array([reward, -distraction_penalty])
+                    reward -= distraction_penalty
                 else:
+                    reward = self._goal_reward - distraction_penalty
                     if self._multi_dim_reward:
-                        rewards = np.array([1, -distraction_penalty])
+                        rewards = np.array(
+                            [self._goal_reward, -distraction_penalty])
                 logging.debug("yielding reward: " + str(reward))
                 logging.debug("at location: %s, aux: %s", a_loc.astype('|S5'),
                               self._get_agent_aux_dims().astype('|S5'))
@@ -575,7 +584,7 @@ class GoalTask(Task):
                     reward = (self._prev_dist - dist) / self._initial_dist
                 if self._multi_dim_reward:
                     rewards = np.array([reward, -distraction_penalty])
-                reward = reward - distraction_penalty
+                reward -= distraction_penalty
                 done = False
                 if distraction_penalty > 0:
                     logging.debug("yielding reward: " + str(reward))
@@ -587,7 +596,7 @@ class GoalTask(Task):
                     sentence=self._goal_name,
                     done=done,
                     rewards=rewards)
-        reward = -1.0
+
         dist, dot, loc, agent_dir = self._get_goal_dist(goal)
         distraction_penalty, prev_min_dist_to_distraction = (
             self._get_distraction_penalty(loc, dot,
@@ -597,16 +606,31 @@ class GoalTask(Task):
         success = False
         if dist < self._success_distance_thresh and self._within_angle(dot):
             success = True
-            reward = 1.0 - distraction_penalty
+            reward = 0
             self._push_reward_queue(max(reward, 0))
             if self._goal_conditioned:
-                reward -= 1.
+                if not self._sparse_reward:
+                    dense_reward = (
+                        self._prev_dist - dist) / self._initial_dist
+                    reward = self._goal_reward + dense_reward
                 if self._multi_dim_reward:
-                    rewards = np.array([0, -distraction_penalty])
+                    rewards = np.array([reward, -distraction_penalty])
+                reward -= distraction_penalty
             else:
+                reward = self._goal_reward - distraction_penalty
                 if self._multi_dim_reward:
-                    rewards = np.array([1, -distraction_penalty])
+                    rewards = np.array(
+                        [self._goal_reward, -distraction_penalty])
         else:
+            if self._sparse_reward:
+                reward = 0
+                if self._goal_conditioned:
+                    reward = -1
+            else:
+                reward = (self._prev_dist - dist) / self._initial_dist
+            if self._multi_dim_reward:
+                rewards = np.array([reward, -distraction_penalty])
+            reward -= distraction_penalty
             self._push_reward_queue(0)
             logging.debug("took more than {} steps".format(
                 str(self._max_steps)))
