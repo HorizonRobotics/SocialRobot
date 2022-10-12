@@ -43,6 +43,8 @@ class GazeboEnvBase(gym.Env):
                  world_config=None,
                  sim_time_precision=0.001,
                  port=None,
+                 seed=-1,
+                 use_port_in_gz_seed=True,
                  quiet=False):
         """
         Args:
@@ -52,6 +54,10 @@ class GazeboEnvBase(gym.Env):
                 see `_modify_world_xml` for details
              sim_time_precision (float): the time precision of the simulator
              port (int): Gazebo port
+             seed (int): random seed for gazebo, -1 for using the default: PID
+             use_port_in_gz_seed (bool): if True, use port and seed in gazebo seed.
+                Set to False when doing repeatability debugging.  Set to True when
+                running several envs in parallel during regular training.
              quiet (bool) Set quiet output
         """
         os.environ["GAZEBO_MODEL_DATABASE_URI"] = ""
@@ -61,12 +67,17 @@ class GazeboEnvBase(gym.Env):
         # This avoids different parallel simulations having the same randomness.
         # When calling from alf, alf.environments.utils.create_environment calls
         # env.seed() afterwards, which is the real seed being used.  Not this one.
-        random.seed(port)
+        _seed = port
+        if seed >= 0:
+            _seed = seed
+            if use_port_in_gz_seed:
+                _seed += port
+        random.seed(_seed)
         self._rendering_process = None
         self._rendering_camera = None
         # the default camera pose for rendering rgb_array, could be override
         self._rendering_cam_pose = "10 -10 6 0 0.4 2.4"
-        gazebo.initialize(port=port, quiet=quiet)
+        gazebo.initialize(port=port, seed=_seed, quiet=quiet)
 
         if world_file:
             world_file_abs_path = os.path.join(social_bot.get_world_dir(),
