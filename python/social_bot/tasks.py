@@ -183,6 +183,7 @@ class GoalTask(Task):
                  speed_goal_limit=1.6,
                  pose_goal=False,
                  yaw_and_speed=False,
+                 pos_goal_multiplier=0,
                  use_aux_achieved=False,
                  xy_only_aux=False,
                  multi_dim_reward=False,
@@ -230,6 +231,8 @@ class GoalTask(Task):
                 into observations, instead of aux_achieved, so only pose is in aux_achieved.
             yaw_and_speed (bool): When speed_goal is True, and not pose_goal, if yaw_and_speed is True,
                 will include yaw and x-y speed into goal, nothing else.
+            pos_goal_multiplier (float): multiplier to apply on x-y position dimension before computing goal distance.
+                This is to make sure the effect of the x-y is similar as other dimensions of the goal, especially yaw.
             use_aux_achieved (bool): if True, pull out speed, pose dimensions into a separate
                 field: aux_achieved.  Only valid when goal_conditioned is True.
             xy_only_aux (bool): exclude irrelevant dimensions (z-axis movements) from
@@ -300,6 +303,7 @@ class GoalTask(Task):
         self._speed_goal_limit = speed_goal_limit
         self._pose_goal = pose_goal
         self._yaw_and_speed = yaw_and_speed
+        self._pos_goal_multiplier = pos_goal_multiplier
         self._use_aux_achieved = use_aux_achieved
         self._xy_only_aux = xy_only_aux
         self._multi_dim_reward = multi_dim_reward
@@ -467,8 +471,14 @@ class GoalTask(Task):
         _goal_loc = goal_loc.copy()
         _loc = np.array(loc).copy()
         if self._speed_goal:
-            _goal_loc = np.concatenate((_goal_loc, self._aux_desired), axis=0)
-            aux = self._get_agent_aux_dims()
+            aux_g = self._aux_desired.copy()
+            aux = self._get_agent_aux_dims().copy()
+            if self._pos_goal_multiplier > 0:
+                _loc *= self._pos_goal_multiplier
+                _goal_loc *= self._pos_goal_multiplier
+                aux_g[:2] *= self._pos_goal_multiplier * 2
+                aux[:2] *= self._pos_goal_multiplier * 2
+            _goal_loc = np.concatenate((_goal_loc, aux_g), axis=0)
             if self._pose_goal:
                 aux = aux[-1:]  # yaw
             elif self._yaw_and_speed:
